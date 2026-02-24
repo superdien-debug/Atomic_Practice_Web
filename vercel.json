@@ -1,5 +1,6 @@
 {
-    "public": true,
+    "buildCommand": "npx expo export --platform web",
+    "outputDirectory": "dist",
     "rewrites": [
         {
             "source": "/(.*)",
