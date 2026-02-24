@@ -1,0 +1,4 @@
+-- Running migration: 20260220_leaderboard_public_practices.sql
+-- Added is_public column
+-- Updated RLS for practices
+-- Created leaderboard view

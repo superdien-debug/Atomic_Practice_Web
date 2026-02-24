@@ -1,0 +1,4 @@
+-- Add advanced goal tracking fields
+alter table public.practices 
+add column if not exists target_operator text default 'at_least', -- 'at_least', 'less_than', 'exactly'
+add column if not exists target_unit text default 'times'; -- 'minutes', 'pages', 'km', etc.

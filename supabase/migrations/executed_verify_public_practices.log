@@ -1,0 +1,8 @@
+-- 1. Insert dummy public practices for testing (if none exist)
+INSERT 0 1
+-- 2. Check if practices exist that ARE public
+public_practices_count
+1
+-- 3. Verify Policy
+policyname | tablename | cmd | qual
+"Users can view own or public practices." | practices | SELECT | (auth.uid() = user_id OR is_public = true)

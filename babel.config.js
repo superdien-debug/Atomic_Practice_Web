@@ -1,0 +1,29 @@
+module.exports = function (api) {
+    api.cache(true);
+    return {
+        presets: [
+            ["babel-preset-expo", { jsxImportSource: "nativewind" }],
+            "nativewind/babel",
+        ],
+        plugins: [
+            "react-native-reanimated/plugin",
+            function () {
+                return {
+                    name: 'transform-import-meta-env',
+                    visitor: {
+                        MemberExpression(path) {
+                            if (
+                                path.node.object.type === 'MetaProperty' &&
+                                path.node.object.meta.name === 'import' &&
+                                path.node.object.property.name === 'meta' &&
+                                path.node.property.name === 'env'
+                            ) {
+                                path.replaceWithSourceString("{ MODE: 'development' }");
+                            }
+                        }
+                    }
+                };
+            }
+        ],
+    };
+};
