@@ -125,7 +125,7 @@ const translations = {
         no: 'Không',
 
         // ── Auth ───────────────────────────────────────────────────────────────
-        welcomeBack: 'Chào Mừng Trở Lại',
+        welcomeBack: 'Chào Mừng',
         continueYour: 'Tiếp tục hành trình tu tập.',
         emailAddress: 'Địa Chỉ Email',
         password: 'Mật Khẩu',

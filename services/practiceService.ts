@@ -108,14 +108,17 @@ export const practiceService = {
 
             return res;
         } else {
-            // Create new log
+            // Create or update log (upsert to avoid 409 on duplicate date entry)
             const res = await supabase
                 .from('practice_logs')
-                .insert({
+                .upsert({
                     user_id: user.id,
                     practice_id: practiceId,
                     log_date: logDate,
                     completed: isCompleted
+                }, {
+                    onConflict: 'user_id,practice_id,log_date',
+                    ignoreDuplicates: false
                 })
                 .select()
                 .single();

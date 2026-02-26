@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
     View, Text, TextInput, TouchableOpacity, ScrollView, Alert,
-    Image, Modal, StyleSheet, Pressable
+    Image, Modal, StyleSheet, Pressable, Platform
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -66,13 +66,24 @@ export default function AccountScreen() {
     };
 
     const handleSignOut = () => {
-        Alert.alert(t('signOut'), t('signOutConfirm'), [
-            { text: t('cancel'), style: 'cancel' },
-            {
-                text: t('signOut'), style: 'destructive',
-                onPress: async () => { await signOut(); router.replace('/auth/login'); }
-            },
-        ]);
+        const doSignOut = async () => {
+            await signOut();
+            router.replace('/auth/login');
+        };
+
+        if (Platform.OS === 'web') {
+            if (window.confirm(t('signOutConfirm'))) {
+                doSignOut();
+            }
+        } else {
+            Alert.alert(t('signOut'), t('signOutConfirm'), [
+                { text: t('cancel'), style: 'cancel' },
+                {
+                    text: t('signOut'), style: 'destructive',
+                    onPress: doSignOut
+                },
+            ]);
+        }
     };
 
     const pickImage = async () => {

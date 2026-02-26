@@ -97,6 +97,8 @@ export const notificationService = {
      * Schedule 4 random educational notifications spread throughout the day
      */
     async scheduleEducationalNotifications() {
+        if (Platform.OS === 'web') return;
+
         const slots = [
             { hour: 8, minute: 30 },
             { hour: 12, minute: 30 },
@@ -130,6 +132,8 @@ export const notificationService = {
     },
 
     async schedulePracticeReminder(practiceId: string, title: string, timeStr: string, isCompletedToday: boolean = false) {
+        if (Platform.OS === 'web') return;
+
         // timeStr: "08:30"
         const [hours, minutes] = timeStr.split(':').map(Number);
         const now = new Date();
@@ -192,6 +196,8 @@ export const notificationService = {
      * Cancel all scheduled notifications
      */
     async cancelAllScheduledNotifications() {
+        if (Platform.OS === 'web') return;
+
         await Notifications.cancelAllScheduledNotificationsAsync();
     }
 };

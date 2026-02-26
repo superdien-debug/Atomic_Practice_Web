@@ -1,19 +1,27 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator, Alert, Dimensions } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator, Alert, Dimensions, Platform, Animated, Modal, useWindowDimensions } from 'react-native';
+import RenderHTML from 'react-native-render-html';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { Dices, History, Users, Sword, ShieldAlert, Check } from 'lucide-react-native';
-import { useRouter } from 'expo-router';
+import { Dices, History, Users, ShieldAlert, Check, ChevronDown, ChevronUp } from 'lucide-react-native';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { rebirthService, RebirthState, Realm } from '../../services/rebirthService';
 import { practiceService, Practice } from '../../services/practiceService';
+import { userService } from '../../services/userService';
 import { useAuthStore } from '../../store/authStore';
 
+// ─── Colors (Consistent with Theme) ─────────────────────────────────────────
+const GOLD = '#D4AF37';
+const CARD = '#FFF';
+const BG = '#FEF9EF';
+const MAROON = '#800000';
 const { width } = Dimensions.get('window');
 
 export default function RebirdScreen() {
     const insets = useSafeAreaInsets();
     const router = useRouter();
     const { user } = useAuthStore();
+    const { width, height } = useWindowDimensions();
 
     const [state, setState] = useState<RebirthState | null>(null);
     const [travelers, setTravelers] = useState<any[]>([]);
@@ -22,81 +30,172 @@ export default function RebirdScreen() {
     const [loading, setLoading] = useState(true);
     const [rolling, setRolling] = useState(false);
     const [diceResult, setDiceResult] = useState<number | null>(null);
+    const [timeLeftMs, setTimeLeftMs] = useState<number>(0);
+    const [mpoints, setMpoints] = useState(0);
+    const [showResultModal, setShowResultModal] = useState(false);
+    const [rollMessage, setRollMessage] = useState<string | null>(null);
+    const [targetRealmName, setTargetRealmName] = useState<string>('');
+    const [requiredPractices, setRequiredPractices] = useState<{ id: string, title: string, completed: boolean }[]>([]);
+    const [checkingPractices, setCheckingPractices] = useState(false);
+    const [descExpanded, setDescExpanded] = useState(false);
+    const shakeAnim = React.useRef(new Animated.Value(0)).current;
+
+    // Reload data every time this screen comes into focus
+    // This ensures practice completion status refreshes after returning from practice screen
+    useFocusEffect(
+        useCallback(() => {
+            if (user) loadData();
+        }, [user])
+    );
 
     useEffect(() => {
-        loadData();
-    }, [user]);
+        if (!state) return;
+
+        const interval = setInterval(() => {
+            const expires = new Date(state.expires_at);
+            let expiresTs = expires.getTime();
+
+            // Fallback for legacy numeric data
+            if (isNaN(expiresTs)) {
+                const days = parseInt(state.expires_at as any);
+                if (!isNaN(days)) {
+                    expiresTs = Date.now() + (days * 24 * 60 * 60 * 1000);
+                }
+            }
+
+            const now = new Date().getTime();
+            const diff = Math.max(0, (expiresTs || now) - now);
+            setTimeLeftMs(diff);
+        }, 1000);
+
+        return () => clearInterval(interval);
+    }, [state]);
 
     const loadData = async () => {
         if (!user) return;
         setLoading(true);
         try {
-            const currentState = await rebirthService.getState(user.id);
+            const [currentState, mpointsBalance] = await Promise.all([
+                rebirthService.getState(user.id),
+                userService.getMPointsBalance()
+            ]);
             setState(currentState);
+            setMpoints(mpointsBalance);
 
             if (currentState?.realm_id) {
-                const tr = await rebirthService.getTravelersInRealm(currentState.realm_id);
-                setTravelers(tr);
+                // Each fetch is independent — one failure won't block others
+                try {
+                    const tr = await rebirthService.getTravelersInRealm(currentState.realm_id);
+                    setTravelers(tr);
+                } catch (err) {
+                    console.error('Load travelers error:', err);
+                    setTravelers([]);
+                }
 
-                const challs = await rebirthService.getChallenges(currentState.realm_id);
-                setChallenges(challs);
+                try {
+                    const challs = await rebirthService.getChallenges(currentState.realm_id);
+                    setChallenges(challs);
+                } catch (err) {
+                    console.error('Load challenges error:', err);
+                    setChallenges([]);
+                }
+
+                // Fetch mandatory practices for this realm
+                setCheckingPractices(true);
+                try {
+                    const reqs = await rebirthService.getRequiredPracticesForRealm(currentState.realm_id);
+                    console.log('[Rebird] Required practices loaded:', JSON.stringify(reqs));
+                    setRequiredPractices(reqs);
+                } catch (err) {
+                    console.error('Load mandatory practices error:', err);
+                } finally {
+                    setCheckingPractices(false);
+                }
             }
 
-            // Load some practices to show
-            const dateStr = new Date().toISOString().split('T')[0];
-            const p = await practiceService.fetchPracticesForDate(dateStr);
-            setPractices(p.filter(x => !x.completed).slice(0, 3)); // show up to 3 pending practices
+            // Load generic practices removed here to avoid confusion with realm-mandatory tasks
 
         } catch (err) {
-            console.error("Failed to load rebirth state:", err);
+            console.error('Failed to load rebirth state:', err);
         } finally {
             setLoading(false);
         }
     };
 
     const handleRollDice = async () => {
-        if (state && state.life_days_remaining > 0) {
-            Alert.alert("Chưa thể gieo xúc xắc", "Bạn phải tiêu trừ hết sinh lực bằng cách thực hành trước khi có thể chuyển cõi.");
+        console.log("[Rebird] handleRollDice called. timeLeftMs:", timeLeftMs, "rolling:", rolling);
+
+        if (timeLeftMs > 0) {
+            console.log("[Rebird] Still has life remaining, showing info alert.");
+            Alert.alert("Chưa thể gieo xúc xắc", "Bạn phải tiêu trừ hết sinh lực bằng cách thực hành hoặc chờ đợi trước khi có thể chuyển cõi.");
             return;
         }
 
-        Alert.alert(
-            "Gieo xúc xắc",
-            "Mỗi lần gieo xúc xắc sẽ tiêu tốn 50 Mpoints. Bạn có chắc chắn muốn gieo và bước vào cõi tiếp theo dựa trên nghiệp lực?",
-            [
-                { text: "Hủy", style: 'cancel' },
-                { text: "Gieo", onPress: executeRoll }
-            ]
-        );
+        if (mpoints < 50) {
+            Alert.alert("Không đủ Mpoints", `Bạn cần 50 Mpoints để gieo xúc xắc. Hiện tại bạn có ${mpoints} Mpoints.`);
+            return;
+        }
+
+        const msg = "Mỗi lần gieo xúc xắc sẽ tiêu tốn 50 Mpoints. Bạn có chắc chắn muốn gieo và bước vào cõi tiếp theo dựa trên nghiệp lực?";
+
+        if (Platform.OS === 'web') {
+            if (window.confirm(msg)) {
+                executeRoll();
+            }
+        } else {
+            Alert.alert(
+                "Gieo xúc xắc",
+                msg,
+                [
+                    { text: "Hủy", style: 'cancel' },
+                    { text: "Gieo", onPress: executeRoll }
+                ]
+            );
+        }
     };
 
     const executeRoll = async () => {
+        console.log("[Rebird] executeRoll started.");
         setRolling(true);
         setDiceResult(null);
 
-        try {
-            // Fake animation delay
-            await new Promise(res => setTimeout(res, 1500));
+        // Start shaking animation
+        Animated.loop(
+            Animated.sequence([
+                Animated.timing(shakeAnim, { toValue: 10, duration: 50, useNativeDriver: true }),
+                Animated.timing(shakeAnim, { toValue: -10, duration: 50, useNativeDriver: true }),
+                Animated.timing(shakeAnim, { toValue: 0, duration: 50, useNativeDriver: true }),
+            ]),
+            { iterations: 15 }
+        ).start();
 
+        try {
             const result = await rebirthService.rollDice();
+            console.log("[Rebird] rollDice result:", result);
+
             if (!result.success) {
+                shakeAnim.setValue(0);
+                console.log("[Rebird] rollDice failed:", result.message);
                 Alert.alert("Lỗi", result.message || "Không thể gieo xúc xắc.");
+                setRolling(false);
                 return;
             }
 
-            setDiceResult(result.dice);
+            // Keep rolling for at least 2 seconds to show animation
+            await new Promise(res => setTimeout(res, 2000));
+            shakeAnim.setValue(0);
 
-            // Show result
-            Alert.alert(
-                "Nghiệp quả",
-                `Bạn gieo được ${result.dice}! Hệ thống đang chuyển cảnh giới...` +
-                (result.message ? `\n\nPhần thưởng: ${result.message}` : ''),
-                [{ text: "Tiếp tục", onPress: loadData }]
-            );
+            setDiceResult(result.dice);
+            setRollMessage(result.message || null);
+            setTargetRealmName(result.toName);
+            setShowResultModal(true);
 
         } catch (err: any) {
+            shakeAnim.setValue(0);
+            console.error("[Rebird] executeRoll error:", err);
             Alert.alert("Lỗi", err.message || "Đã xảy ra lỗi khi gieo xúc xắc.");
         } finally {
+            console.log("[Rebird] executeRoll finished, setting rolling to false.");
             setRolling(false);
         }
     };
@@ -117,18 +216,36 @@ export default function RebirdScreen() {
         );
     }
 
-    const { realm, life_days_remaining } = state;
-    const progress = realm.life_days > 0 ? (life_days_remaining / realm.life_days) : 0;
+    const { realm, expires_at } = state;
+
+    // Calculate progress based on real-time countdown
+    const totalLifeMs = (realm.life_days || 1) * 24 * 60 * 60 * 1000;
+    const progress = Math.min(1, timeLeftMs / totalLifeMs);
+
+    const formatTimeLeft = (ms: number) => {
+        const days = Math.floor(ms / (24 * 60 * 60 * 1000));
+        const hours = Math.floor((ms % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
+        const minutes = Math.floor((ms % (60 * 60 * 1000)) / (60 * 1000));
+        const seconds = Math.floor((ms % (60 * 1000)) / 1000);
+
+        const parts = [];
+        if (days > 0) parts.push(`${days} ngày`);
+        if (hours > 0) parts.push(`${hours} giờ`);
+        parts.push(`${minutes} phút`);
+        if (days === 0 && hours === 0) parts.push(`${seconds} giây`);
+
+        return parts.join(' ');
+    };
 
     return (
-        <View style={[styles.container, { paddingTop: Math.max(insets.top, 20) }]}>
+        <View style={styles.container}>
             <StatusBar style="light" />
 
             {/* Header */}
-            <View style={styles.header}>
+            <View style={[styles.header, { paddingTop: Math.max(insets.top, 15) }]}>
                 <Text style={styles.headerTitle}>Tái Sinh</Text>
                 <TouchableOpacity onPress={() => router.push('/rebird/history' as any)}>
-                    <History size={24} color="#D4AF37" />
+                    <History size={24} color={GOLD} />
                 </TouchableOpacity>
             </View>
 
@@ -136,7 +253,11 @@ export default function RebirdScreen() {
                 {/* Realm Image */}
                 <View style={styles.imageContainer}>
                     <View style={styles.imagePlaceholder}>
-                        <Text style={styles.imageText}>{realm.image_url}</Text>
+                        {realm.image_url ? (
+                            <Image source={{ uri: realm.image_url }} style={styles.realmImage} />
+                        ) : (
+                            <Text style={styles.imageText}>Cõi số {realm.id}</Text>
+                        )}
                     </View>
                     <View style={styles.realmOverlay}>
                         <Text style={styles.realmIdText}>Ô số {realm.id}</Text>
@@ -144,44 +265,105 @@ export default function RebirdScreen() {
                     </View>
                 </View>
 
-                {/* Realm Description */}
+                {/* Realm Description - Collapsible */}
                 <View style={styles.infoCard}>
-                    <Text style={styles.shortDescText}>{realm.short_desc}</Text>
-                    <Text style={styles.descText}>{realm.description}</Text>
+                    <View style={[styles.descInner, !descExpanded && { maxHeight: Math.round(height * 0.28), overflow: 'hidden' }]}>
+                        {realm.short_desc && (
+                            <RenderHTML
+                                contentWidth={width - 80}
+                                source={{ html: realm.short_desc }}
+                                baseStyle={styles.shortDescHTML}
+                            />
+                        )}
+                        <View style={{ height: 10 }} />
+                        <RenderHTML
+                            contentWidth={width - 80}
+                            source={{ html: realm.description }}
+                            baseStyle={styles.descHTML}
+                        />
+                    </View>
+
+                    {/* Gradient fade + expand button */}
+                    {!descExpanded && (
+                        <View style={styles.descFadeCover} pointerEvents="none" />
+                    )}
+                    <TouchableOpacity
+                        style={styles.expandBtn}
+                        onPress={() => setDescExpanded(v => !v)}
+                        activeOpacity={0.7}
+                    >
+                        {descExpanded
+                            ? <ChevronUp size={20} color={MAROON} />
+                            : <ChevronDown size={20} color={MAROON} />}
+                        <Text style={styles.expandBtnText}>
+                            {descExpanded ? 'Thu gọn' : 'Xem đầy đủ'}
+                        </Text>
+                    </TouchableOpacity>
                 </View>
 
                 {/* Life Bar */}
                 <View style={styles.card}>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 }}>
                         <Text style={styles.sectionTitle}>Sinh Lực (Nghiệp Chướng)</Text>
-                        <Text style={styles.lifeText}>{life_days_remaining} / {realm.life_days} ngày</Text>
+                        <Text style={styles.lifeText}>{timeLeftMs > 0 ? formatTimeLeft(timeLeftMs) : 'Sẵn sàng'}</Text>
                     </View>
                     <View style={styles.progressBarBg}>
                         <View style={[styles.progressBarFill, { width: `${progress * 100}%` }]} />
                     </View>
                     <Text style={styles.progressHint}>
-                        Mỗi lần hoàn thành 1 thực hành (Practice), sinh lực sẽ giảm 1 ngày.
+                        Sinh lực sẽ tự động giảm theo thời gian. Hoàn thành 1 bài Thực Hành để giảm ngay 1 ngày.
                     </Text>
                 </View>
 
                 {/* Requirements / Practices */}
                 <View style={styles.card}>
-                    <Text style={styles.sectionTitle}>Nhiệm Vụ Tu Tập</Text>
-                    {practices.length > 0 ? practices.map((p, idx) => (
-                        <View key={idx} style={styles.practiceItem}>
-                            <View style={styles.practiceIcon}>
-                                <Check size={16} color="#000" />
-                            </View>
-                            <Text style={styles.practiceText}>{p.title}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+                        <Check size={18} color={MAROON} />
+                        <Text style={[styles.sectionTitle, { marginBottom: 0, marginLeft: 8 }]}>Nhiệm Vụ Tu Tập</Text>
+                    </View>
+                    {checkingPractices ? (
+                        <ActivityIndicator color={MAROON} />
+                    ) : requiredPractices.length === 0 ? (
+                        <Text style={{ color: '#999', fontStyle: 'italic', fontSize: 13 }}>Cõi này không có nhiệm vụ bắt buộc.</Text>
+                    ) : (
+                        <View style={{ marginBottom: 12 }}>
+                            {requiredPractices.map((p, idx) => (
+                                <View key={p.id} style={styles.practiceItem}>
+                                    <View style={[styles.practiceIcon, { backgroundColor: p.completed ? '#059669' : '#94a3b8' }]}>
+                                        <Check size={14} color="#FFF" />
+                                    </View>
+                                    <View style={{ flex: 1, marginLeft: 12 }}>
+                                        <Text style={[styles.practiceText, p.completed && { color: '#059669', textDecorationLine: 'line-through' }]}>
+                                            {p.title}
+                                        </Text>
+                                        {!p.completed && (
+                                            <Text style={{ fontSize: 10, color: '#94a3b8', marginTop: 2 }}>Cần hoàn thành trong đợt chuyển cõi này</Text>
+                                        )}
+                                    </View>
+                                    {!p.completed && (
+                                        <TouchableOpacity
+                                            onPress={() => router.push(`/practice/${p.id}` as any)}
+                                            style={[styles.actionBtn, { marginTop: 0, paddingHorizontal: 12, paddingVertical: 4, borderColor: MAROON + '40' }]}
+                                        >
+                                            <Text style={[styles.actionBtnText, { fontSize: 10 }]}>Làm ngay</Text>
+                                        </TouchableOpacity>
+                                    )}
+                                </View>
+                            ))}
+                            {requiredPractices.some(p => !p.completed) && (
+                                <View style={{ backgroundColor: '#FEF2F2', padding: 10, borderRadius: 8, marginTop: 4, marginBottom: 12 }}>
+                                    <Text style={{ fontSize: 11, color: '#ef4444', textAlign: 'center' }}>
+                                        ⚠️ Phải hoàn thành tất cả nhiệm vụ này và sinh lực = 0 mới có thể Tái sinh.
+                                    </Text>
+                                </View>
+                            )}
                         </View>
-                    )) : (
-                        <Text style={styles.noPracticeText}>Bạn đã hoàn thành đủ nhiệm vụ hoặc chưa có nhiệm vụ nào. Hãy vào mục Practice để thêm.</Text>
                     )}
                     <TouchableOpacity
-                        style={styles.actionBtn}
+                        style={[styles.actionBtn, { borderStyle: 'dotted' }]}
                         onPress={() => router.push('/dashboard/practice' as any)}
                     >
-                        <Text style={styles.actionBtnText}>Vào mục Thực Hành</Text>
+                        <Text style={styles.actionBtnText}>Thêm bài thực hành khác</Text>
                     </TouchableOpacity>
                 </View>
 
@@ -192,9 +374,9 @@ export default function RebirdScreen() {
                             <ShieldAlert size={20} color="#ef4444" />
                             <Text style={[styles.sectionTitle, { color: '#ef4444', marginBottom: 0, marginLeft: 8 }]}>Thử Thách Từ MARA</Text>
                         </View>
-                        {challenges.map((c, idx) => (
-                            <View key={idx} style={{ backgroundColor: '#2a0a0a', padding: 12, borderRadius: 8, marginBottom: 8, borderWidth: 1, borderColor: '#ef444455' }}>
-                                <Text style={{ color: '#fff', fontSize: 14, marginBottom: 4 }}>{c.description}</Text>
+                        {challenges.map((c: any, idx: number) => (
+                            <View key={idx} style={{ backgroundColor: '#FFF5F5', padding: 12, borderRadius: 8, marginBottom: 8, borderWidth: 1, borderColor: '#ef444422' }}>
+                                <Text style={{ color: '#333', fontSize: 14, marginBottom: 4 }}>{c.description}</Text>
                                 <Text style={{ color: '#ef4444', fontSize: 12, fontWeight: 'bold' }}>Thất bại: +{c.difficulty_days} ngày sinh lực</Text>
                             </View>
                         ))}
@@ -204,17 +386,17 @@ export default function RebirdScreen() {
                 {/* Co-travelers */}
                 <View style={styles.card}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
-                        <Users size={20} color="#D4AF37" />
+                        <Users size={20} color={GOLD} />
                         <Text style={[styles.sectionTitle, { marginBottom: 0, marginLeft: 8 }]}>Đồng Đạo ({travelers.length})</Text>
                     </View>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                        {travelers.map((t, idx) => (
+                        {travelers.map((t: any, idx: number) => (
                             <View key={idx} style={styles.travelerAvatar}>
                                 <Text style={styles.travelerInitial}>{t.profiles?.display_name?.charAt(0) || 'U'}</Text>
                             </View>
                         ))}
                         {travelers.length === 0 && (
-                            <Text style={{ color: '#888', fontStyle: 'italic' }}>Chưa có ai ở cõi này lúc này.</Text>
+                            <Text style={{ color: '#999', fontStyle: 'italic' }}>Chưa có ai ở cõi này lúc này.</Text>
                         )}
                     </ScrollView>
                 </View>
@@ -224,31 +406,71 @@ export default function RebirdScreen() {
                     <TouchableOpacity
                         style={[
                             styles.diceButton,
-                            (life_days_remaining > 0 || rolling) && styles.diceButtonDisabled
+                            (timeLeftMs > 0 || rolling || requiredPractices.some(p => !p.completed)) && styles.diceButtonDisabled
                         ]}
                         onPress={handleRollDice}
-                        disabled={life_days_remaining > 0 || rolling}
+                        disabled={timeLeftMs > 0 || rolling || requiredPractices.some(p => !p.completed)}
                     >
                         {rolling ? (
-                            <ActivityIndicator color="#000" />
+                            <ActivityIndicator color="#FFF" />
                         ) : (
                             <>
-                                <Dices size={24} color={life_days_remaining > 0 ? "#888" : "#fff"} />
-                                <Text style={[
-                                    styles.diceButtonText,
-                                    life_days_remaining > 0 && styles.diceButtonTextDisabled
-                                ]}>
+                                <Dices size={24} color="#FFF" />
+                                <Text style={styles.diceButtonText}>
                                     GIEO XÚC XẮC (-50 MP)
                                 </Text>
                             </>
                         )}
                     </TouchableOpacity>
-                    {life_days_remaining > 0 && (
-                        <Text style={styles.diceHint}>Bạn phải tiêu trừ hết Sinh lực để có thể đi tiếp</Text>
+                    {timeLeftMs > 0 && (
+                        <Text style={styles.diceHint}>Bạn phải chờ Sinh lực về 0 để có thể đi tiếp</Text>
                     )}
                 </View>
 
             </ScrollView>
+
+            {/* Rolling Animation Overlay */}
+            {rolling && (
+                <View style={styles.animationOverlay}>
+                    <Animated.View style={{ transform: [{ translateX: shakeAnim }] }}>
+                        <Dices size={120} color={GOLD} strokeWidth={1} />
+                    </Animated.View>
+                    <Text style={styles.rollingText}>Đang gieo xúc xắc...</Text>
+                </View>
+            )}
+
+            {/* Result Modal */}
+            <Modal visible={showResultModal} transparent animationType="fade">
+                <View style={styles.modalBg}>
+                    <View style={styles.resultCard}>
+                        <Text style={styles.resultTitle}>NGHIỆP KHỞI</Text>
+                        <View style={styles.diceResultCircle}>
+                            <Text style={styles.diceResultNum}>{diceResult}</Text>
+                        </View>
+                        <Text style={styles.resultDesc}>
+                            Bạn đã gieo được số {diceResult}.
+                        </Text>
+                        <Text style={styles.destText}>Cảnh giới tiếp theo:</Text>
+                        <Text style={styles.destName}>{targetRealmName}</Text>
+
+                        {rollMessage && (
+                            <View style={styles.rewardBadge}>
+                                <Text style={styles.rewardText}>{rollMessage}</Text>
+                            </View>
+                        )}
+
+                        <TouchableOpacity
+                            style={styles.modalBtn}
+                            onPress={() => {
+                                setShowResultModal(false);
+                                loadData();
+                            }}
+                        >
+                            <Text style={styles.modalBtnText}>BƯỚC VÀO</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
         </View>
     );
 }
@@ -256,27 +478,24 @@ export default function RebirdScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#111',
+        backgroundColor: BG,
     },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
         paddingHorizontal: 20,
-        paddingBottom: 16,
-        borderBottomWidth: 1,
-        borderBottomColor: '#333'
+        paddingBottom: 25,
+        backgroundColor: MAROON
     },
     headerTitle: {
-        color: '#D4AF37',
-        fontSize: 22,
-        fontWeight: '900',
-        textTransform: 'uppercase',
-        letterSpacing: 2
+        color: GOLD,
+        fontSize: 18,
+        fontWeight: '800'
     },
     imageContainer: {
         width: width,
-        height: 250,
+        height: 300,
         backgroundColor: '#222',
         position: 'relative'
     },
@@ -284,10 +503,15 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: '#2A0505',
+        backgroundColor: '#F5F5F5',
+    },
+    realmImage: {
+        width: '100%',
+        height: '100%',
+        resizeMode: 'cover'
     },
     imageText: {
-        color: '#D4AF37',
+        color: MAROON,
         opacity: 0.5,
         fontWeight: 'bold',
         fontSize: 16
@@ -299,10 +523,10 @@ const styles = StyleSheet.create({
         right: 0,
         padding: 20,
         paddingTop: 40,
-        backgroundColor: 'rgba(0,0,0,0.6)'
+        backgroundColor: 'rgba(0,0,0,0.5)'
     },
     realmIdText: {
-        color: '#D4AF37',
+        color: GOLD,
         fontSize: 12,
         fontWeight: 'bold',
         textTransform: 'uppercase',
@@ -317,21 +541,23 @@ const styles = StyleSheet.create({
     infoCard: {
         margin: 20,
         padding: 20,
-        backgroundColor: '#1A1A1A',
+        backgroundColor: CARD,
         borderRadius: 20,
-        borderWidth: 1,
-        borderColor: '#333'
+        elevation: 2,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
     },
-    shortDescText: {
-        color: '#D4AF37',
+    shortDescHTML: {
+        color: MAROON,
         fontSize: 16,
         fontWeight: 'bold',
         fontStyle: 'italic',
-        marginBottom: 12,
         lineHeight: 24
     },
-    descText: {
-        color: '#ccc',
+    descHTML: {
+        color: '#444',
         fontSize: 14,
         lineHeight: 22
     },
@@ -339,13 +565,16 @@ const styles = StyleSheet.create({
         marginHorizontal: 20,
         marginBottom: 20,
         padding: 20,
-        backgroundColor: '#1A1A1A',
+        backgroundColor: CARD,
         borderRadius: 20,
-        borderWidth: 1,
-        borderColor: '#333'
+        elevation: 2,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
     },
     sectionTitle: {
-        color: '#fff',
+        color: MAROON,
         fontSize: 16,
         fontWeight: 'bold',
         textTransform: 'uppercase',
@@ -359,58 +588,60 @@ const styles = StyleSheet.create({
     },
     progressBarBg: {
         height: 12,
-        backgroundColor: '#333',
+        backgroundColor: '#F5F5F5',
         borderRadius: 6,
         overflow: 'hidden',
         marginBottom: 12
     },
     progressBarFill: {
         height: '100%',
-        backgroundColor: '#ef4444',
+        backgroundColor: MAROON,
         borderRadius: 6
     },
     progressHint: {
-        color: '#888',
+        color: '#666',
         fontSize: 12,
         fontStyle: 'italic'
     },
     practiceItem: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#222',
+        backgroundColor: '#FDFCF0',
         padding: 12,
         borderRadius: 12,
-        marginBottom: 8
+        marginBottom: 8,
+        borderWidth: 1,
+        borderColor: MAROON + '10'
     },
     practiceIcon: {
         width: 24,
         height: 24,
         borderRadius: 12,
-        backgroundColor: '#D4AF37',
+        backgroundColor: GOLD,
         alignItems: 'center',
         justifyContent: 'center',
         marginRight: 12
     },
     practiceText: {
-        color: '#fff',
+        color: '#333',
         fontSize: 14,
         fontWeight: '600'
     },
     noPracticeText: {
-        color: '#888',
+        color: '#999',
         fontSize: 13,
         marginBottom: 12
     },
     actionBtn: {
         marginTop: 8,
-        borderWidth: 1,
-        borderColor: '#D4AF37',
+        borderWidth: 1.5,
+        borderColor: MAROON,
         paddingVertical: 10,
-        borderRadius: 8,
+        borderRadius: 12,
         alignItems: 'center'
     },
     actionBtnText: {
-        color: '#D4AF37',
+        color: MAROON,
         fontWeight: 'bold',
         fontSize: 12,
         textTransform: 'uppercase'
@@ -419,15 +650,15 @@ const styles = StyleSheet.create({
         width: 40,
         height: 40,
         borderRadius: 20,
-        backgroundColor: '#333',
-        borderWidth: 1,
-        borderColor: '#D4AF37',
+        backgroundColor: '#F5F5F5',
+        borderWidth: 2,
+        borderColor: GOLD,
         justifyContent: 'center',
         alignItems: 'center',
         marginRight: -10
     },
     travelerInitial: {
-        color: '#D4AF37',
+        color: MAROON,
         fontWeight: '900',
         fontSize: 16
     },
@@ -437,31 +668,28 @@ const styles = StyleSheet.create({
         alignItems: 'center'
     },
     diceButton: {
-        backgroundColor: '#D4AF37',
+        backgroundColor: MAROON,
         paddingVertical: 16,
-        paddingHorizontal: 32,
+        paddingHorizontal: 40,
         borderRadius: 30,
         flexDirection: 'row',
         alignItems: 'center',
         elevation: 5,
-        shadowColor: '#D4AF37',
+        shadowColor: MAROON,
         shadowOpacity: 0.3,
         shadowRadius: 10,
     },
     diceButtonDisabled: {
-        backgroundColor: '#333',
+        backgroundColor: '#CCC',
         shadowOpacity: 0,
         elevation: 0
     },
     diceButtonText: {
-        color: '#451a03',
+        color: '#FFF',
         fontWeight: '900',
         fontSize: 16,
         marginLeft: 12,
         letterSpacing: 1
-    },
-    diceButtonTextDisabled: {
-        color: '#888'
     },
     diceHint: {
         color: '#ef4444',
@@ -469,5 +697,136 @@ const styles = StyleSheet.create({
         marginTop: 12,
         fontStyle: 'italic',
         fontWeight: '600'
+    },
+    animationOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'rgba(0,0,0,0.85)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 1000
+    },
+    rollingText: {
+        color: GOLD,
+        fontSize: 20,
+        fontWeight: 'bold',
+        marginTop: 30,
+        letterSpacing: 2,
+        textTransform: 'uppercase'
+    },
+    modalBg: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.85)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 20
+    },
+    resultCard: {
+        backgroundColor: BG,
+        width: '90%',
+        borderRadius: 30,
+        padding: 30,
+        alignItems: 'center',
+        borderWidth: 2,
+        borderColor: GOLD
+    },
+    resultTitle: {
+        color: MAROON,
+        fontSize: 14,
+        fontWeight: 'bold',
+        letterSpacing: 4,
+        marginBottom: 20
+    },
+    diceResultCircle: {
+        width: 100,
+        height: 100,
+        borderRadius: 50,
+        backgroundColor: MAROON,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 20,
+        elevation: 10,
+        shadowColor: MAROON,
+        shadowOpacity: 0.5,
+        shadowRadius: 15
+    },
+    diceResultNum: {
+        color: GOLD,
+        fontSize: 48,
+        fontWeight: '900'
+    },
+    resultDesc: {
+        color: '#666',
+        fontSize: 16,
+        marginBottom: 10
+    },
+    destText: {
+        color: '#999',
+        fontSize: 12,
+        textTransform: 'uppercase',
+        letterSpacing: 1,
+        marginTop: 10
+    },
+    destName: {
+        color: MAROON,
+        fontSize: 24,
+        fontWeight: '900',
+        marginTop: 5,
+        textAlign: 'center'
+    },
+    rewardBadge: {
+        backgroundColor: '#FFF5E6',
+        paddingHorizontal: 15,
+        paddingVertical: 8,
+        borderRadius: 20,
+        marginTop: 20,
+        borderWidth: 1,
+        borderColor: GOLD + '40'
+    },
+    rewardText: {
+        color: '#B8860B',
+        fontWeight: 'bold',
+        fontSize: 14
+    },
+    descInner: {
+        overflow: 'hidden',
+    },
+    descFadeCover: {
+        position: 'absolute',
+        bottom: 44,
+        left: 0,
+        right: 0,
+        height: 60,
+        // Using semi-transparent background as simple fade effect
+        backgroundColor: 'rgba(255,255,255,0.85)',
+    },
+    expandBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 10,
+        marginTop: 8,
+        gap: 6,
+        borderTopWidth: 1,
+        borderTopColor: '#F0E8D0',
+    },
+    expandBtnText: {
+        color: MAROON,
+        fontSize: 13,
+        fontWeight: '700',
+        letterSpacing: 0.5,
+    },
+    modalBtn: {
+        backgroundColor: MAROON,
+        width: '100%',
+        paddingVertical: 16,
+        borderRadius: 15,
+        marginTop: 30,
+        alignItems: 'center'
+    },
+    modalBtnText: {
+        color: GOLD,
+        fontWeight: '900',
+        fontSize: 16,
+        letterSpacing: 2
     }
 });

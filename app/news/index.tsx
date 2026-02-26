@@ -1,6 +1,6 @@
 import { View, Text, ScrollView, TouchableOpacity, Image, StyleSheet, ActivityIndicator, RefreshControl } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
-import { Newspaper, ChevronRight, Calendar, User } from 'lucide-react-native';
+import { Newspaper, ChevronRight, Calendar, User, ArrowLeft } from 'lucide-react-native';
 import { useState, useEffect, useCallback } from 'react';
 import { newsService, NewsArticle } from '../../services/newsService';
 import { StatusBar } from 'expo-status-bar';
@@ -60,9 +60,17 @@ export default function NewsListScreen() {
 
             {/* Header */}
             <View
-                className="pt-12 px-5 pb-6 bg-vajra-burgundy border-b border-vajra-gold/20 flex-row justify-between items-end"
+                className="pt-12 px-5 pb-6 bg-vajra-burgundy border-b border-vajra-gold/20 flex-row items-center gap-4"
                 style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, elevation: 5 }}
             >
+                <TouchableOpacity
+                    onPress={() => router.back()}
+                    activeOpacity={0.7}
+                    style={s.headerBackBtn}
+                >
+                    <ArrowLeft color="#fff" size={24} />
+                </TouchableOpacity>
+
                 <View>
                     <Text className="text-white/60 text-[10px] uppercase tracking-[3px] font-bold mb-1">Hành Trình Tỉnh Thức</Text>
                     <Text className="text-white text-2xl font-black">Tin tức</Text>
@@ -138,6 +146,15 @@ const s = StyleSheet.create({
     cardBody: { padding: 16 },
     cardTitle: { fontSize: 17, fontWeight: '700', color: C.text, lineHeight: 24, marginBottom: 8 },
     cardExcerpt: { fontSize: 13, color: C.textMute, lineHeight: 20, marginBottom: 16 },
+
+    headerBackBtn: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: 'rgba(255,255,255,0.1)',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
 
     cardFooter: {
         flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
