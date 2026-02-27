@@ -21,7 +21,7 @@ const CARD = '#FFF';
 const BG = '#FEF9EF';
 const MAROON = '#800000';
 const { width } = Dimensions.get('window');
-import { BookOpen, Sparkles } from 'lucide-react-native';
+import { BookOpen, Sparkles, Wind } from 'lucide-react-native';
 
 // ─── Circular Progress Ring ──────────────────────────────────────────────────
 function CircularProgress({
@@ -260,6 +260,20 @@ export default function DashboardScreen() {
                             <View style={{ flex: 1 }}>
                                 <Text style={styles.coachBannerTitle}>Atomic Practice Coach</Text>
                                 <Text style={styles.coachBannerSub}>Tạo bài thực hành 5 phút tuỳ chỉnh theo tâm trạng với AI.</Text>
+                            </View>
+                        </View>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        onPress={() => router.push('/breathe')}
+                        style={[styles.coachBanner, { marginTop: 15, backgroundColor: '#E0F2F1', borderColor: '#38B2AC40', shadowColor: '#38B2AC' }]}
+                        activeOpacity={0.9}
+                    >
+                        <View style={styles.coachBannerContent}>
+                            <Wind size={24} color="#38B2AC" />
+                            <View style={{ flex: 1 }}>
+                                <Text style={[styles.coachBannerTitle, { color: '#0F766E' }]}>Cân bằng Hơi thở</Text>
+                                <Text style={styles.coachBannerSub}>Kỹ thuật nhịp đếm 4-4 giúp giảm căng thẳng và tĩnh tâm.</Text>
                             </View>
                         </View>
                     </TouchableOpacity>
