@@ -22,6 +22,10 @@ const BG = '#FEF9EF';
 const MAROON = '#800000';
 const { width } = Dimensions.get('window');
 import { BookOpen, Sparkles, Wind } from 'lucide-react-native';
+import { EventAnnouncementModal } from '../../components/EventAnnouncementModal';
+
+// Session-based flag to ensure popup only shows once per boot
+let hasShownEventPopup = false;
 
 // ─── Circular Progress Ring ──────────────────────────────────────────────────
 function CircularProgress({
@@ -80,6 +84,19 @@ export default function DashboardScreen() {
         leaderboard: [] as LeaderboardEntry[],
         mpoints: 0,
     });
+
+    const [showEventPopup, setShowEventPopup] = useState(false);
+
+    useEffect(() => {
+        // Show the popup automatically once dashboard mounts
+        if (!hasShownEventPopup) {
+            const timer = setTimeout(() => {
+                setShowEventPopup(true);
+                hasShownEventPopup = true;
+            }, 1500); // Slight delay for better UX
+            return () => clearTimeout(timer);
+        }
+    }, []);
 
     const fetchDashboardData = useCallback(async () => {
         if (!user) return;
@@ -352,6 +369,11 @@ export default function DashboardScreen() {
             >
                 <Calculator size={28} color="#FFF" />
             </TouchableOpacity>
+
+            <EventAnnouncementModal
+                visible={showEventPopup}
+                onDismiss={() => setShowEventPopup(false)}
+            />
         </View>
     );
 }
