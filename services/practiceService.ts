@@ -80,25 +80,47 @@ export const practiceService = {
 
         const logDate = dateStr || new Date().toISOString().split('T')[0];
 
-        // We use upsert for both cases (new or existing) to be idempotent and handle conflicts gracefully
-        // The definitive constraint is (practice_id, log_date)
-        const res = await supabase
+        // Robust Workaround: Fetch first to handle missing UNIQUE constraints in DB
+        const { data: existingRows } = await supabase
             .from('practice_logs')
-            .upsert({
-                id: currentLogId, // If we have an ID, use it, otherwise let DB handle it
-                user_id: user.id,
-                practice_id: practiceId,
-                log_date: logDate,
-                completed: isCompleted
-            }, {
-                onConflict: 'practice_id,log_date',
-                ignoreDuplicates: false
-            })
-            .select()
-            .single();
+            .select('id')
+            .eq('practice_id', practiceId)
+            .eq('log_date', logDate)
+            .limit(1);
+
+        const existing = existingRows?.[0];
+
+        let res;
+        if (existing) {
+            res = await supabase
+                .from('practice_logs')
+                .update({
+                    completed: isCompleted,
+                    user_id: user.id // Ensure ownership
+                })
+                .eq('id', existing.id)
+                .select()
+                .single();
+        } else {
+            res = await supabase
+                .from('practice_logs')
+                .insert({
+                    user_id: user.id,
+                    practice_id: practiceId,
+                    log_date: logDate,
+                    completed: isCompleted
+                })
+                .select()
+                .single();
+        }
 
         if (res.error) {
-            console.error('[PracticeService] Toggle error:', res.error);
+            console.error('[PracticeService] Toggle error details:', {
+                code: res.error.code,
+                message: res.error.message,
+                payload: { user_id: user.id, practice_id: practiceId, log_date: logDate, completed: isCompleted },
+                isUpdate: !!existing
+            });
             throw res.error;
         }
 
