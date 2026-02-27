@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import {
     Settings, LogOut, ChevronRight, Bell, Shield, Globe,
-    Check, Camera, Award, Flame, Zap, Trophy, BookOpen, Moon, Sparkles, Newspaper
+    Check, Camera, Award, Flame, Zap, Trophy, BookOpen, Moon, Sparkles, Newspaper, Calculator
 } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '../../store/authStore';
@@ -282,7 +282,11 @@ export default function AccountScreen() {
                         label="Spiritual Collection"
                         onPress={() => router.push('/account/collection' as any)}
                     />
-                    <View style={{ height: 1, backgroundColor: '#F9FAFB', marginLeft: 50 }} />
+                    <MenuItem
+                        icon={<Calculator size={20} color={GOLD} />}
+                        label="Đếm Túc Số"
+                        onPress={() => router.push('/counter' as any)}
+                    />
 
                     <MenuItem
                         icon={<Bell size={20} color="#717171" />}

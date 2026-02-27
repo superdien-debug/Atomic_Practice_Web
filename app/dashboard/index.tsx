@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { Flame, CheckCircle, Trophy, Check, Plus, Users, MessageCircle } from 'lucide-react-native';
+import { Flame, CheckCircle, Trophy, Check, Plus, Users, MessageCircle, Calculator } from 'lucide-react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useAuthStore } from '../../store/authStore';
 import { practiceService, Practice } from '../../services/practiceService';
@@ -143,19 +143,7 @@ export default function DashboardScreen() {
     };
 
     const handleCreateClick = () => {
-        console.log('[Dashboard] Create clicked. Current score:', stats.score);
-        if (stats.score < MIN_CREATION_SCORE) {
-            const title = '🔐 Phân quyền';
-            const msg = `Chỉ những Hành giả đạt Cấp độ 2 (500 điểm Merit) mới được phép tự tạo bài thực hành mới. Hiện tại bạn đang có ${stats.score} điểm.`;
-
-            if (Platform.OS === 'web') {
-                window.alert(`${title}\n\n${msg}`);
-            } else {
-                Alert.alert(title, msg, [{ text: 'Đã hiểu' }]);
-            }
-            return;
-        }
-        router.push('/create');
+        router.push('/counter');
     };
 
     const ZODIAC = ['🐭', '🐮', '🐯', '🐰', '🐲', '🐍', '🐴', '🐐', '🐵', '🐔', '🐶', '🐷'];
@@ -348,7 +336,7 @@ export default function DashboardScreen() {
                 style={[styles.fab, { bottom: 20 + insets.bottom }]}
                 activeOpacity={0.8}
             >
-                <Plus size={28} color="#FFF" />
+                <Calculator size={28} color="#FFF" />
             </TouchableOpacity>
         </View>
     );
