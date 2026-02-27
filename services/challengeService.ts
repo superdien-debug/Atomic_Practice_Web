@@ -1,4 +1,6 @@
 import { supabase } from '../lib/supabase';
+import { practiceService } from './practiceService';
+import { MIN_CREATION_SCORE } from '../utils/rankUtils';
 
 export type Challenge = {
     id: string;
@@ -185,6 +187,11 @@ export const challengeService = {
     async createChallenge(challenge: Omit<Challenge, 'id' | 'participants_count' | 'is_joined' | 'created_at'>) {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error('No user logged in');
+
+        const score = await practiceService.calculateTotalScore(user.id);
+        if (score < MIN_CREATION_SCORE) {
+            throw new Error(`Bạn cần đạt Cấp độ 2 (500 điểm) để tạo thử thách mới. Hiện tại bạn đang có ${score} điểm.`);
+        }
 
         const { data, error } = await supabase
             .from('challenges')

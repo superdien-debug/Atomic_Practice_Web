@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import {
     View, Text, TextInput, TouchableOpacity,
-    ScrollView, ActivityIndicator, StyleSheet
+    ScrollView, ActivityIndicator, Alert, Platform, StyleSheet
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { ChevronLeft, Star } from 'lucide-react-native';
 import { challengeService } from '../../services/challengeService';
+import { practiceService } from '../../services/practiceService';
+import { MIN_CREATION_SCORE } from '../../utils/rankUtils';
 import { VajraModal } from '../../components/VajraModal';
 import { useT } from '../../i18n/useT';
 
@@ -40,6 +42,38 @@ export default function CreateChallengeScreen() {
         visible: boolean; icon: string; title: string;
         message: string; variant: 'success' | 'warning' | 'danger'; onDismiss?: () => void;
     }>({ visible: false, icon: '', title: '', message: '', variant: 'success' });
+
+    const [score, setScore] = useState<number | null>(null);
+
+    React.useEffect(() => {
+        checkLevel();
+    }, []);
+
+    const checkLevel = async () => {
+        try {
+            const currentScore = await practiceService.calculateTotalScore();
+            setScore(currentScore);
+            if (currentScore < MIN_CREATION_SCORE) {
+                const title = '🔐 Phân quyền';
+                const msg = `Chỉ những Hành giả đạt Cấp độ 2 (từ 500 điểm Merit) mới được phép tạo Thử thách mới. Hiện tại bạn đang có ${currentScore} điểm.`;
+
+                if (Platform.OS === 'web') {
+                    window.alert(`${title}\n\n${msg}`);
+                    router.back();
+                } else {
+                    showModal(
+                        '🔐',
+                        title,
+                        msg,
+                        'warning',
+                        () => router.back()
+                    );
+                }
+            }
+        } catch (error) {
+            console.error('[Create Challenge] Level check error:', error);
+        }
+    };
 
     const showModal = (icon: string, title: string, message: string,
         variant: 'success' | 'warning' | 'danger' = 'success', onDismiss?: () => void) => {

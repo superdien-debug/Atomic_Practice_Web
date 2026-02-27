@@ -4,8 +4,11 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ChevronLeft, Clock, Share2, BookOpen } from 'lucide-react-native';
+import { ChevronLeft, Clock, Share2, BookOpen, Lock, CheckCircle2 } from 'lucide-react-native';
 import { microLearningService, type MicroLearningPost } from '../../../services/microLearningService';
+import { practiceService } from '../../../services/practiceService';
+import { useT } from '../../../i18n/useT';
+import { Alert } from 'react-native';
 import { format } from 'date-fns';
 import RenderHTML from 'react-native-render-html';
 import { useWindowDimensions } from 'react-native';
@@ -21,6 +24,8 @@ export default function MicroLearningDetailScreen() {
 
     const [post, setPost] = useState<MicroLearningPost | null>(null);
     const [loading, setLoading] = useState(true);
+    const [actionLoading, setActionLoading] = useState(false);
+    const t = useT();
 
     useEffect(() => {
         if (id) loadPost();
@@ -34,6 +39,46 @@ export default function MicroLearningDetailScreen() {
             console.error('Fetch post error:', error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleUnlock = async () => {
+        if (!post) return;
+
+        Alert.alert(
+            t('unlockLesson'),
+            t('confirmUnlock').replace('{0}', post.price_mpoints.toString()),
+            [
+                { text: t('cancel'), style: 'cancel' },
+                {
+                    text: t('ok'),
+                    onPress: async () => {
+                        setActionLoading(true);
+                        try {
+                            await microLearningService.unlockLesson(post.id, post.price_mpoints);
+                            Alert.alert(t('lessonUnlocked'));
+                            loadPost(); // Refresh state
+                        } catch (error: any) {
+                            Alert.alert(t('error'), error.message || t('insufficientPoints').replace('{0}', post.price_mpoints.toString()));
+                        } finally {
+                            setActionLoading(false);
+                        }
+                    }
+                }
+            ]
+        );
+    };
+
+    const handleMarkAsComplete = async () => {
+        if (!post) return;
+        setActionLoading(true);
+        try {
+            await microLearningService.markAsComplete(post.id);
+            loadPost(); // Refresh to show completed state
+        } catch (error) {
+            console.error('Mark complete error:', error);
+        } finally {
+            setActionLoading(false);
         }
     };
 
@@ -110,8 +155,63 @@ export default function MicroLearningDetailScreen() {
                             img: { borderRadius: 12, marginTop: 10, marginBottom: 10 }
                         }}
                     />
+
+                    {post.is_unlocked && !post.is_completed && (
+                        <TouchableOpacity
+                            style={s.completeBtn}
+                            onPress={handleMarkAsComplete}
+                            disabled={actionLoading}
+                        >
+                            {actionLoading ? (
+                                <ActivityIndicator color="#FFF" />
+                            ) : (
+                                <>
+                                    <CheckCircle2 size={20} color="#FFF" />
+                                    <Text style={s.completeBtnText}>{t('markAsLearned')}</Text>
+                                </>
+                            )}
+                        </TouchableOpacity>
+                    )}
+
+                    {post.is_completed && (
+                        <View style={s.completedLabel}>
+                            <CheckCircle2 size={20} color="#10B981" />
+                            <Text style={s.completedText}>{t('learned')}</Text>
+                        </View>
+                    )}
                 </View>
             </ScrollView>
+
+            {/* Paywall Overlay */}
+            {!post.is_unlocked && (
+                <View style={s.paywall}>
+                    <View style={s.paywallCard}>
+                        <View style={s.lockCircle}>
+                            <Lock size={32} color={GOLD} />
+                        </View>
+                        <Text style={s.paywallTitle}>{t('locked')}</Text>
+                        <Text style={s.paywallDesc}>
+                            {t('confirmUnlock').replace('{0}', post.price_mpoints.toString())}
+                        </Text>
+                        <TouchableOpacity
+                            style={s.unlockBtn}
+                            onPress={handleUnlock}
+                            disabled={actionLoading}
+                        >
+                            {actionLoading ? (
+                                <ActivityIndicator color="#FFF" />
+                            ) : (
+                                <Text style={s.unlockBtnText}>
+                                    {t('unlockLesson')} ({post.price_mpoints} M)
+                                </Text>
+                            )}
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => router.back()} style={s.laterBtn}>
+                            <Text style={s.laterText}>{t('back')}</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            )}
         </View>
     );
 }
@@ -147,4 +247,71 @@ const s = StyleSheet.create({
     },
     backBtn: { marginTop: 20, padding: 12, backgroundColor: MAROON, borderRadius: 12 },
     backBtnText: { color: '#FFF', fontWeight: '700' },
+
+    // Paywall & Completion
+    paywall: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'rgba(255,255,255,0.7)',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 30,
+        zIndex: 100,
+    },
+    paywallCard: {
+        backgroundColor: '#FFF',
+        borderRadius: 24,
+        padding: 30,
+        width: '100%',
+        alignItems: 'center',
+        elevation: 10,
+        shadowColor: '#000',
+        shadowOpacity: 0.1,
+        shadowRadius: 20,
+        borderWidth: 1,
+        borderColor: '#F1F5F9',
+    },
+    lockCircle: {
+        width: 64, height: 64, borderRadius: 32,
+        backgroundColor: '#FFFBEB',
+        alignItems: 'center', justifyContent: 'center',
+        marginBottom: 16,
+    },
+    paywallTitle: { fontSize: 20, fontWeight: '900', color: '#1E293B', marginBottom: 8 },
+    paywallDesc: { fontSize: 15, color: '#64748B', textAlign: 'center', lineHeight: 22, marginBottom: 24 },
+    unlockBtn: {
+        backgroundColor: MAROON,
+        paddingVertical: 14,
+        paddingHorizontal: 24,
+        borderRadius: 14,
+        width: '100%',
+        alignItems: 'center',
+    },
+    unlockBtnText: { color: '#FFF', fontWeight: '800', fontSize: 15 },
+    laterBtn: { marginTop: 16, padding: 10 },
+    laterText: { color: '#94A3B8', fontWeight: '700', fontSize: 14 },
+
+    completeBtn: {
+        backgroundColor: MAROON,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 10,
+        paddingVertical: 16,
+        borderRadius: 16,
+        marginTop: 30,
+    },
+    completeBtnText: { color: '#FFF', fontWeight: '800', fontSize: 16 },
+    completedLabel: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        paddingVertical: 16,
+        backgroundColor: '#F0FDF4',
+        borderRadius: 16,
+        marginTop: 30,
+        borderWidth: 1,
+        borderColor: '#DCFCE7',
+    },
+    completedText: { color: '#166534', fontWeight: '800', fontSize: 16 },
 });

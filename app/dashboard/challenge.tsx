@@ -1,17 +1,21 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Trophy, Clock, Users, ChevronRight, MessageCircle, Star, Target } from 'lucide-react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import clsx from 'clsx';
 import { challengeService, Challenge } from '../../services/challengeService';
+import { practiceService } from '../../services/practiceService';
+import { MIN_CREATION_SCORE } from '../../utils/rankUtils';
 import { useT } from '../../i18n/useT';
+import { Alert } from 'react-native';
 
 export default function ChallengeScreen() {
     const [activeTab, setActiveTab] = useState<'ongoing' | 'completed'>('ongoing');
     const [challenges, setChallenges] = useState<Challenge[]>([]);
     const [loading, setLoading] = useState(true);
+    const [totalScore, setTotalScore] = useState(0);
     const insets = useSafeAreaInsets();
     const router = useRouter();
     const t = useT();
@@ -21,6 +25,8 @@ export default function ChallengeScreen() {
         try {
             const data = await challengeService.fetchChallenges(activeTab);
             setChallenges(data);
+            const score = await practiceService.calculateTotalScore();
+            setTotalScore(score);
         } catch (error) {
             console.error('Error fetching challenges:', error);
         } finally {
@@ -41,6 +47,22 @@ export default function ChallengeScreen() {
         return Math.ceil(diff / (1000 * 3600 * 24));
     };
 
+    const handleCreateClick = () => {
+        console.log('[Challenge Dashboard] Create clicked. Current score:', totalScore);
+        if (totalScore < MIN_CREATION_SCORE) {
+            const title = '🔐 Phân quyền';
+            const msg = `Chỉ những Hành giả đạt Cấp độ 2 (từ 500 điểm Merit) mới được phép tạo Thử thách mới. Hiện tại bạn đang có ${totalScore} điểm.`;
+
+            if (Platform.OS === 'web') {
+                window.alert(`${title}\n\n${msg}`);
+            } else {
+                Alert.alert(title, msg, [{ text: 'Đã hiểu' }]);
+            }
+            return;
+        }
+        router.push('/challenge/create');
+    };
+
     return (
         <View className="flex-1 bg-vajra-cream">
             <StatusBar style="light" />
@@ -58,7 +80,7 @@ export default function ChallengeScreen() {
                     <Text className="text-white text-2xl font-black">{t('challenges')}</Text>
                 </View>
                 <TouchableOpacity
-                    onPress={() => router.push('/challenge/create')}
+                    onPress={handleCreateClick}
                     className="w-11 h-11 rounded-full items-center justify-center mb-1 bg-vajra-gold"
                     style={{ shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 5, elevation: 5 }}
                 >

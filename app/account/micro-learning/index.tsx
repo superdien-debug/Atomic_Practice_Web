@@ -4,15 +4,17 @@ import {
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ChevronLeft, BookOpen, Clock } from 'lucide-react-native';
+import { ChevronLeft, BookOpen, Clock, Lock, CheckCircle2 } from 'lucide-react-native';
 import { microLearningService, type MicroLearningPost } from '../../../services/microLearningService';
 import { format } from 'date-fns';
+import { useT } from '../../../i18n/useT';
 
 const MAROON = '#800000';
 const GOLD = '#D4AF37';
 
 export default function MicroLearningListScreen() {
     const router = useRouter();
+    const t = useT();
     const insets = useSafeAreaInsets();
     const [posts, setPosts] = useState<MicroLearningPost[]>([]);
     const [loading, setLoading] = useState(true);
@@ -61,11 +63,28 @@ export default function MicroLearningListScreen() {
                 <View style={s.categoryTag}>
                     <Text style={s.categoryText}>{item.category || 'General'}</Text>
                 </View>
-                <Text style={s.title} numberOfLines={2}>{item.title}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <Text style={[s.title, { marginBottom: 0, flex: 1 }]} numberOfLines={1}>{item.title}</Text>
+                    {!item.is_unlocked && <Lock size={16} color={GOLD} style={{ marginLeft: 8 }} />}
+                    {item.is_completed && <CheckCircle2 size={16} color="#10B981" style={{ marginLeft: 8 }} />}
+                </View>
                 <Text style={s.summary} numberOfLines={2}>{item.summary}</Text>
                 <View style={s.footer}>
-                    <Clock size={12} color="#94A3B8" />
-                    <Text style={s.date}>{format(new Date(item.created_at), 'MMM d, yyyy')}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
+                        <Clock size={12} color="#94A3B8" />
+                        <Text style={s.date}>{format(new Date(item.created_at), 'MMM d, yyyy')}</Text>
+                    </View>
+                    <View style={[
+                        s.statusBadge,
+                        item.is_completed ? s.statusLearned : s.statusUnlearned
+                    ]}>
+                        <Text style={[
+                            s.statusText,
+                            item.is_completed ? s.statusTextLearned : s.statusTextUnlearned
+                        ]}>
+                            {item.is_completed ? t('learned') : t('notLearned')}
+                        </Text>
+                    </View>
                 </View>
             </View>
         </TouchableOpacity>
@@ -213,4 +232,14 @@ const s = StyleSheet.create({
     filterTextActive: {
         color: '#FFF',
     },
+    statusBadge: {
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: 6,
+    },
+    statusLearned: { backgroundColor: '#ECFDF5' },
+    statusUnlearned: { backgroundColor: '#F1F5F9' },
+    statusText: { fontSize: 9, fontWeight: '800', textTransform: 'uppercase' },
+    statusTextLearned: { color: '#059669' },
+    statusTextUnlearned: { color: '#64748B' },
 });

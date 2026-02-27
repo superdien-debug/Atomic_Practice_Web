@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { rebirthService } from './rebirthService';
+import { MIN_CREATION_SCORE } from '../utils/rankUtils';
 
 export type Practice = {
     id: string;
@@ -148,6 +149,11 @@ export const practiceService = {
     async createPractice(practice: Partial<Practice>) {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error('No user');
+
+        const score = await this.calculateTotalScore(user.id);
+        if (score < MIN_CREATION_SCORE) {
+            throw new Error(`Bạn cần đạt Cấp độ 2 (500 điểm) để tạo bài thực hành mới. Hiện tại bạn đang có ${score} điểm.`);
+        }
 
         console.log('[PracticeService] Creating practice:', practice);
 

@@ -9,6 +9,8 @@ export type RankInfo = {
     labelColor: string;
 };
 
+export const MIN_CREATION_SCORE = 500;
+
 export const RANKS: RankInfo[] = [
     {
         level: 1,

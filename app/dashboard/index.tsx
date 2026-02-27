@@ -12,8 +12,8 @@ import { practiceService, Practice } from '../../services/practiceService';
 import { challengeService, Challenge } from '../../services/challengeService';
 import { userService, Profile, LeaderboardEntry } from '../../services/userService';
 import { microLearningService, type MicroLearningPost } from '../../services/microLearningService';
-import { getRank } from '../../utils/rankUtils';
-import { Animated, Easing as RNEasing } from 'react-native';
+import { getRank, MIN_CREATION_SCORE } from '../../utils/rankUtils';
+import { Animated, Easing as RNEasing, Alert, Platform } from 'react-native';
 
 // ─── Colors (Consistent with Theme) ─────────────────────────────────────────
 const GOLD = '#D4AF37';
@@ -140,6 +140,22 @@ export default function DashboardScreen() {
             console.error('Toggle error:', err);
             await fetchDashboardData();
         }
+    };
+
+    const handleCreateClick = () => {
+        console.log('[Dashboard] Create clicked. Current score:', stats.score);
+        if (stats.score < MIN_CREATION_SCORE) {
+            const title = '🔐 Phân quyền';
+            const msg = `Chỉ những Hành giả đạt Cấp độ 2 (500 điểm Merit) mới được phép tự tạo bài thực hành mới. Hiện tại bạn đang có ${stats.score} điểm.`;
+
+            if (Platform.OS === 'web') {
+                window.alert(`${title}\n\n${msg}`);
+            } else {
+                Alert.alert(title, msg, [{ text: 'Đã hiểu' }]);
+            }
+            return;
+        }
+        router.push('/create');
     };
 
     const ZODIAC = ['🐭', '🐮', '🐯', '🐰', '🐲', '🐍', '🐴', '🐐', '🐵', '🐔', '🐶', '🐷'];
@@ -328,7 +344,7 @@ export default function DashboardScreen() {
             </ScrollView>
 
             <TouchableOpacity
-                onPress={() => router.push('/create')}
+                onPress={handleCreateClick}
                 style={[styles.fab, { bottom: 20 + insets.bottom }]}
                 activeOpacity={0.8}
             >

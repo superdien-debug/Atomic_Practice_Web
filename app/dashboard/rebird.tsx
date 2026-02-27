@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator, Alert, Dimensions, Platform, Animated, Modal, useWindowDimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator, Alert, Dimensions, Platform, Animated, Modal, useWindowDimensions, TextInput } from 'react-native';
 import RenderHTML from 'react-native-render-html';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { Dices, History, Users, ShieldAlert, Check, ChevronDown, ChevronUp } from 'lucide-react-native';
+import { Dices, History, Users, ShieldAlert, Check, ChevronDown, ChevronUp, MessageSquare, Send } from 'lucide-react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { rebirthService, RebirthState, Realm } from '../../services/rebirthService';
+import { rebirthService, RebirthState, Realm, RebirthComment } from '../../services/rebirthService';
+import { useT } from '../../i18n/useT';
+import { format } from 'date-fns';
 import { practiceService, Practice } from '../../services/practiceService';
 import { userService } from '../../services/userService';
 import { useAuthStore } from '../../store/authStore';
@@ -20,6 +22,7 @@ const { width } = Dimensions.get('window');
 export default function RebirdScreen() {
     const insets = useSafeAreaInsets();
     const router = useRouter();
+    const t = useT();
     const { user } = useAuthStore();
     const { width, height } = useWindowDimensions();
 
@@ -38,6 +41,12 @@ export default function RebirdScreen() {
     const [requiredPractices, setRequiredPractices] = useState<{ id: string, title: string, completed: boolean }[]>([]);
     const [checkingPractices, setCheckingPractices] = useState(false);
     const [descExpanded, setDescExpanded] = useState(false);
+
+    // Comments state
+    const [comments, setComments] = useState<RebirthComment[]>([]);
+    const [newComment, setNewComment] = useState('');
+    const [postingComment, setPostingComment] = useState(false);
+
     const shakeAnim = React.useRef(new Animated.Value(0)).current;
 
     // Reload data every time this screen comes into focus
@@ -110,6 +119,14 @@ export default function RebirdScreen() {
                     console.error('Load mandatory practices error:', err);
                 } finally {
                     setCheckingPractices(false);
+                }
+
+                // Fetch comments
+                try {
+                    const c = await rebirthService.getRealmComments(currentState.realm_id);
+                    setComments(c);
+                } catch (err) {
+                    console.error('Load comments error:', err);
                 }
             }
 
@@ -197,6 +214,25 @@ export default function RebirdScreen() {
         } finally {
             console.log("[Rebird] executeRoll finished, setting rolling to false.");
             setRolling(false);
+        }
+    };
+
+    const handlePostComment = async () => {
+        if (!newComment.trim() || !state?.realm_id || postingComment) return;
+
+        setPostingComment(true);
+        try {
+            const tempComment = await rebirthService.addRealmComment(state.realm_id, newComment.trim());
+
+            // For a better UX, fetch the list again or manually append
+            // Fetching again ensures we get profile info
+            const c = await rebirthService.getRealmComments(state.realm_id);
+            setComments(c);
+            setNewComment('');
+        } catch (err: any) {
+            Alert.alert("Lỗi", "Không thể gửi bình luận.");
+        } finally {
+            setPostingComment(false);
         }
     };
 
@@ -399,6 +435,62 @@ export default function RebirdScreen() {
                             <Text style={{ color: '#999', fontStyle: 'italic' }}>Chưa có ai ở cõi này lúc này.</Text>
                         )}
                     </ScrollView>
+                </View>
+
+                {/* Realm Comments (Exchanges) */}
+                <View style={styles.card}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+                        <MessageSquare size={20} color={GOLD} />
+                        <Text style={[styles.sectionTitle, { marginBottom: 0, marginLeft: 8 }]}>{t('exchanges')}</Text>
+                    </View>
+
+                    {/* Input Area */}
+                    <View style={styles.commentInputContainer}>
+                        <TextInput
+                            style={styles.commentInput}
+                            placeholder={t('saySomething')}
+                            placeholderTextColor="#94A3B8"
+                            multiline
+                            value={newComment}
+                            onChangeText={setNewComment}
+                            maxLength={500}
+                        />
+                        <TouchableOpacity
+                            onPress={handlePostComment}
+                            disabled={postingComment || !newComment.trim()}
+                            style={[styles.sendBtn, (!newComment.trim() || postingComment) && { opacity: 0.5 }]}
+                        >
+                            {postingComment ? (
+                                <ActivityIndicator size="small" color="#FFF" />
+                            ) : (
+                                <Send size={18} color="#FFF" />
+                            )}
+                        </TouchableOpacity>
+                    </View>
+
+                    {/* Comments List */}
+                    <View style={styles.commentsList}>
+                        {comments.length === 0 ? (
+                            <Text style={styles.noCommentsText}>Chưa có trao đổi nào ở cõi này. Hãy là người đầu tiên!</Text>
+                        ) : (
+                            comments.map((c) => (
+                                <View key={c.id} style={styles.commentItem}>
+                                    <View style={styles.commentAvatar}>
+                                        <Text style={styles.commentAvatarText}>
+                                            {c.profiles?.display_name?.charAt(0) || 'U'}
+                                        </Text>
+                                    </View>
+                                    <View style={styles.commentContent}>
+                                        <View style={styles.commentHeader}>
+                                            <Text style={styles.commentAuthor}>{c.profiles?.display_name || 'Người dùng Maratika'}</Text>
+                                            <Text style={styles.commentDate}>{format(new Date(c.created_at), 'HH:mm dd/MM')}</Text>
+                                        </View>
+                                        <Text style={styles.commentText}>{c.content}</Text>
+                                    </View>
+                                </View>
+                            ))
+                        )}
+                    </View>
                 </View>
 
                 {/* Dice Button Container */}
@@ -828,5 +920,90 @@ const styles = StyleSheet.create({
         fontWeight: '900',
         fontSize: 16,
         letterSpacing: 2
+    },
+    // Comments Styles
+    commentInputContainer: {
+        flexDirection: 'row',
+        alignItems: 'flex-end',
+        gap: 10,
+        marginBottom: 20,
+    },
+    commentInput: {
+        flex: 1,
+        backgroundColor: '#F8FAFC',
+        borderRadius: 12,
+        padding: 12,
+        paddingTop: 12,
+        fontSize: 14,
+        color: '#1E293B',
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
+        minHeight: 48,
+        maxHeight: 100,
+    },
+    sendBtn: {
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+        backgroundColor: MAROON,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    commentsList: {
+        marginTop: 10,
+    },
+    commentItem: {
+        flexDirection: 'row',
+        gap: 12,
+        marginBottom: 16,
+    },
+    commentAvatar: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: GOLD + '20',
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: GOLD + '40',
+    },
+    commentAvatarText: {
+        color: GOLD,
+        fontSize: 12,
+        fontWeight: '900',
+    },
+    commentContent: {
+        flex: 1,
+        backgroundColor: '#F8FAFC',
+        padding: 12,
+        borderRadius: 12,
+        borderTopLeftRadius: 0,
+    },
+    commentHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 4,
+    },
+    commentAuthor: {
+        fontSize: 12,
+        fontWeight: 'bold',
+        color: MAROON,
+    },
+    commentDate: {
+        fontSize: 10,
+        color: '#94A3B8',
+    },
+    commentText: {
+        fontSize: 13,
+        color: '#334155',
+        lineHeight: 18,
+    },
+    noCommentsText: {
+        textAlign: 'center',
+        color: '#94A3B8',
+        fontSize: 13,
+        fontStyle: 'italic',
+        paddingVertical: 20,
     }
 });

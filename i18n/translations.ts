@@ -110,6 +110,21 @@ const translations = {
         vietnamese: 'Tiếng Việt',
         languageChanged: 'Language Changed',
         languageChangedMsg: 'App language updated to English.',
+
+        // ── Micro Learning ───────────────────────────────────────────────────
+        learned: 'Learned',
+        notLearned: 'Not Learned',
+        locked: 'Locked',
+        unlockLesson: 'Unlock Lesson',
+        confirmUnlock: 'Do you want to use {0} M-points to unlock this lesson?',
+        insufficientPoints: 'Insufficient M-points. You need {0} points.',
+        markAsLearned: 'Mark as Learned',
+        lessonUnlocked: 'Lesson Unlocked!',
+
+        // ── Rebirth Game ─────────────────────────────────────────────────────
+        exchanges: 'Exchanges',
+        saySomething: 'Say something in this realm...',
+        send: 'Send',
     },
 
     vi: {
@@ -215,6 +230,21 @@ const translations = {
         vietnamese: 'Tiếng Việt',
         languageChanged: 'Đã Đổi Ngôn Ngữ',
         languageChangedMsg: 'Ứng dụng đã chuyển sang Tiếng Việt.',
+
+        // ── Micro Learning ───────────────────────────────────────────────────
+        learned: 'Đã học',
+        notLearned: 'Chưa học',
+        locked: 'Đã khóa',
+        unlockLesson: 'Mở khóa bài học',
+        confirmUnlock: 'Bạn có muốn dùng {0} M-points để mở khóa bài học này không?',
+        insufficientPoints: 'Không đủ M-points. Bạn cần thêm {0} điểm.',
+        markAsLearned: 'Đánh dấu đã học',
+        lessonUnlocked: 'Đã mở khóa bài học!',
+
+        // ── Rebirth Game ─────────────────────────────────────────────────────
+        exchanges: 'Trao đổi',
+        saySomething: 'Bình luận gì đó...',
+        send: 'Gửi',
     },
 } satisfies Record<Lang, Record<string, string>>;
 

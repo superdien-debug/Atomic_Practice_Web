@@ -1,11 +1,12 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Alert, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Alert, StyleSheet, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Check, Plus, Globe, Trash2, Lock, MessageCircle, Trophy, Users, Search, Flame } from 'lucide-react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { practiceService, Practice } from '../../services/practiceService';
 import { notificationService } from '../../services/notificationService';
+import { MIN_CREATION_SCORE } from '../../utils/rankUtils';
 import { useT } from '../../i18n/useT';
 
 type TopStripDate = {
@@ -45,6 +46,7 @@ export default function MyPracticeScreen() {
     const [communityPractices, setCommunityPractices] = useState<Practice[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedCategory, setSelectedCategory] = useState('All');
+    const [totalScore, setTotalScore] = useState(0);
 
     const isTodaySelected = selectedDate === new Date().toISOString().split('T')[0];
 
@@ -67,6 +69,9 @@ export default function MyPracticeScreen() {
 
             const publicData = await practiceService.fetchPublicPractices();
             setCommunityPractices(publicData);
+
+            const score = await practiceService.calculateTotalScore();
+            setTotalScore(score);
         } catch (error: any) {
             console.error('Error fetching data:', error);
         } finally {
@@ -123,6 +128,21 @@ export default function MyPracticeScreen() {
             ]
         );
     };
+    const handleCreateClick = () => {
+        console.log('[Practice Dashboard] Create clicked. Current score:', totalScore);
+        if (totalScore < MIN_CREATION_SCORE) {
+            const title = '🔐 Phân quyền';
+            const msg = `Chỉ những Hành giả đạt Cấp độ 2 (500 điểm Merit) mới được phép tự tạo bài thực hành mới. Hiện tại bạn đang có ${totalScore} điểm.`;
+
+            if (Platform.OS === 'web') {
+                window.alert(`${title}\n\n${msg}`);
+            } else {
+                Alert.alert(title, msg, [{ text: 'Đã hiểu' }]);
+            }
+            return;
+        }
+        router.push('/create');
+    };
 
     const sortedPractices = useMemo(() => {
         return [...practices].sort((a, b) => {
@@ -160,7 +180,7 @@ export default function MyPracticeScreen() {
                         <Text className="text-vajra-gold text-xs font-semibold uppercase">{isTodaySelected ? t('todaysPractice') : selectedDate}</Text>
                     </View>
                     <TouchableOpacity
-                        onPress={() => router.push('/create')}
+                        onPress={handleCreateClick}
                         className="w-10 h-10 rounded-full items-center justify-center bg-vajra-gold"
                     >
                         <Plus size={24} color="#FFF" />
@@ -265,7 +285,7 @@ export default function MyPracticeScreen() {
                             <View style={{ paddingVertical: 80, alignItems: 'center' }}>
                                 <Text className="text-3xl mb-4">🙏</Text>
                                 <Text className="text-vajra-gray italic">No practices for this date.</Text>
-                                <TouchableOpacity onPress={() => router.push('/create')} className="mt-4">
+                                <TouchableOpacity onPress={handleCreateClick} className="mt-4">
                                     <Text className="text-vajra-burgundy font-bold">{t('createPractice')}</Text>
                                 </TouchableOpacity>
                             </View>

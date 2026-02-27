@@ -44,6 +44,18 @@ export interface MaraChallenge {
     created_by: string;
 }
 
+export interface RebirthComment {
+    id: string;
+    realm_id: number;
+    user_id: string;
+    content: string;
+    created_at: string;
+    profiles?: {
+        display_name: string;
+        avatar_url: string;
+    };
+}
+
 export const rebirthService = {
     // 1. Get current state of a user
     async getState(userId?: string): Promise<RebirthState | null> {
@@ -407,5 +419,42 @@ export const rebirthService = {
             .order('created_at', { ascending: false });
 
         return data || [];
+    },
+
+    // 8. Comments
+    async getRealmComments(realmId: number): Promise<RebirthComment[]> {
+        const { data, error } = await supabase
+            .from('game_rebirth_comments')
+            .select(`
+                *,
+                profiles:user_id(display_name, avatar_url)
+            `)
+            .eq('realm_id', realmId)
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error('[RebirthService] getRealmComments error:', error);
+            return [];
+        }
+
+        return data as RebirthComment[];
+    },
+
+    async addRealmComment(realmId: number, content: string) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error("Not authenticated");
+
+        const { data, error } = await supabase
+            .from('game_rebirth_comments')
+            .insert({
+                realm_id: realmId,
+                user_id: user.id,
+                content: content
+            })
+            .select()
+            .single();
+
+        if (error) throw error;
+        return data as RebirthComment;
     }
 };

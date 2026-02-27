@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import {
-    View, Text, TextInput, ScrollView, Switch, Pressable, StyleSheet, TouchableOpacity, Alert
+    View, Text, TextInput, ScrollView, Switch, Pressable, StyleSheet, TouchableOpacity, Alert, Platform
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { ChevronLeft, Bell, Globe, Plus } from 'lucide-react-native';
 import { practiceService } from '../services/practiceService';
+import { MIN_CREATION_SCORE } from '../utils/rankUtils';
 
 // ─── Colors (mirrors HTML design) ────────────────────────────────────────────
 const C = {
@@ -45,8 +46,33 @@ export default function CreatePracticeScreen() {
     const [remindersEnabled, setRemindersEnabled] = useState(false);
     const [reminderTimes, setReminderTimes] = useState<string[]>(['08:00']);
     const [isPublic, setIsPublic] = useState(true);
+    const [score, setScore] = useState<number | null>(null);
 
-    const isValid = name.trim().length > 0;
+    React.useEffect(() => {
+        checkLevel();
+    }, []);
+
+    const checkLevel = async () => {
+        try {
+            const currentScore = await practiceService.calculateTotalScore();
+            setScore(currentScore);
+            if (currentScore < MIN_CREATION_SCORE) {
+                const title = '🔐 Phân quyền';
+                const msg = `Bạn cần đạt Cấp độ 2 (500 điểm Merit) để tạo bài thực hành mới. Hiện tại bạn đang có ${currentScore} điểm. Hãy thực hành chuyên cần hơn nhé!`;
+
+                if (Platform.OS === 'web') {
+                    window.alert(`${title}\n\n${msg}`);
+                    router.back();
+                } else {
+                    Alert.alert(title, msg, [{ text: 'Đã hiểu', onPress: () => router.back() }]);
+                }
+            }
+        } catch (error) {
+            console.error('[Create Practice] Level check error:', error);
+        }
+    };
+
+    const isValid = name.trim().length > 0 && score !== null && score >= MIN_CREATION_SCORE;
 
     const toggleDay = (i: number) => {
         setSelectedDays(prev =>
