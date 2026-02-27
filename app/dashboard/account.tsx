@@ -283,6 +283,17 @@ export default function AccountScreen() {
                         onPress={() => router.push('/account/collection' as any)}
                     />
                     <MenuItem
+                        icon={<Flame size={20} color={getRank(scoreBreakdown.total).level >= 2 ? GOLD : '#ccc'} />}
+                        label="Thực hành Cân bằng 5 đại"
+                        onPress={() => {
+                            if (getRank(scoreBreakdown.total).level < 2) {
+                                Alert.alert("Khóa", "Bạn cần đạt Cấp 2 (Cầu Đạo) trở lên để mở khóa phần thực hành này.");
+                                return;
+                            }
+                            router.push('/account/five-elements' as any);
+                        }}
+                    />
+                    <MenuItem
                         icon={<Calculator size={20} color={GOLD} />}
                         label="Đếm Túc Số"
                         onPress={() => router.push('/counter' as any)}
