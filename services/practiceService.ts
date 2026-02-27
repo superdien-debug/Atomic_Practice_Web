@@ -80,70 +80,47 @@ export const practiceService = {
 
         const logDate = dateStr || new Date().toISOString().split('T')[0];
 
-        if (currentLogId) {
-            // Update existing log
-            const res = await supabase
-                .from('practice_logs')
-                .update({ completed: isCompleted })
-                .eq('id', currentLogId)
-                .select()
-                .single();
+        // We use upsert for both cases (new or existing) to be idempotent and handle conflicts gracefully
+        // The definitive constraint is (practice_id, log_date)
+        const res = await supabase
+            .from('practice_logs')
+            .upsert({
+                id: currentLogId, // If we have an ID, use it, otherwise let DB handle it
+                user_id: user.id,
+                practice_id: practiceId,
+                log_date: logDate,
+                completed: isCompleted
+            }, {
+                onConflict: 'practice_id,log_date',
+                ignoreDuplicates: false
+            })
+            .select()
+            .single();
 
-            // Reschedule notifications after completion change
-            try {
-                const { notificationService } = require('./notificationService');
-                const practices = await this.fetchPracticesForDate(logDate);
-                await notificationService.rescheduleAllPractices(practices);
-            } catch (err) {
-                console.error('[PracticeService] Failed to reschedule:', err);
-            }
-
-            // Game Rebirth: Reduce life bar if completed
-            if (isCompleted) {
-                try {
-                    await rebirthService.reduceLifeDays(user.id);
-                } catch (err) {
-                    console.error('Failed to reduce rebirth life days:', err);
-                }
-            }
-
-            return res;
-        } else {
-            // Create or update log (upsert to avoid 409 on duplicate date entry)
-            const res = await supabase
-                .from('practice_logs')
-                .upsert({
-                    user_id: user.id,
-                    practice_id: practiceId,
-                    log_date: logDate,
-                    completed: isCompleted
-                }, {
-                    onConflict: 'user_id,practice_id,log_date',
-                    ignoreDuplicates: false
-                })
-                .select()
-                .single();
-
-            // Reschedule notifications after completion change
-            try {
-                const { notificationService } = require('./notificationService');
-                const practices = await this.fetchPracticesForDate(logDate);
-                await notificationService.rescheduleAllPractices(practices);
-            } catch (err) {
-                console.error('[PracticeService] Failed to reschedule:', err);
-            }
-
-            // Game Rebirth: Reduce life bar if completed
-            if (isCompleted) {
-                try {
-                    await rebirthService.reduceLifeDays(user.id);
-                } catch (err) {
-                    console.error('Failed to reduce rebirth life days:', err);
-                }
-            }
-
-            return res;
+        if (res.error) {
+            console.error('[PracticeService] Toggle error:', res.error);
+            throw res.error;
         }
+
+        // Reschedule notifications after completion change
+        try {
+            const { notificationService } = require('./notificationService');
+            const practices = await this.fetchPracticesForDate(logDate);
+            await notificationService.rescheduleAllPractices(practices);
+        } catch (err) {
+            console.error('[PracticeService] Failed to reschedule:', err);
+        }
+
+        // Game Rebirth: Reduce life bar if completed
+        if (isCompleted) {
+            try {
+                await rebirthService.reduceLifeDays(user.id);
+            } catch (err) {
+                console.error('Failed to reduce rebirth life days:', err);
+            }
+        }
+
+        return res;
     },
 
     async createPractice(practice: Partial<Practice>) {

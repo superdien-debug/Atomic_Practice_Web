@@ -512,7 +512,7 @@ export default function PracticeDetailScreen() {
 
             {/* ── Bottom Action Button ── */}
             <View style={[s.bottomBar, { paddingBottom: Math.max(insets.bottom, 20) }]}>
-                {isLibraryView ? (
+                {!isOwner ? (
                     <TouchableOpacity
                         onPress={handleJoin}
                         disabled={cloning}
