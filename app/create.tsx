@@ -45,7 +45,18 @@ export default function CreatePracticeScreen() {
     // Settings
     const [remindersEnabled, setRemindersEnabled] = useState(false);
     const [reminderTimes, setReminderTimes] = useState<string[]>(['08:00']);
+    const [libraryGroup, setLibraryGroup] = useState<'AP' | 'AH'>('AP');
     const [isPublic, setIsPublic] = useState(true);
+
+    const AP_CATEGORIES = ['Guru Yoga', 'Quy y', 'Mantra', 'Sadhana', 'Study'];
+    const AH_CATEGORIES = ['Địa Đại', 'Thủy Đại', 'Hỏa Đại', 'Phong Đại', 'Không Đại'];
+    const currentCategories = libraryGroup === 'AP' ? AP_CATEGORIES : AH_CATEGORIES;
+
+    React.useEffect(() => {
+        if (!currentCategories.includes(category)) {
+            setCategory(currentCategories[0]);
+        }
+    }, [libraryGroup]);
     const [score, setScore] = useState<number | null>(null);
 
     React.useEffect(() => {
@@ -87,6 +98,7 @@ export default function CreatePracticeScreen() {
                 title: name,
                 category,
                 description,
+                library_group: libraryGroup,
                 target_type: unit === 'Minutes' ? 'duration' : 'count',
                 daily_target: parseInt(targetValue) || 1,
                 target_operator: goalType,
@@ -149,10 +161,25 @@ export default function CreatePracticeScreen() {
                         autoFocus
                     />
 
+                    <FieldLabel style={{ marginTop: 20 }}>Library Group</FieldLabel>
+                    <View style={s.segmentBar}>
+                        {(['AP', 'AH'] as const).map((g) => (
+                            <TouchableOpacity
+                                key={g}
+                                onPress={() => setLibraryGroup(g)}
+                                style={[s.segmentItem, libraryGroup === g && { backgroundColor: C.burgundy }]}
+                            >
+                                <Text style={[s.segmentText, libraryGroup === g && { color: '#FFF' }]}>
+                                    {g === 'AP' ? 'Ancient Practice (AP)' : 'Atomic Habit (AH)'}
+                                </Text>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+
                     <FieldLabel style={{ marginTop: 20 }}>Category</FieldLabel>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 5 }}>
                         <View style={{ flexDirection: 'row', gap: 8 }}>
-                            {CATEGORIES.map((cat) => (
+                            {currentCategories.map((cat) => (
                                 <TouchableOpacity
                                     key={cat}
                                     onPress={() => setCategory(cat)}

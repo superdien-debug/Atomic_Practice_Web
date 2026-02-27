@@ -37,13 +37,15 @@ export default function RootLayout() {
 
     // ── Sync Supabase auth state ──────────────────────────────────────────────
     useEffect(() => {
-        supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
-            setSession(currentSession);
+        const init = async () => {
+            const { data: { session: currentSession } } = await supabase.auth.getSession();
+            await setSession(currentSession);
             setIsReady(true);
-        });
+        };
+        init();
 
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
-            setSession(newSession);
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
+            await setSession(newSession);
         });
 
         return () => subscription.unsubscribe();
@@ -57,14 +59,22 @@ export default function RootLayout() {
         const rootGroup = segments[0] as string | undefined;
         const isAuth = rootGroup === 'auth';
         const isWelcome = !rootGroup || rootGroup === 'index';
-        const isApp = !isWelcome && !isAuth; // Everything else (dashboard, news, rebird, practice, etc.) is considered 'App'
+        const isApp = !isWelcome && !isAuth;
 
         // Perform redirect logic with timeout protection
         const timer = setTimeout(() => {
             if (session) {
-                // Logged In: If on Welcome/Auth, move to Dashboard
-                // Only if we aren't already starting with 'dashboard'
-                if ((isWelcome || isAuth) && rootGroup !== 'dashboard') {
+                // Logged In: Check onboarding status
+                const { isOnboardingComplete } = useAuthStore.getState();
+
+                // If onboarding is NOT complete AND we are NOT currently in the auth flow, go to profile-setup
+                if (!isOnboardingComplete && !isAuth) {
+                    router.replace('/auth/profile-setup');
+                    return;
+                }
+
+                // If onboarding IS complete and we are still on Welcome or Auth screens, go to Dashboard
+                if (isOnboardingComplete && (isWelcome || isAuth)) {
                     router.replace('/dashboard');
                 }
             } else {

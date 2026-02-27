@@ -1,10 +1,11 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert, Dimensions } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
-import { Lock, Wind, Flame, Droplets, Mountain, Circle } from 'lucide-react-native';
+import { Lock, Wind, Flame, Droplets, Mountain, Circle, RefreshCw } from 'lucide-react-native';
 import { StatusBar } from 'expo-status-bar';
 import { ScreenHeader } from '../../../components/ScreenHeader';
 
+const GOLD_ACCENT = '#c5a059';
 const { width } = Dimensions.get('window');
 const CIRCLE_SIZE = width * 0.8;
 const ITEM_SIZE = 80;
@@ -12,19 +13,19 @@ const ITEM_SIZE = 80;
 const COLORS = {
     bg: '#ffffff',
     space: '#f8fafc', // Không - Center
-    water: '#3b82f6', // Thủy - East (Blue)
-    fire: '#ef4444',  // Hỏa - West (Red)
-    earth: '#eab308', // Đất - South (Yellow)
-    wind: '#22c55e',  // Phong - North (Green)
+    water: '#3b82f6', // Thủy - Bottom (formerly East)
+    fire: '#ef4444',  // Hỏa - Top (formerly West)
+    earth: '#eab308', // Đất - Left (formerly South)
+    wind: '#22c55e',  // Phong - Right (formerly North)
     locked: 'rgba(0,0,0,0.5)',
 };
 
 const ELEMENTS = [
     { id: 'space', name: 'Không Đại', color: COLORS.space, icon: Circle, top: CIRCLE_SIZE / 2, left: CIRCLE_SIZE / 2, isLocked: true },
-    { id: 'water', name: 'Thủy Đại', color: COLORS.water, icon: Droplets, top: CIRCLE_SIZE / 2, left: CIRCLE_SIZE - ITEM_SIZE / 2, isLocked: true },
-    { id: 'fire', name: 'Hỏa Đại', color: COLORS.fire, icon: Flame, top: CIRCLE_SIZE / 2, left: ITEM_SIZE / 2, isLocked: true },
-    { id: 'earth', name: 'Địa Đại', color: COLORS.earth, icon: Mountain, top: CIRCLE_SIZE - ITEM_SIZE / 2, left: CIRCLE_SIZE / 2, isLocked: false },
-    { id: 'wind', name: 'Phong Đại', color: COLORS.wind, icon: Wind, top: ITEM_SIZE / 2, left: CIRCLE_SIZE / 2, isLocked: true },
+    { id: 'fire', name: 'Hỏa Đại', color: COLORS.fire, icon: Flame, top: ITEM_SIZE / 2, left: CIRCLE_SIZE / 2, isLocked: true },
+    { id: 'wind', name: 'Phong Đại', color: COLORS.wind, icon: Wind, top: CIRCLE_SIZE / 2, left: CIRCLE_SIZE - ITEM_SIZE / 2, isLocked: true },
+    { id: 'water', name: 'Thủy Đại', color: COLORS.water, icon: Droplets, top: CIRCLE_SIZE - ITEM_SIZE / 2, left: CIRCLE_SIZE / 2, isLocked: true },
+    { id: 'earth', name: 'Địa Đại', color: COLORS.earth, icon: Mountain, top: CIRCLE_SIZE / 2, left: ITEM_SIZE / 2, isLocked: false },
 ];
 
 export default function FiveElementsScreen() {
@@ -93,6 +94,14 @@ export default function FiveElementsScreen() {
                 <Text style={styles.instructionText}>
                     Chọn một Đại để bắt đầu thực hành. Sự hài hòa và thanh lọc của 5 yếu tố cốt lõi mang lại sự ổn định cho tâm trí và năng lượng của người hành giả.
                 </Text>
+
+                <TouchableOpacity
+                    style={styles.surveyBtn}
+                    onPress={() => router.push('/auth/survey' as any)}
+                >
+                    <RefreshCw size={16} color={GOLD_ACCENT} />
+                    <Text style={styles.surveyBtnText}>LÀM LẠI KHẢO SÁT CÂN BẰNG</Text>
+                </TouchableOpacity>
             </View>
         </View>
     );
@@ -102,6 +111,25 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#fefce8',
+    },
+    // ... existing styles
+    surveyBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginTop: 20,
+        paddingVertical: 12,
+        paddingHorizontal: 20,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: 'rgba(94, 11, 11, 0.2)',
+        gap: 8,
+    },
+    surveyBtnText: {
+        fontSize: 12,
+        fontWeight: 'bold',
+        color: '#5e0b0b',
+        letterSpacing: 1,
     },
     mandalaContainer: {
         flex: 1,

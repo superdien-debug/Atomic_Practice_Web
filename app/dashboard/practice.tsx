@@ -33,7 +33,7 @@ const getDates = () => {
     return dates;
 };
 
-type TabType = 'today' | 'library';
+type TabType = 'today' | 'library_ap' | 'library_ah';
 
 export default function MyPracticeScreen() {
     const router = useRouter();
@@ -49,6 +49,7 @@ export default function MyPracticeScreen() {
     const [totalScore, setTotalScore] = useState(0);
 
     const isTodaySelected = selectedDate === new Date().toISOString().split('T')[0];
+    const isLibrary = activeTab.startsWith('library');
 
     // Navigation callbacks
     const goToDetail = (id: string, isFromLibrary: boolean = false) => {
@@ -67,8 +68,11 @@ export default function MyPracticeScreen() {
             // Sync local notifications with newest practice state
             await notificationService.rescheduleAllPractices(myData);
 
-            const publicData = await practiceService.fetchPublicPractices();
-            setCommunityPractices(publicData);
+            if (isLibrary) {
+                const group = activeTab === 'library_ah' ? 'AH' : 'AP';
+                const publicData = await practiceService.fetchPublicPractices(group);
+                setCommunityPractices(publicData);
+            }
 
             const score = await practiceService.calculateTotalScore();
             setTotalScore(score);
@@ -87,7 +91,7 @@ export default function MyPracticeScreen() {
 
     const onRefresh = useCallback(async () => {
         await fetchData();
-    }, [selectedDate]);
+    }, [selectedDate, activeTab]);
 
     const toggleComplete = async (practice: Practice) => {
         const today = new Date().toISOString().split('T')[0];
@@ -195,9 +199,20 @@ export default function MyPracticeScreen() {
                         onPress={() => setActiveTab('today')}
                     />
                     <TabItem
-                        active={activeTab === 'library'}
-                        label={t('tabAPLibrary')}
-                        onPress={() => setActiveTab('library')}
+                        active={activeTab === 'library_ap'}
+                        label={t('tabAP')}
+                        onPress={() => {
+                            setActiveTab('library_ap');
+                            setSelectedCategory('All');
+                        }}
+                    />
+                    <TabItem
+                        active={activeTab === 'library_ah'}
+                        label={t('tabAH')}
+                        onPress={() => {
+                            setActiveTab('library_ah');
+                            setSelectedCategory('All');
+                        }}
                     />
                 </View>
 
@@ -242,8 +257,8 @@ export default function MyPracticeScreen() {
                     <RefreshControl refreshing={loading} onRefresh={onRefresh} tintColor="#800000" />
                 }
             >
-                {/* AP Library Category Filter */}
-                {activeTab === 'library' && !loading && communityPractices.length > 0 && (
+                {/* AP/AH Library Category Filter */}
+                {isLibrary && !loading && communityPractices.length > 0 && (
                     <View style={styles.filterBar}>
                         <ScrollView
                             horizontal

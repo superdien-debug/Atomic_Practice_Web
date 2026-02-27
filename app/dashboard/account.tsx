@@ -24,7 +24,7 @@ const MAROON = '#5e0b0b';
 
 export default function AccountScreen() {
     const router = useRouter();
-    const { user, signOut } = useAuthStore();
+    const { user, signOut, role } = useAuthStore();
     const { lang, setLang } = useLanguageStore();
     const t = useT();
     const insets = useSafeAreaInsets();
@@ -283,13 +283,9 @@ export default function AccountScreen() {
                         onPress={() => router.push('/account/collection' as any)}
                     />
                     <MenuItem
-                        icon={<Flame size={20} color={getRank(scoreBreakdown.total).level >= 2 ? GOLD : '#ccc'} />}
+                        icon={<Flame size={20} color={GOLD} />}
                         label="Thực hành Cân bằng 5 đại"
                         onPress={() => {
-                            if (getRank(scoreBreakdown.total).level < 2) {
-                                Alert.alert("Khóa", "Bạn cần đạt Cấp 2 (Cầu Đạo) trở lên để mở khóa phần thực hành này.");
-                                return;
-                            }
                             router.push('/account/five-elements' as any);
                         }}
                     />
@@ -338,6 +334,15 @@ export default function AccountScreen() {
                     </TouchableOpacity>
 
                     <MenuItem icon={<Shield size={20} color="#717171" />} label={t('privacyData')} />
+
+                    {role === 'admin' && (
+                        <MenuItem
+                            icon={<Settings size={20} color={GOLD} />}
+                            label="Hệ thống Quản trị"
+                            onPress={() => router.push('/admin')}
+                        />
+                    )}
+
                     <MenuItem
                         icon={<LogOut size={20} color="#ff4444" />}
                         label={t('signOut')}

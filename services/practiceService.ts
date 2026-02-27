@@ -27,6 +27,7 @@ export type Practice = {
     created_at?: string;
     streak?: number;
     total_logs?: number;
+    library_group?: 'AP' | 'AH';
 };
 
 export const practiceService = {
@@ -160,7 +161,10 @@ export const practiceService = {
             .from('practices')
             .insert({
                 user_id: user.id,
-                ...practice
+                ...practice,
+                library_group: practice.library_group || 'AP',
+                is_active: practice.is_active ?? true,
+                is_public: practice.is_public ?? false,
             })
             .select()
             .single();
@@ -172,15 +176,16 @@ export const practiceService = {
         return data;
     },
 
-    async fetchPublicPractices() {
+    async fetchPublicPractices(libraryGroup: 'AP' | 'AH' = 'AP') {
         const { data: { user } } = await supabase.auth.getUser();
 
-        // 1. Fetch all public active practices
+        // 1. Fetch all public active practices within the group
         const query = supabase
             .from('practices_with_counts')
             .select('*, profiles(display_name)')
             .eq('is_public', true)
-            .eq('is_active', true);
+            .eq('is_active', true)
+            .eq('library_group', libraryGroup);
 
         const { data: publicPractices, error } = await query;
         if (error) throw error;

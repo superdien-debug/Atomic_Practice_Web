@@ -73,7 +73,8 @@ const translations = {
         group: 'Group',
         noMessages: 'No messages yet. Start the conversation! 🙏',
         createPractice: 'Create Practice',
-        tabAPLibrary: 'AP Library',
+        tabAP: 'AP',
+        tabAH: 'AH',
         participants: 'Participants',
 
         // ── Challenge ─────────────────────────────────────────────────────────
@@ -193,7 +194,8 @@ const translations = {
         group: 'Nhóm',
         noMessages: 'Chưa có tin nhắn. Hãy bắt đầu! 🙏',
         createPractice: 'Tạo Tu Tập',
-        tabAPLibrary: 'Kho AP',
+        tabAP: 'Thư viện AP',
+        tabAH: 'Thói quen AH',
         participants: 'Người tham gia',
 
         // ── Challenge ─────────────────────────────────────────────────────────
