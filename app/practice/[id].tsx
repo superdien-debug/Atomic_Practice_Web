@@ -13,7 +13,8 @@ import { VajraModal } from '../../components/VajraModal';
 import { useT } from '../../i18n/useT';
 import { useAuthStore } from '../../store/authStore';
 import { getRank } from '../../utils/rankUtils';
-import { Bell, Clock } from 'lucide-react-native';
+import { Bell, Clock, Calculator } from 'lucide-react-native';
+import { tucsoService } from '../../services/tucsoService';
 
 // ─── Colors (Mirroring Challenge Detail Style) ──────────────────────────────
 const C = {
@@ -79,6 +80,12 @@ export default function PracticeDetailScreen() {
         onConfirm?: () => void;
     }>({ visible: false, icon: '', title: '', message: '', variant: 'success' });
 
+    // Sync Túc Số
+    const [accType, setAccType] = useState<any>(null);
+    const [accStats, setAccStats] = useState({ total_count: 0, total_duration: 0 });
+    const [newLogCount, setNewLogCount] = useState('');
+    const [logging, setLogging] = useState(false);
+
     const showModal = (
         icon: string, title: string, message: string,
         variant: 'success' | 'warning' | 'danger' = 'success',
@@ -133,11 +140,48 @@ export default function PracticeDetailScreen() {
                 setIsCompleted(logs.completed);
                 setLogId(logs.id);
             }
+
+            // Sync with Túc Số if it's a Yangti Stage
+            const yangtiStages = ['Quy y và lễ lạy', 'Cúng dường Mandala', 'Sám hối Kim Cương Tát Đỏa', 'Guru Yoga', 'Tích lũy túc số 3Kaya'];
+            if (yangtiStages.includes(data.title)) {
+                try {
+                    const type = await tucsoService.getOrCreateType(data.title);
+                    setAccType(type);
+                    const stats = await tucsoService.getStatsForType(type.id);
+                    setAccStats(stats);
+                } catch (err) {
+                    console.error('Failed to init tucso:', err);
+                }
+            }
+
         } catch (err) {
             console.error('Detail fetch error:', err);
             showModal('❌', t('error'), 'Could not load practice details.', 'danger');
             router.back();
         } finally { setLoading(false); }
+    };
+
+    const handleLogTucSo = async () => {
+        if (!accType || !newLogCount.trim()) return;
+        const count = parseInt(newLogCount.trim(), 10);
+        if (isNaN(count) || count <= 0) return;
+        setLogging(true);
+        try {
+            await tucsoService.saveLog(accType.id, 0, count);
+            const stats = await tucsoService.getStatsForType(accType.id);
+            setAccStats(stats);
+            setNewLogCount('');
+
+            // Auto complete AP if not done
+            if (!isCompleted) {
+                await handleToggleComplete();
+            }
+        } catch (e) {
+            console.error(e);
+            Alert.alert('Lỗi', 'Không thể lưu số đếm.');
+        } finally {
+            setLogging(false);
+        }
     };
 
     const handleJoin = async () => {
@@ -396,6 +440,41 @@ export default function PracticeDetailScreen() {
                             </Text>
                         </View>
                     </View>
+
+                    {/* Sync Túc Số Logger */}
+                    {accType && (
+                        <View style={s.section}>
+                            <View style={{ backgroundColor: '#fff', padding: 16, borderRadius: 16, borderWidth: 1, borderColor: '#f1f5f9', shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 5, elevation: 1 }}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                                    <Calculator size={18} color={C.gold} />
+                                    <Text style={{ color: C.text, fontWeight: '700', fontSize: 15 }}>Ghi nhận Túc Số (Đồng bộ Yangti)</Text>
+                                </View>
+
+                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+                                    <Text style={{ fontSize: 12, color: C.textMute }}>Đã tích lũy:</Text>
+                                    <Text style={{ fontSize: 14, color: C.maroonRed, fontWeight: '800' }}>{accStats.total_count.toLocaleString()}</Text>
+                                </View>
+
+                                <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+                                    <TextInput
+                                        style={{ flex: 1, backgroundColor: '#f8fafc', borderRadius: 12, paddingHorizontal: 16, height: 48, fontSize: 16, fontWeight: '600', color: C.text }}
+                                        placeholder="Nhập số lần / biến..."
+                                        placeholderTextColor={C.textFaint}
+                                        keyboardType="numeric"
+                                        value={newLogCount}
+                                        onChangeText={setNewLogCount}
+                                    />
+                                    <TouchableOpacity
+                                        onPress={handleLogTucSo}
+                                        disabled={!newLogCount.trim() || logging}
+                                        style={{ backgroundColor: C.maroonRed, borderRadius: 12, paddingHorizontal: 20, justifyContent: 'center', alignItems: 'center' }}
+                                    >
+                                        {logging ? <ActivityIndicator color={C.gold} /> : <Text style={{ color: C.gold, fontWeight: '800' }}>Lưu</Text>}
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+                        </View>
+                    )}
 
                     {/* Community Section */}
                     {(practice.is_public || practice.origin_id) && (

@@ -42,6 +42,32 @@ export const tucsoService = {
         return data;
     },
 
+    async getOrCreateType(name: string): Promise<TucSoType> {
+        const userPath = await supabase.auth.getUser();
+        const user = userPath.data.user;
+        if (!user) throw new Error('Not logged in');
+
+        // Check if exists
+        const { data: existing, error: findError } = await supabase
+            .from('tuc_so_types')
+            .select('*')
+            .eq('user_id', user.id)
+            .ilike('name', name)
+            .maybeSingle();
+
+        if (existing) return existing;
+
+        // If not, create
+        const { data: created, error: createError } = await supabase
+            .from('tuc_so_types')
+            .insert([{ user_id: user.id, name }])
+            .select()
+            .single();
+
+        if (createError) throw createError;
+        return created;
+    },
+
     async saveLog(type_id: string, duration_seconds: number, count: number): Promise<TucSoLog> {
         const userPath = await supabase.auth.getUser();
         const user = userPath.data.user;

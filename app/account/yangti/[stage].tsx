@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, TextInput, KeyboardAvoidingView, Platform, Image } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, TextInput, KeyboardAvoidingView, Platform, Image, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ArrowLeft, Target, Share2, Users, Send, CheckCircle2 } from 'lucide-react-native';
+import { ArrowLeft, Target, Share2, Users, Send, CheckCircle2, Calculator } from 'lucide-react-native';
 import { yangtiService, YangtiStage, YangtiComment } from '../../../services/yangtiService';
+import { tucsoService } from '../../../services/tucsoService';
 
 const VAJRA_BURGUNDY = '#5e0b0b';
 const VAJRA_GOLD = '#D4AF37';
@@ -22,6 +23,12 @@ export default function YangtiStageDetailScreen() {
     const [comments, setComments] = useState<YangtiComment[]>([]);
     const [newComment, setNewComment] = useState('');
     const [loading, setLoading] = useState(true);
+
+    const isAccumulationStage = [3, 4, 5, 6, 7].includes(stageNum);
+    const [accType, setAccType] = useState<any>(null);
+    const [accStats, setAccStats] = useState({ total_count: 0, total_duration: 0 });
+    const [newLogCount, setNewLogCount] = useState('');
+    const [logging, setLogging] = useState(false);
 
     useEffect(() => {
         if (!isNaN(stageNum)) {
@@ -50,10 +57,45 @@ export default function YangtiStageDetailScreen() {
             setCurrentProgress(progress);
             setPractitioners(users);
             setComments(comms);
+
+            if (found && [3, 4, 5, 6, 7].includes(stageNum)) {
+                // Initialize the accumulating type
+                try {
+                    // Truncate some titles or use the exact matching
+                    let typeName = found.title;
+                    if (stageNum === 7) typeName = 'Tích lũy túc số 3Kaya';
+                    const type = await tucsoService.getOrCreateType(typeName);
+                    setAccType(type);
+                    const stats = await tucsoService.getStatsForType(type.id);
+                    setAccStats(stats);
+                } catch (err) {
+                    console.error('Failed to init tucso:', err);
+                }
+            }
         } catch (e) {
             console.error(e);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleLogTucSo = async () => {
+        if (!accType || !newLogCount.trim()) return;
+        const count = parseInt(newLogCount.trim(), 10);
+        if (isNaN(count) || count <= 0) return;
+        setLogging(true);
+        try {
+            await tucsoService.saveLog(accType.id, 0, count);
+            const stats = await tucsoService.getStatsForType(accType.id);
+            setAccStats(stats);
+            setNewLogCount('');
+            // Ensure AP log is also tracked if user wants to consider today "completed".
+            // Currently, simply logging the count handles the primary stats, and AP Sync is decoupled.
+        } catch (e) {
+            console.error(e);
+            Alert.alert('Lỗi', 'Không thể lưu số đếm.');
+        } finally {
+            setLogging(false);
         }
     };
 
@@ -157,6 +199,44 @@ export default function YangtiStageDetailScreen() {
                         )}
                     </View>
                     <Text className="text-slate-400 text-[10px] italic mb-8">Các đồng tu cùng khóa đang tinh tấn ở giai đoạn này.</Text>
+
+                    {/* Accumulation Section for Stages 3-7 */}
+                    {isAccumulationStage && accType && (
+                        <View className="mb-10 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm shadow-slate-100">
+                            <View className="flex-row items-center gap-2 mb-4">
+                                <Calculator size={18} color={VAJRA_GOLD} />
+                                <Text className="text-slate-800 font-bold">Ghi nhận tiến độ Túc Số</Text>
+                            </View>
+
+                            <View className="flex-row justify-between mb-2">
+                                <Text className="text-slate-500 text-xs">Đã tích lũy:</Text>
+                                <Text className="text-vajra-burgundy font-black">{accStats.total_count.toLocaleString()} <Text className="font-normal text-slate-500 text-[10px]">/ {stageData.metric_goal}</Text></Text>
+                            </View>
+
+                            <View className="flex-row items-center gap-2 mt-4">
+                                <TextInput
+                                    className="flex-1 bg-slate-100 h-12 rounded-xl px-4 font-bold text-slate-800"
+                                    placeholder="Nhập số lần / biến..."
+                                    placeholderTextColor="#94a3b8"
+                                    keyboardType="numeric"
+                                    value={newLogCount}
+                                    onChangeText={setNewLogCount}
+                                />
+                                <TouchableOpacity
+                                    onPress={handleLogTucSo}
+                                    disabled={!newLogCount.trim() || logging}
+                                    className="bg-vajra-burgundy h-12 px-6 rounded-xl items-center justify-center"
+                                >
+                                    {logging ? (
+                                        <ActivityIndicator color="white" />
+                                    ) : (
+                                        <Text className="text-white font-bold">Lưu lại</Text>
+                                    )}
+                                </TouchableOpacity>
+                            </View>
+                            <Text className="text-[10px] text-slate-400 mt-3 text-center italic">* Số liệu được quét tự động khi bạn đếm từ màn hình Túc Số hoặc ở đây.</Text>
+                        </View>
+                    )}
 
                     {/* Action Button */}
                     <TouchableOpacity

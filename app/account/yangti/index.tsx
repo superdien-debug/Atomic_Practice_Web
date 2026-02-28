@@ -17,6 +17,7 @@ export default function YangtiPathScreen() {
     const [stages, setStages] = useState<YangtiStage[]>([]);
     const [currentStageNum, setCurrentStageNum] = useState<number>(1);
     const [loading, setLoading] = useState(true);
+    const [accumulationStats, setAccumulationStats] = useState<Record<number, number>>({});
 
     useEffect(() => {
         loadData();
@@ -46,6 +47,9 @@ export default function YangtiPathScreen() {
                 setStages(fetchedStages);
             }
             setCurrentStageNum(userProgress);
+
+            const stats = await yangtiService.getAccumulationStats();
+            setAccumulationStats(stats);
         } catch (error) {
             console.error(error);
         } finally {
@@ -104,14 +108,31 @@ export default function YangtiPathScreen() {
             IconBadge = <Flame size={24} color={VAJRA_GOLD} />;
         }
 
+        const targetMapping: Record<number, number> = {
+            3: 10000,
+            4: 10000,
+            5: 10000,
+            6: 10000,
+            7: 1400000
+        };
+        const target = targetMapping[stage.stage_number];
+        const currentCount = accumulationStats[stage.stage_number] || 0;
+        let pBarPercent = 0;
+        if (target) {
+            pBarPercent = Math.min((currentCount / target) * 100, 100);
+            if (pBarPercent >= 100 && !isCompleted && isCurrent) {
+                pBarPercent = 100; // Ready to graduate
+            }
+        }
+
         return (
             <TouchableOpacity
                 key={stage.stage_number}
                 onPress={() => navToStage(stage)}
                 activeOpacity={0.8}
-                className={`p-4 rounded-2xl border ${borderColor} ${bgColor} mb-3 flex-row items-center justify-between shadow-sm`}
+                className={`p-4 rounded-2xl border ${borderColor} ${bgColor} mb-3 shadow-sm`}
             >
-                <View className="flex-row items-center gap-4 flex-1">
+                <View className="flex-row items-center gap-4">
                     <View className={`w-10 h-10 rounded-full items-center justify-center ${isCompleted ? 'bg-green-50' : isCurrent ? 'bg-white' : 'bg-slate-50'}`}>
                         {IconBadge}
                     </View>
@@ -129,6 +150,21 @@ export default function YangtiPathScreen() {
                         </View>
                     </View>
                 </View>
+
+                {/* Sub-Progress for Accumulation Stages */}
+                {target !== undefined && !isLocked && (
+                    <View style={{ marginTop: 12 }}>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+                            <Text style={{ fontSize: 10, color: '#64748b', fontWeight: 'bold' }}>TIẾN ĐỘ TÚC SỐ</Text>
+                            <Text style={{ fontSize: 10, color: '#334155', fontWeight: 'bold' }}>
+                                {currentCount.toLocaleString()} / {target.toLocaleString()} ({Math.round(pBarPercent)}%)
+                            </Text>
+                        </View>
+                        <View style={{ height: 4, backgroundColor: '#e2e8f0', borderRadius: 2, overflow: 'hidden' }}>
+                            <View style={{ width: `${pBarPercent}%`, height: '100%', backgroundColor: VAJRA_GOLD, borderRadius: 2 }} />
+                        </View>
+                    </View>
+                )}
             </TouchableOpacity>
         );
     };

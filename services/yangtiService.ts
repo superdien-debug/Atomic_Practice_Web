@@ -132,5 +132,56 @@ export const yangtiService = {
             display_name: Array.isArray(item.profiles) ? item.profiles[0]?.display_name : item.profiles?.display_name,
             avatar_url: Array.isArray(item.profiles) ? item.profiles[0]?.avatar_url : item.profiles?.avatar_url,
         }));
+    },
+
+    async getAccumulationStats(): Promise<Record<number, number>> {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return {};
+
+        const stageMapping: Record<string, number> = {
+            'Quy y và lễ lạy': 3,
+            'Cúng dường Mandala': 4,
+            'Sám hối Kim Cương Tát Đỏa': 5,
+            'Guru Yoga': 6,
+            'Tích lũy túc số 3Kaya': 7,
+        };
+        const targetNames = Object.keys(stageMapping);
+
+        // Fetch types that match the exact names
+        const { data: types } = await supabase
+            .from('tuc_so_types')
+            .select('id, name')
+            .eq('user_id', user.id)
+            .in('name', targetNames);
+
+        if (!types || types.length === 0) return {};
+
+        const typeIds = types.map(t => t.id);
+
+        // Fetch sum of counts grouping by type_id
+        // Since Supabase RPC is preferred for groupby, but we can just query all logs if there aren't millions or use a quick JS reduce since it's just user's logs
+        const { data: logs } = await supabase
+            .from('tuc_so_logs')
+            .select('type_id, count')
+            .eq('user_id', user.id)
+            .in('type_id', typeIds);
+
+        const results: Record<number, number> = {};
+
+        if (logs) {
+            const countsPerType: Record<string, number> = {};
+            logs.forEach(log => {
+                countsPerType[log.type_id] = (countsPerType[log.type_id] || 0) + log.count;
+            });
+
+            types.forEach(t => {
+                const stageNum = stageMapping[t.name];
+                if (stageNum) {
+                    results[stageNum] = countsPerType[t.id] || 0;
+                }
+            });
+        }
+
+        return results;
     }
 };
