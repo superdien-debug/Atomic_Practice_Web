@@ -13,6 +13,7 @@ import { challengeService, Challenge } from '../../services/challengeService';
 import { userService, Profile, LeaderboardEntry } from '../../services/userService';
 import { microLearningService, type MicroLearningPost } from '../../services/microLearningService';
 import { getRank, MIN_CREATION_SCORE } from '../../utils/rankUtils';
+import { yangtiService } from '../../services/yangtiService';
 import { Animated, Easing as RNEasing, Alert, Platform } from 'react-native';
 
 // ─── Colors (Consistent with Theme) ─────────────────────────────────────────
@@ -21,7 +22,7 @@ const CARD = '#FFF';
 const BG = '#FEF9EF';
 const MAROON = '#800000';
 const { width } = Dimensions.get('window');
-import { BookOpen, Sparkles, Wind } from 'lucide-react-native';
+import { BookOpen, Sparkles, Wind, Award } from 'lucide-react-native';
 import { EventAnnouncementModal } from '../../components/EventAnnouncementModal';
 
 // Session-based flag to ensure popup only shows once per boot
@@ -83,6 +84,7 @@ export default function DashboardScreen() {
         joinedChallengesList: [] as Challenge[],
         leaderboard: [] as LeaderboardEntry[],
         mpoints: 0,
+        yangtiStage: 1,
     });
 
     const [showEventPopup, setShowEventPopup] = useState(false);
@@ -118,6 +120,7 @@ export default function DashboardScreen() {
             const leaderboard = await userService.fetchLeaderboard();
 
             const mpoints = await userService.getMPointsBalance();
+            const yangtiStage = await yangtiService.getUserProgress();
 
             setStats({
                 completedCount: completed,
@@ -129,6 +132,7 @@ export default function DashboardScreen() {
                 joinedChallengesList: joinedList,
                 leaderboard: leaderboard || [],
                 mpoints,
+                yangtiStage: yangtiStage || 1,
             });
         } catch (error) {
             console.error('Dashboard fetch error:', error);
@@ -265,8 +269,40 @@ export default function DashboardScreen() {
                     />
                 </View>
 
-                {/* ─ AI Practice Coach ─ */}
+                {/* ─ AI Practice Coach & Yangti ─ */}
                 <View style={styles.section}>
+                    {(() => {
+                        const stageNum = stats.yangtiStage;
+                        let progressPercent = 0;
+                        if (stageNum > 10) {
+                            progressPercent = 100;
+                        } else if (stageNum <= 8) {
+                            progressPercent = Math.round(((stageNum - 1) / 7) * 25);
+                        } else {
+                            progressPercent = Math.round(25 + (((stageNum - 8) / 3) * 75));
+                        }
+
+                        return (
+                            <TouchableOpacity
+                                onPress={() => router.push('/account/yangti' as any)}
+                                style={[styles.coachBanner, { marginBottom: 15, backgroundColor: MAROON, borderColor: GOLD + '40' }]}
+                                activeOpacity={0.9}
+                            >
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 15, marginBottom: 12 }}>
+                                    <Award size={24} color={GOLD} />
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={[styles.coachBannerTitle, { color: GOLD }]}>Lộ trình Yangti Nakpo</Text>
+                                        <Text style={[styles.coachBannerSub, { color: '#FFF', opacity: 0.8 }]}>Giai đoạn {Math.min(stageNum, 10)}/10: Nhấn để xem chi tiết</Text>
+                                    </View>
+                                </View>
+                                <View style={{ height: 6, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 3, overflow: 'hidden' }}>
+                                    <View style={{ width: `${progressPercent}%`, height: '100%', backgroundColor: GOLD, borderRadius: 3 }} />
+                                </View>
+                                <Text style={{ fontSize: 10, color: GOLD, fontWeight: 'bold', marginTop: 6, textAlign: 'right' }}>{progressPercent}% HOÀN THÀNH</Text>
+                            </TouchableOpacity>
+                        );
+                    })()}
+
                     <TouchableOpacity
                         onPress={() => router.push('/coach')}
                         style={styles.coachBanner}
