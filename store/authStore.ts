@@ -12,6 +12,7 @@ interface AuthState {
     setUser: (user: User | null) => void;
     setRole: (role: 'admin' | 'user' | null) => void;
     setIsOnboardingComplete: (status: boolean) => void;
+    forceUpdateLoading: (status: boolean) => void;
     signOut: () => Promise<void>;
 }
 
@@ -51,6 +52,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     setUser: (user) => set({ user }),
     setRole: (role) => set({ role }),
     setIsOnboardingComplete: (status) => set({ isOnboardingComplete: status }),
+    forceUpdateLoading: (status) => set({ isLoading: status }),
     signOut: async () => {
         await supabase.auth.signOut();
         set({ session: null, user: null, role: null, isOnboardingComplete: true });

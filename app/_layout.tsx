@@ -53,8 +53,18 @@ export default function RootLayout() {
 
     // ── Navigation guard ──────────────────────────────────────────────────────
     useEffect(() => {
-        // Wait until navigation and session are stabilized
-        if (!navigationState?.key || isLoading || !isReady) return;
+        const { isOnboardingComplete, forceUpdateLoading } = useAuthStore.getState();
+
+        // Logging for debug purposes to identify why it's stuck
+        if (isLoading || !isReady || !navigationState?.key) {
+            console.log("[RootLayout] Waiting for state:", {
+                isLoading,
+                isReady,
+                hasNavKey: !!navigationState?.key,
+                segments: segments.length
+            });
+            return;
+        }
 
         const rootGroup = segments[0] as string | undefined;
         const isAuth = rootGroup === 'auth';
@@ -64,32 +74,33 @@ export default function RootLayout() {
         // Perform redirect logic with timeout protection
         const timer = setTimeout(() => {
             if (session) {
-                // Logged In: Check onboarding status
-                const { isOnboardingComplete } = useAuthStore.getState();
-
                 // If onboarding is NOT complete AND we are NOT currently in the auth flow, go to profile-setup
                 if (!isOnboardingComplete && !isAuth) {
+                    console.log("[RootLayout] Redirecting to profile-setup (Incomplete onboarding)");
                     router.replace('/auth/profile-setup');
                     return;
                 }
 
                 // If onboarding IS complete and we are still on Welcome or Auth screens, go to Dashboard
                 if (isOnboardingComplete && (isWelcome || isAuth)) {
+                    console.log("[RootLayout] Redirecting to dashboard (Onboarding complete)");
                     router.replace('/dashboard');
                 }
             } else {
                 // Logged Out: If in App area, move to Welcome
                 if (isApp) {
+                    console.log("[RootLayout] Redirecting to welcome (No session)");
                     router.replace('/');
                 }
             }
         }, 1);
 
-        // Failsafe: if navigation gets stuck, force layout to render after 3s
+        // Failsafe: if navigation gets stuck, force layout to render after 5s
         const failsafe = setTimeout(() => {
-            if (isLoading || !isReady) {
+            if (isLoading || !isReady || !navigationState?.key) {
                 console.warn("[RootLayout] Safety timeout reached. Forcing app to render to prevent hanging.");
                 setIsReady(true);
+                forceUpdateLoading(false);
             }
         }, 5000);
 
@@ -97,7 +108,7 @@ export default function RootLayout() {
             clearTimeout(timer);
             clearTimeout(failsafe);
         };
-    }, [session, isLoading, segments, navigationState?.key, isReady]);
+    }, [session, isLoading, segments, navigationState?.key, isReady, useAuthStore.getState().isOnboardingComplete]);
 
     // Keep Stack ALWAYS mounted to provide navigation context to children
     return (
