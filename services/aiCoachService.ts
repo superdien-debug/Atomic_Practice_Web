@@ -195,22 +195,142 @@ Hãy tư vấn cho tôi theo đúng quy trình và trả về JSON.
 
             // Parse the AI response
             let aiResult: any = data;
+            console.log('[KarmaCoach Frontend] Raw data type:', typeof data);
+
             if (typeof data === 'string') {
-                aiResult = JSON.parse(data.replace(/```json\n?|\n?```/g, '').trim());
+                try {
+                    const cleaned = data.replace(/```json\n?|\n?```/g, '').trim();
+                    aiResult = JSON.parse(cleaned);
+                    console.log('[KarmaCoach Frontend] Parsed successfully from string.');
+                } catch (pe) {
+                    console.error('[KarmaCoach Frontend] JSON Parse Failed. Raw:', data);
+                    throw new Error('Frontend JSON parse failed');
+                }
+            } else {
+                console.log('[KarmaCoach Frontend] Data is already object. Keys:', Object.keys(data || {}));
             }
+
+            // Unwrap "persona_response" if the Edge Function nested it
+            const payload = aiResult.persona_response ? aiResult.persona_response : aiResult;
+
+            // 1. Initial attempt: Grab known English/Vietnamese keys
+            let rawKarmaAnalysis = payload.karmaAnalysis || payload.phan_tich_nhan_qua || payload.analysis || '';
+            let atomicPractices = payload.atomicPractices || payload.de_xuat_thoi_quen_vi_mo || payload.practices || [];
+            let encouragement = payload.encouragement || payload.loi_khuyen || payload.thong_diep || payload.loi_chuc || payload.final_encouragement || '';
+
+            // 2. WILD SCHEMA FALLBACK: If standard keys are completely missing, auto-extract everything!
+            if (!rawKarmaAnalysis && (!atomicPractices || atomicPractices.length === 0) && typeof payload === 'object' && payload !== null) {
+                console.warn('[KarmaCoach Frontend] Wild schema detected, initializing deep recursive extraction...');
+                const textParts: string[] = [];
+
+                const extractWildcard = (obj: any, parentKey = '') => {
+                    if (!obj || typeof obj !== 'object') return;
+
+                    if (Array.isArray(obj)) {
+                        // If it's an array of objects, assume it's the practices list
+                        if (obj.length > 0 && typeof obj[0] === 'object' && (!atomicPractices || atomicPractices.length === 0)) {
+                            atomicPractices = obj;
+                        }
+                        // If it's an array of strings, join them as bullet points
+                        else if (obj.length > 0 && typeof obj[0] === 'string') {
+                            const title = parentKey.replace(/_/g, ' ').toUpperCase();
+                            textParts.push(`**${title}**\n${obj.map(item => `• ${item}`).join('\n')}`);
+                        }
+                        return; // Stop recursing into this array's items
+                    }
+
+                    for (const [key, value] of Object.entries(obj)) {
+                        // Ignore metadata keys
+                        if (['pointstype', 'encouragement', 'final_encouragement', 'loi_khuyen'].includes(key.toLowerCase())) {
+                            if (!encouragement && typeof value === 'string') encouragement = value;
+                            continue;
+                        }
+
+                        if (typeof value === 'string') {
+                            const readableTitle = key.replace(/_/g, ' ').toUpperCase();
+                            textParts.push(`**${readableTitle}**\n${value}`);
+                        } else if (typeof value === 'object' && value !== null) {
+                            extractWildcard(value, key); // Recurse deeper
+                        }
+                    }
+                };
+
+                extractWildcard(payload);
+                rawKarmaAnalysis = textParts.join('\n\n\n');
+            }
+
+            // CRITICAL FIX: The AI model sometimes returns an object for analysis instead of a string.
+            // React cannot render objects as text children. We must flatten it.
+            let karmaAnalysis = '';
+            if (typeof rawKarmaAnalysis === 'object' && rawKarmaAnalysis !== null) {
+                console.warn('[KarmaCoach Frontend] Warning: karmaAnalysis is an object, flattening to string...');
+                const flattenObject = (obj: any): string => {
+                    return Object.values(obj)
+                        .map(val => typeof val === 'object' && val !== null ? flattenObject(val) : String(val))
+                        .join('\n\n');
+                };
+                karmaAnalysis = flattenObject(rawKarmaAnalysis);
+            } else {
+                karmaAnalysis = String(rawKarmaAnalysis);
+            }
+
+            // If atomicPractices is an array of objects with Vietnamese keys, map them
+            if (Array.isArray(atomicPractices) && atomicPractices.length > 0) {
+                atomicPractices = atomicPractices.map((p: any) => {
+                    // Handle case where array just contains strings
+                    if (typeof p === 'string') {
+                        return {
+                            timeSlot: 'Tùy chọn',
+                            practice: p,
+                            seedType: 'Thiện nghiệp',
+                            durationMinutes: 1
+                        };
+                    }
+
+                    const mappedPractice = {
+                        timeSlot: p.timeSlot || p.thoi_gian || p.thoi_diem || p.thoi_gian_cu_the || p.thoi_gian_de_xuat || 'Tùy chọn',
+                        practice: p.practice || p.thu_thach || p.hanh_dong || p.bai_tap || p.hanh_dong_vi_mo || p.hanh_dong_cu_the || '',
+                        seedType: p.seedType || p.loai_hat_giong || p.nang_luong || p.muc_dich || p.nang_luong_giao_hat || 'Thiện nghiệp',
+                        durationMinutes: Number(p.durationMinutes || p.thoi_luong_phut || p.thoi_luong || p.thoi_gian_thuc_hien_phut || 1) || 1
+                    };
+
+                    // WILD SCHEMA FALLBACK FOR PRACTICES
+                    // If we couldn't find the 'practice' text based on known keys, extract all strings from the object
+                    if (!mappedPractice.practice && typeof p === 'object' && p !== null) {
+                        console.warn('[KarmaCoach Frontend] Wild schema in practice item, flattening object...', p);
+                        mappedPractice.practice = Object.values(p)
+                            .filter(val => typeof val === 'string' && val.length > 3) // Ignore tiny strings like "1"
+                            .join(' — ');
+                    }
+
+                    // Absolute final fallback to ensure it renders on screen
+                    if (!mappedPractice.practice) {
+                        mappedPractice.practice = "Thực hành theo gợi ý từ Karma Coach";
+                    }
+
+                    return mappedPractice;
+                });
+            }
+
+            console.log('[KarmaCoach Frontend] Normalized analysis exists:', !!karmaAnalysis);
+            console.log('[KarmaCoach Frontend] Normalized practices count:', atomicPractices?.length);
+
+            const normalizedResult = {
+                karmaAnalysis,
+                atomicPractices,
+                pointsType: params.userType === 'Practitioner' ? 'merit' as const : 'karmic' as const,
+                encouragement: payload.encouragement || payload.loi_khuyen || payload.thong_diep || payload.loi_chuc || 'Hãy bắt đầu từ điều nhỏ nhất hôm nay!'
+            };
 
             // Deduct Mpoints on success
             await userService.spendMPoints(10);
 
             // Save session to DB
-            await this.saveSession(params, aiResult, relatedPractices);
+            await this.saveSession(params, normalizedResult, relatedPractices);
 
             return {
-                karmaAnalysis: aiResult.karmaAnalysis || '',
-                atomicPractices: aiResult.atomicPractices || [],
-                relatedPractices,
-                pointsType: params.userType === 'Practitioner' ? 'merit' : 'karmic',
-                encouragement: aiResult.encouragement || 'Hãy bắt đầu từ điều nhỏ nhất hôm nay!'
+                ...normalizedResult,
+                relatedPractices
             };
 
         } catch (error: any) {
@@ -248,7 +368,7 @@ Hãy tư vấn cho tôi theo đúng quy trình và trả về JSON.
             if (error) throw error;
             return (data as KarmaPractice[]) || [];
         } catch (err) {
-            console.warn('[karmaCoach] Text search failed, fetching random practices:', err);
+            console.warn('[KarmaCoach] Text search failed, fetching random practices:', err);
             // Fallback: just get some practices of the right type
             const { data } = await supabase
                 .from('karma_practices')
