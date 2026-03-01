@@ -311,8 +311,8 @@ export default function DashboardScreen() {
                         <View style={styles.coachBannerContent}>
                             <Sparkles size={24} color={GOLD} />
                             <View style={{ flex: 1 }}>
-                                <Text style={styles.coachBannerTitle}>Atomic Practice Coach</Text>
-                                <Text style={styles.coachBannerSub}>Tạo bài thực hành 5 phút tuỳ chỉnh theo tâm trạng với AI.</Text>
+                                <Text style={styles.coachBannerTitle}>🌱 Karma Coaching</Text>
+                                <Text style={styles.coachBannerSub}>Gieo nhân gặt quả — AI phân tích thói quen & tư vấn thực hành vi mô.</Text>
                             </View>
                         </View>
                     </TouchableOpacity>

@@ -1,242 +1,380 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Animated } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import {
+    View, Text, StyleSheet, ScrollView, TouchableOpacity,
+    ActivityIndicator, Alert, Image
+} from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Sparkles, CheckCircle2, Quote, ArrowLeft, Play, Pause, RotateCcw } from 'lucide-react-native';
-import { aiCoachService, AtomicPracticeResponse } from '../../services/aiCoachService';
+import {
+    ArrowLeft, Sparkles, BookOpen, Clock, Leaf, Zap,
+    CheckCircle2, ChevronDown, ChevronUp
+} from 'lucide-react-native';
+import {
+    aiCoachService,
+    type KarmaCoachingResponse,
+    type KarmaPractice,
+    type UserType
+} from '../../services/aiCoachService';
 
 const BG = '#FDFBF7';
 const MAROON = '#800000';
 const GOLD = '#D4AF37';
+const TEAL = '#0F766E';
+const EMERALD = '#059669';
 
-export default function CoachSessionScreen() {
+// ─── Collapsible Practice Card ────────────────────────────────────────────────
+function PracticeItem({
+    item, index, userType
+}: {
+    item: { timeSlot: string; practice: string; seedType: string; durationMinutes: number };
+    index: number;
+    userType: UserType;
+}) {
+    const [expanded, setExpanded] = useState(index === 0);
+    const isPractitioner = userType === 'Practitioner';
+
+    return (
+        <TouchableOpacity
+            style={[
+                styles.practiceItem,
+                expanded && { borderColor: isPractitioner ? GOLD + '60' : TEAL + '60' }
+            ]}
+            onPress={() => setExpanded(!expanded)}
+            activeOpacity={0.85}
+        >
+            <View style={styles.practiceItemHeader}>
+                <View style={[
+                    styles.indexBadge,
+                    { backgroundColor: isPractitioner ? GOLD + '20' : TEAL + '15' }
+                ]}>
+                    <Text style={[styles.indexNum, { color: isPractitioner ? GOLD : TEAL }]}>
+                        {index + 1}
+                    </Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                    <Text style={styles.timeSlot}>{item.timeSlot}</Text>
+                    <View style={styles.seedTagRow}>
+                        {isPractitioner ? <Zap size={10} color={GOLD} /> : <Leaf size={10} color={TEAL} />}
+                        <Text style={[styles.seedTag, { color: isPractitioner ? GOLD : TEAL }]}>
+                            {item.seedType}
+                        </Text>
+                        <View style={styles.durationPill}>
+                            <Clock size={9} color="#999" />
+                            <Text style={styles.durationText}>{item.durationMinutes} phút</Text>
+                        </View>
+                    </View>
+                </View>
+                {expanded
+                    ? <ChevronUp size={18} color="#AAA" />
+                    : <ChevronDown size={18} color="#AAA" />
+                }
+            </View>
+
+            {expanded && (
+                <View style={styles.practiceBody}>
+                    <Text style={styles.practiceText}>{item.practice}</Text>
+                </View>
+            )}
+        </TouchableOpacity>
+    );
+}
+
+// ─── Related Practice Card ────────────────────────────────────────────────────
+function RelatedCard({ p }: { p: KarmaPractice }) {
+    return (
+        <View style={styles.relatedCard}>
+            <Text style={styles.relatedTitle}>{p.title}</Text>
+            {p.energy_type && (
+                <Text style={styles.relatedEnergy}>{p.energy_type}</Text>
+            )}
+            <Text style={styles.relatedContent} numberOfLines={3}>{p.content}</Text>
+        </View>
+    );
+}
+
+// ─── Main Screen ──────────────────────────────────────────────────────────────
+export default function KarmaCoachResultScreen() {
     const params = useLocalSearchParams();
     const router = useRouter();
     const insets = useSafeAreaInsets();
 
-    const [loading, setLoading] = useState(true);
-    const [practice, setPractice] = useState<AtomicPracticeResponse | null>(null);
+    const userType = (params.userType as UserType) || 'Normal';
+    const isPractitioner = userType === 'Practitioner';
 
-    // Timer State
-    const [timeLeft, setTimeLeft] = useState<number>(0);
-    const [isActive, setIsActive] = useState(false);
-    const timerRef = useRef<NodeJS.Timeout | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [result, setResult] = useState<KarmaCoachingResponse | null>(null);
+    const [saved, setSaved] = useState(false);
 
     useEffect(() => {
-        loadPractice();
+        loadCoaching();
     }, []);
 
-    const loadPractice = async () => {
+    const loadCoaching = async () => {
         try {
             setLoading(true);
-            const req = {
-                goal: params.goal as string || "Trì chú",
-                minutes: parseInt(params.minutes as string) || 5,
-                context: params.context as string || "Người dùng mới, muốn bắt đầu nhẹ nhàng",
-                style: "ngắn gọn, truyền cảm hứng"
-            };
-
-            const data = await aiCoachService.getAtomicPractice(req);
-            setPractice(data);
-            setTimeLeft(data.duration_minutes * 60);
-
+            const data = await aiCoachService.getKarmaCoaching({
+                userType,
+                routine: params.routine as string || '',
+                goals: params.goals as string || '',
+                flaws: params.flaws as string || ''
+            });
+            setResult(data);
         } catch (error: any) {
-            console.error('Failed to load atomic practice', error);
-            const msg = (error.message && error.message.includes('Mpoint')) ? error.message : "Không thể kết nối tới AI Coach lúc này.";
-            Alert.alert("Lỗi", msg);
+            const msg = error.message?.includes('Mpoint')
+                ? error.message
+                : 'Không thể kết nối AI Coach lúc này. Vui lòng thử lại sau.';
+            Alert.alert('Không thể tải', msg);
             router.back();
         } finally {
             setLoading(false);
         }
     };
 
-    // Timer Logic
-    useEffect(() => {
-        if (isActive && timeLeft > 0) {
-            timerRef.current = setTimeout(() => {
-                setTimeLeft(prev => prev - 1);
-            }, 1000);
-        } else if (timeLeft === 0 && isActive) {
-            setIsActive(false);
-        }
-        return () => {
-            if (timerRef.current) clearTimeout(timerRef.current);
-        };
-    }, [isActive, timeLeft]);
-
-    const toggleTimer = () => setIsActive(!isActive);
-
-    const resetTimer = () => {
-        setIsActive(false);
-        if (practice) setTimeLeft(practice.duration_minutes * 60);
+    const handleSave = () => {
+        setSaved(true);
+        Alert.alert(
+            isPractitioner ? '🔱 Công Đức đã được ghi nhận!' : '✨ Karmic Points đã được ghi nhận!',
+            `+5 ${isPractitioner ? 'Merit Points' : 'Karmic Points'} cho phiên tư vấn này.\nHãy bắt đầu thực hành ngay hôm nay! 🙏`,
+            [{ text: 'Về trang chủ', onPress: () => router.push('/dashboard') }]
+        );
     };
 
-    const formatTime = (seconds: number) => {
-        const m = Math.floor(seconds / 60);
-        const s = seconds % 60;
-        return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-    };
+    // ─ Loading state ─
+    if (loading) {
+        return (
+            <View style={[styles.root, { justifyContent: 'center', alignItems: 'center', paddingTop: insets.top }]}>
+                <View style={styles.loadingCard}>
+                    <ActivityIndicator size="large" color={MAROON} />
+                    <Text style={styles.loadingTitle}>Karma Coach đang phân tích...</Text>
+                    <Text style={styles.loadingDesc}>
+                        {isPractitioner
+                            ? 'Đang chiếu soi Nhân Quả và thiết kế lộ trình tịnh hóa cho bạn 🔱'
+                            : 'Đang phân tích lịch trình và thiết kế thói quen vi mô cho bạn 🌱'}
+                    </Text>
+                </View>
+            </View>
+        );
+    }
 
-    const renderLoading = () => (
-        <View style={[styles.root, { justifyContent: 'center', alignItems: 'center' }]}>
-            <ActivityIndicator size="large" color={MAROON} />
-            <Text style={{ marginTop: 20, color: '#666' }}>AI đang thiết kế bài thực hành cho bạn...</Text>
-        </View>
-    );
+    if (!result) return null;
 
-    if (loading) return renderLoading();
-    if (!practice) return null;
-
-    const progress = practice.duration_minutes > 0
-        ? ((practice.duration_minutes * 60) - timeLeft) / (practice.duration_minutes * 60)
-        : 0;
+    const accentColor = isPractitioner ? GOLD : TEAL;
+    const pointsLabel = isPractitioner ? '🔱 Merit Points' : '✨ Karmic Points';
 
     return (
         <View style={[styles.root, { paddingTop: insets.top }]}>
-            {/* Header */}
-            <View style={styles.header}>
-                <TouchableOpacity onPress={() => router.back()} style={{ padding: 5 }}>
-                    <ArrowLeft size={24} color="#333" />
-                </TouchableOpacity>
-                <Text style={styles.headerTitle}>AI Coach Session</Text>
-                <View style={{ width: 34 }} />
+
+            {/* Header with Agent Identity */}
+            <View style={[styles.header, { backgroundColor: isPractitioner ? MAROON : TEAL }]}>
+                <View style={styles.headerLeft}>
+                    <TouchableOpacity onPress={() => router.back()} style={styles.headerBack}>
+                        <ArrowLeft size={22} color="#FFF" />
+                    </TouchableOpacity>
+                    <View style={styles.headerAgentThumb}>
+                        <Image
+                            source={require('../../assets/AIagent.jpg')}
+                            style={styles.headerAgentImg}
+                        />
+                    </View>
+                </View>
+
+                <View style={{ flex: 1 }}>
+                    <Text style={styles.headerTitle}>
+                        {isPractitioner ? '🔱 Lộ Trình Tịnh Hóa' : '🌱 Karma Coaching'}
+                    </Text>
+                    <Text style={styles.headerSub}>
+                        {isPractitioner ? 'Hành giả Kim Cương Thừa' : 'Người bình thường'}
+                    </Text>
+                </View>
+                <View style={styles.pointsBadge}>
+                    <Sparkles size={12} color={isPractitioner ? GOLD : '#FFF'} />
+                    <Text style={[styles.pointsBadgeText, { color: isPractitioner ? GOLD : '#FFF' }]}>
+                        {pointsLabel}
+                    </Text>
+                </View>
             </View>
 
-            <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20 }}>
-                {/* Title & Motivation */}
-                <Text style={styles.title}>{practice.title}</Text>
+            <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20 }} showsVerticalScrollIndicator={false}>
 
-                <View style={styles.motivationCard}>
-                    <Quote size={20} color={GOLD} style={{ marginBottom: 10 }} />
-                    <Text style={styles.motivationText}>{practice.motivation_line}</Text>
-                </View>
-
-                {/* Timer Section */}
-                <View style={styles.timerSection}>
-                    <View style={styles.timerCircle}>
-                        <Text style={styles.timerText}>{formatTime(timeLeft)}</Text>
+                {/* ─ Karma Analysis ─ */}
+                <View style={[styles.analysisCard, { borderColor: accentColor + '40' }]}>
+                    <View style={styles.cardTitleRow}>
+                        <BookOpen size={18} color={accentColor} />
+                        <Text style={[styles.cardTitle, { color: accentColor }]}>
+                            {isPractitioner ? '🔍 Phân tích Duyên Khởi & Tập Khí' : '🔍 Phân tích Nhân Quả'}
+                        </Text>
                     </View>
-                    <View style={styles.timerControls}>
-                        <TouchableOpacity onPress={toggleTimer} style={styles.ctrlBtnBtn}>
-                            {isActive ? <Pause size={24} color="#FFF" /> : <Play size={24} color="#FFF" style={{ marginLeft: 3 }} />}
-                        </TouchableOpacity>
-                        <TouchableOpacity onPress={resetTimer} style={styles.ctrlBtnOutline}>
-                            <RotateCcw size={20} color={MAROON} />
-                        </TouchableOpacity>
+                    <Text style={styles.analysisText}>{result.karmaAnalysis}</Text>
+                </View>
+
+                {/* ─ Atomic Practices ─ */}
+                <Text style={styles.sectionTitle}>
+                    {isPractitioner ? '📿 Lộ trình Tịnh hóa Vi mô' : '💊 Đơn thuốc Thói quen Vi mô'}
+                </Text>
+                <Text style={styles.sectionSub}>
+                    Nhấn vào Each mục để xem chi tiết hành động cụ thể.
+                </Text>
+                {result.atomicPractices.map((item, idx) => (
+                    <PracticeItem key={idx} item={item} index={idx} userType={userType} />
+                ))}
+
+                {/* ─ Related Practices from Library ─ */}
+                {result.relatedPractices.length > 0 && (
+                    <>
+                        <Text style={[styles.sectionTitle, { marginTop: 30 }]}>
+                            📚 Bài thực hành từ Thư viện
+                        </Text>
+                        <Text style={styles.sectionSub}>
+                            Karma Coach đã tìm thấy {result.relatedPractices.length} bài thực hành liên quan.
+                        </Text>
+                        {result.relatedPractices.map(p => (
+                            <RelatedCard key={p.id} p={p} />
+                        ))}
+                    </>
+                )}
+
+                {/* ─ Encouragement ─ */}
+                <View style={styles.encourageCard}>
+                    <Text style={styles.encourageQuote}>{result.encouragement}</Text>
+                    <Text style={styles.encourageSig}>— Karma Coach 🙏</Text>
+                </View>
+
+                {/* ─ Save Button ─ */}
+                {!saved ? (
+                    <TouchableOpacity style={[styles.saveBtn, { backgroundColor: isPractitioner ? MAROON : EMERALD }]} onPress={handleSave} activeOpacity={0.85}>
+                        <CheckCircle2 size={20} color="#FFF" />
+                        <Text style={styles.saveBtnText}>
+                            Ghi nhận & nhận {pointsLabel}
+                        </Text>
+                    </TouchableOpacity>
+                ) : (
+                    <View style={[styles.savedBadge, { borderColor: accentColor }]}>
+                        <CheckCircle2 size={18} color={accentColor} />
+                        <Text style={[styles.savedText, { color: accentColor }]}>
+                            Đã ghi nhận! +5 {isPractitioner ? 'Merit' : 'Karmic'} Points
+                        </Text>
                     </View>
-                </View>
+                )}
 
-                {/* Steps */}
-                <Text style={styles.sectionTitle}>Các bước thực hành &nbsp;🙏</Text>
-                <View style={styles.stepsContainer}>
-                    {practice.steps.map((step, idx) => (
-                        <View key={idx} style={styles.stepItem}>
-                            <View style={styles.stepNumberBadge}>
-                                <Text style={styles.stepNumber}>{idx + 1}</Text>
-                            </View>
-                            <View style={{ flex: 1 }}>
-                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <Text style={styles.stepName}>{step.name}</Text>
-                                    <Text style={styles.stepTime}>{step.duration_minutes} phút</Text>
-                                </View>
-                                <Text style={styles.stepDesc}>{step.description}</Text>
-                            </View>
-                        </View>
-                    ))}
-                </View>
-
-                {/* Reflection */}
-                <View style={[styles.motivationCard, { backgroundColor: '#F0F9FF', borderColor: '#BAE6FD' }]}>
-                    <Text style={[styles.sectionTitle, { marginBottom: 10 }]}>Quán chiếu cuối buổi 🪷</Text>
-                    <Text style={styles.motivationText}>{practice.reflection_question}</Text>
-                </View>
-
-                <View style={{ height: 100 }} />
+                <View style={{ height: Math.max(insets.bottom + 20, 40) }} />
             </ScrollView>
-
-            {/* Footer */}
-            <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 20) }]}>
-                <TouchableOpacity
-                    style={styles.completeBtn}
-                    onPress={() => {
-                        Alert.alert("Hoàn thành", "Tuỳ hỷ công đức của bạn! 🙏");
-                        router.back();
-                    }}
-                >
-                    <CheckCircle2 size={20} color="#FFF" />
-                    <Text style={styles.completeText}>Hoàn thành buổi tập</Text>
-                </TouchableOpacity>
-            </View>
         </View>
     );
 }
 
+// ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
     root: { flex: 1, backgroundColor: BG },
+
     header: {
-        flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-        paddingHorizontal: 15, paddingVertical: 10
+        flexDirection: 'row', alignItems: 'center', gap: 12,
+        paddingHorizontal: 16, paddingVertical: 14,
     },
-    headerTitle: { fontSize: 18, fontWeight: '700', color: '#333' },
+    headerTitle: { color: '#FFF', fontSize: 17, fontWeight: '800' },
+    headerSub: { color: 'rgba(255,255,255,0.7)', fontSize: 11, fontWeight: '600', marginTop: 1 },
+    pointsBadge: {
+        flexDirection: 'row', alignItems: 'center', gap: 4,
+        backgroundColor: 'rgba(255,255,255,0.15)', paddingHorizontal: 10, paddingVertical: 5,
+        borderRadius: 20,
+    },
+    pointsBadgeText: { fontSize: 10, fontWeight: '700' },
 
-    title: { fontSize: 26, fontWeight: '800', color: MAROON, marginBottom: 20, textAlign: 'center' },
+    loadingCard: {
+        backgroundColor: '#FFF', borderRadius: 24, padding: 32, margin: 24,
+        alignItems: 'center', gap: 16,
+        shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 12, elevation: 4,
+    },
+    loadingTitle: { fontSize: 18, fontWeight: '700', color: MAROON, textAlign: 'center' },
+    loadingDesc: { fontSize: 14, color: '#888', textAlign: 'center', lineHeight: 21 },
 
-    motivationCard: {
-        backgroundColor: '#FFF8E7',
-        padding: 20, borderRadius: 16,
-        borderWidth: 1, borderColor: GOLD + '40',
-        marginBottom: 30
+    analysisCard: {
+        backgroundColor: '#FFF', borderRadius: 18, padding: 18,
+        borderWidth: 1.5, marginBottom: 28,
+        shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 6, elevation: 2,
     },
-    motivationText: { fontSize: 16, color: '#555', fontStyle: 'italic', lineHeight: 24 },
+    cardTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
+    cardTitle: { fontSize: 15, fontWeight: '700' },
+    analysisText: { fontSize: 14, color: '#555', lineHeight: 22 },
 
-    timerSection: { alignItems: 'center', marginBottom: 30 },
-    timerCircle: {
-        width: 150, height: 150, borderRadius: 75,
-        backgroundColor: '#FFF',
-        borderWidth: 4, borderColor: MAROON + '20',
-        alignItems: 'center', justifyContent: 'center',
-        shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 2
-    },
-    timerText: { fontSize: 40, fontWeight: '800', color: MAROON },
-    timerControls: { flexDirection: 'row', gap: 15, marginTop: 20, alignItems: 'center' },
-    ctrlBtnBtn: {
-        width: 56, height: 56, borderRadius: 28, backgroundColor: MAROON,
-        alignItems: 'center', justifyContent: 'center',
-        shadowColor: MAROON, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 6, elevation: 4
-    },
-    ctrlBtnOutline: {
-        width: 44, height: 44, borderRadius: 22, backgroundColor: '#FFF',
-        borderWidth: 2, borderColor: MAROON,
-        alignItems: 'center', justifyContent: 'center',
-    },
+    sectionTitle: { fontSize: 17, fontWeight: '800', color: '#1A1A1A', marginBottom: 4 },
+    sectionSub: { fontSize: 13, color: '#AAA', marginBottom: 14 },
 
-    sectionTitle: { fontSize: 18, fontWeight: '700', color: '#333', marginBottom: 15 },
+    practiceItem: {
+        backgroundColor: '#FFF', borderRadius: 16, marginBottom: 12,
+        borderWidth: 1.5, borderColor: '#EEE', overflow: 'hidden',
+        shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4, elevation: 1,
+    },
+    practiceItemHeader: {
+        flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14,
+    },
+    indexBadge: {
+        width: 32, height: 32, borderRadius: 10,
+        alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+    },
+    indexNum: { fontSize: 16, fontWeight: '800' },
+    timeSlot: { fontSize: 14, fontWeight: '700', color: '#222', marginBottom: 4 },
+    seedTagRow: { flexDirection: 'row', alignItems: 'center', gap: 5, flexWrap: 'wrap' },
+    seedTag: { fontSize: 11, fontWeight: '700' },
+    durationPill: {
+        flexDirection: 'row', alignItems: 'center', gap: 3,
+        backgroundColor: '#F5F5F5', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 8, marginLeft: 6,
+    },
+    durationText: { fontSize: 10, color: '#999', fontWeight: '600' },
+    practiceBody: {
+        paddingHorizontal: 14, paddingBottom: 14,
+        borderTopWidth: 1, borderTopColor: '#F5F5F5', paddingTop: 12,
+    },
+    practiceText: { fontSize: 14, color: '#444', lineHeight: 22 },
 
-    stepsContainer: { gap: 15, marginBottom: 30 },
-    stepItem: {
-        flexDirection: 'row', gap: 15,
-        backgroundColor: '#FFF', padding: 15, borderRadius: 16,
-        borderWidth: 1, borderColor: '#EEE'
+    relatedCard: {
+        backgroundColor: '#FFF8EF', borderRadius: 14, padding: 14,
+        borderWidth: 1, borderColor: GOLD + '30', marginBottom: 10,
     },
-    stepNumberBadge: {
-        width: 28, height: 28, borderRadius: 14, backgroundColor: MAROON + '15',
-        alignItems: 'center', justifyContent: 'center'
-    },
-    stepNumber: { color: MAROON, fontWeight: 'bold', fontSize: 14 },
-    stepName: { fontSize: 16, fontWeight: '600', color: '#333', marginBottom: 4 },
-    stepTime: { fontSize: 12, fontWeight: '700', color: GOLD },
-    stepDesc: { fontSize: 14, color: '#666', lineHeight: 20 },
+    relatedTitle: { fontSize: 14, fontWeight: '700', color: MAROON, marginBottom: 3 },
+    relatedEnergy: { fontSize: 11, color: GOLD, fontWeight: '700', marginBottom: 6 },
+    relatedContent: { fontSize: 13, color: '#666', lineHeight: 19 },
 
-    footer: {
-        position: 'absolute', bottom: 0, left: 0, right: 0,
-        paddingHorizontal: 20, paddingTop: 20,
-        backgroundColor: 'rgba(253, 251, 247, 0.9)',
+    encourageCard: {
+        backgroundColor: '#FFF', borderRadius: 18, padding: 20,
+        borderLeftWidth: 4, borderLeftColor: MAROON, marginTop: 28, marginBottom: 24,
     },
-    completeBtn: {
-        backgroundColor: '#059669', // Emerald 600
+    encourageQuote: { fontSize: 15, color: '#444', fontStyle: 'italic', lineHeight: 24, marginBottom: 10 },
+    encourageSig: { fontSize: 13, color: MAROON, fontWeight: '700', textAlign: 'right' },
+
+    saveBtn: {
         flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
         paddingVertical: 18, borderRadius: 16,
-        shadowColor: '#059669', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 5
+        shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 5,
+        marginBottom: 12,
     },
-    completeText: { color: '#FFF', fontSize: 16, fontWeight: 'bold' }
+    saveBtnText: { color: '#FFF', fontSize: 16, fontWeight: '700' },
+
+    savedBadge: {
+        flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+        paddingVertical: 14, borderRadius: 14, borderWidth: 1.5,
+        marginBottom: 12,
+    },
+    savedText: { fontSize: 15, fontWeight: '700' },
+
+    headerLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+    },
+    headerBack: {
+        padding: 5,
+    },
+    headerAgentThumb: {
+        width: 38,
+        height: 38,
+        borderRadius: 19,
+        borderWidth: 1.5,
+        borderColor: 'rgba(255,255,255,0.4)',
+        overflow: 'hidden',
+        backgroundColor: '#FFF',
+    },
+    headerAgentImg: {
+        width: '100%',
+        height: '100%',
+    },
 });
