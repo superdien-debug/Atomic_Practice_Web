@@ -38,9 +38,17 @@ export default function RootLayout() {
     // ── Sync Supabase auth state ──────────────────────────────────────────────
     useEffect(() => {
         const init = async () => {
-            const { data: { session: currentSession } } = await supabase.auth.getSession();
-            await setSession(currentSession);
-            setIsReady(true);
+            try {
+                const { data: { session: currentSession }, error } = await supabase.auth.getSession();
+                if (error) {
+                    console.error("Supabase getSession error:", error);
+                }
+                await setSession(currentSession);
+            } catch (err) {
+                console.error("Error during app initialization:", err);
+            } finally {
+                setIsReady(true);
+            }
         };
         init();
 
@@ -54,6 +62,7 @@ export default function RootLayout() {
     // ── Navigation guard ──────────────────────────────────────────────────────
     useEffect(() => {
         const { isOnboardingComplete, forceUpdateLoading } = useAuthStore.getState();
+        let timer: NodeJS.Timeout;
 
         // Logging for debug purposes to identify why it's stuck
         if (isLoading || !isReady || !navigationState?.key) {
@@ -63,37 +72,37 @@ export default function RootLayout() {
                 hasNavKey: !!navigationState?.key,
                 segments: segments.length
             });
-            return;
+            // Do not return early so the failsafe timeout can be registered
+        } else {
+            const rootGroup = segments[0] as string | undefined;
+            const isAuth = rootGroup === 'auth';
+            const isWelcome = !rootGroup || rootGroup === 'index';
+            const isApp = !isWelcome && !isAuth;
+
+            // Perform redirect logic with timeout protection
+            timer = setTimeout(() => {
+                if (session) {
+                    // If onboarding is NOT complete AND we are NOT currently in the auth flow, go to profile-setup
+                    if (!isOnboardingComplete && !isAuth) {
+                        console.log("[RootLayout] Redirecting to profile-setup (Incomplete onboarding)");
+                        router.replace('/auth/profile-setup');
+                        return;
+                    }
+
+                    // If onboarding IS complete and we are still on Welcome or Auth screens, go to Dashboard
+                    if (isOnboardingComplete && (isWelcome || isAuth)) {
+                        console.log("[RootLayout] Redirecting to dashboard (Onboarding complete)");
+                        router.replace('/dashboard');
+                    }
+                } else {
+                    // Logged Out: If in App area, move to Welcome
+                    if (isApp) {
+                        console.log("[RootLayout] Redirecting to welcome (No session)");
+                        router.replace('/');
+                    }
+                }
+            }, 1);
         }
-
-        const rootGroup = segments[0] as string | undefined;
-        const isAuth = rootGroup === 'auth';
-        const isWelcome = !rootGroup || rootGroup === 'index';
-        const isApp = !isWelcome && !isAuth;
-
-        // Perform redirect logic with timeout protection
-        const timer = setTimeout(() => {
-            if (session) {
-                // If onboarding is NOT complete AND we are NOT currently in the auth flow, go to profile-setup
-                if (!isOnboardingComplete && !isAuth) {
-                    console.log("[RootLayout] Redirecting to profile-setup (Incomplete onboarding)");
-                    router.replace('/auth/profile-setup');
-                    return;
-                }
-
-                // If onboarding IS complete and we are still on Welcome or Auth screens, go to Dashboard
-                if (isOnboardingComplete && (isWelcome || isAuth)) {
-                    console.log("[RootLayout] Redirecting to dashboard (Onboarding complete)");
-                    router.replace('/dashboard');
-                }
-            } else {
-                // Logged Out: If in App area, move to Welcome
-                if (isApp) {
-                    console.log("[RootLayout] Redirecting to welcome (No session)");
-                    router.replace('/');
-                }
-            }
-        }, 1);
 
         // Failsafe: if navigation gets stuck, force layout to render after 5s
         const failsafe = setTimeout(() => {
@@ -105,7 +114,7 @@ export default function RootLayout() {
         }, 5000);
 
         return () => {
-            clearTimeout(timer);
+            if (timer) clearTimeout(timer);
             clearTimeout(failsafe);
         };
     }, [session, isLoading, segments, navigationState?.key, isReady, useAuthStore.getState().isOnboardingComplete]);
