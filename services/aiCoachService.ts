@@ -1,5 +1,7 @@
 import { supabase } from '../lib/supabase';
 import { userService } from './userService';
+import { aiMemoryService } from './aiMemoryService';
+import { aiProfileUpdater } from '../utils/aiProfileUpdater';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -169,13 +171,58 @@ export const aiCoachService = {
                 : SYSTEM_PROMPT_NORMAL;
         }
 
-        // 5. Call AI via Supabase Edge Function
+        // 5. Build Stateful Context (Memory & Skills)
+
+        // Update profile/memory asynchronously based on this new input
+        // Using raw un-awaited promise intentionally so it doesn't block the UI
+        const combinedInput = `Mục tiêu: ${params.goals}. Khó khăn: ${params.flaws}. Lịch trình: ${params.routine}`;
+        aiProfileUpdater.processInteraction((await supabase.auth.getUser()).data.user?.id || '', combinedInput).catch(console.error);
+
+        // Fetch current profile, memory, and skills for Context Injection
+        let statefulContext = '';
+        try {
+            const user = (await supabase.auth.getUser()).data.user;
+            if (user) {
+                const profile = await aiMemoryService.getProfile(user.id);
+                const memories = await aiMemoryService.getCoreMemories(user.id, 3);
+                const unlockedSkills = await aiMemoryService.getUserUnlockedSkills(user.id);
+
+                statefulContext += '\n\n=== HỒ SƠ & TRẠNG THÁI NGƯỜI DÙNG ===\n';
+                if (profile) {
+                    statefulContext += `- Tên gọi AI: ${profile.companion_name}\n`;
+                    statefulContext += `- Tâm trạng hiện tại của người dùng: ${profile.emotional_state}\n`;
+                }
+
+                if (memories && memories.length > 0) {
+                    statefulContext += '\n=== KÝ ỨC QUAN TRỌNG VỀ NGƯỜI DÙNG ===\n';
+                    memories.forEach(m => {
+                        statefulContext += `- ${m.content}\n`;
+                    });
+                }
+
+                if (unlockedSkills && unlockedSkills.length > 0) {
+                    statefulContext += '\n=== CÁC KỸ NĂNG/CÔNG CỤ ĐƯỢC PHÉP SỬ DỤNG ===\n';
+                    statefulContext += `Bạn CÓ THỂ áp dụng linh hoạt các phương pháp sau vào lời khuyên:\n`;
+                    unlockedSkills.forEach(s => {
+                        if (s.ai_skills) {
+                            statefulContext += `- [${s.ai_skills.name}]: ${s.ai_skills.description}\n`;
+                        }
+                    });
+                }
+            }
+        } catch (e) {
+            console.warn('[KarmaCoach] Failed to load stateful context', e);
+        }
+
+        // 6. Call AI via Supabase Edge Function
         const userPrompt = `
 Lịch trình của tôi: ${params.routine}
 
 Mong cầu của tôi: ${params.goals}
 
 Thói quen xấu tôi muốn thay đổi: ${params.flaws}
+
+${statefulContext}
 
 ${ragContext ? `=== TÀI LIỆU THỰC HÀNH THAM KHẢO ===\n${ragContext}` : ''}
 

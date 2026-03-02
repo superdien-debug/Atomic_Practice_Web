@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Alert, StyleSheet, Platform } from 'react-native';
+import { supabase } from '../../lib/supabase';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Check, Plus, Globe, Trash2, Lock, MessageCircle, Trophy, Users, Search, Flame } from 'lucide-react-native';
@@ -8,6 +9,7 @@ import { practiceService, Practice } from '../../services/practiceService';
 import { notificationService } from '../../services/notificationService';
 import { MIN_CREATION_SCORE } from '../../utils/rankUtils';
 import { useT } from '../../i18n/useT';
+import { aiMemoryService, AIProfile } from '../../services/aiMemoryService';
 
 type TopStripDate = {
     day: string;
@@ -47,6 +49,7 @@ export default function MyPracticeScreen() {
     const [loading, setLoading] = useState(true);
     const [selectedCategory, setSelectedCategory] = useState('All');
     const [totalScore, setTotalScore] = useState(0);
+    const [aiProfile, setAiProfile] = useState<AIProfile | null>(null);
 
     const isTodaySelected = selectedDate === new Date().toISOString().split('T')[0];
     const isLibrary = activeTab.startsWith('library');
@@ -76,6 +79,22 @@ export default function MyPracticeScreen() {
 
             const score = await practiceService.calculateTotalScore();
             setTotalScore(score);
+
+            // Fetch AI Profile
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+                let profile = await aiMemoryService.getProfile(user.id);
+                if (!profile) {
+                    // Initialize first-time profile
+                    profile = await aiMemoryService.upsertProfile({
+                        user_id: user.id,
+                        companion_name: 'Người Bạn Đồng Hành',
+                        emotional_state: 'Bình an tĩnh tại',
+                        practice_stage: 'Khởi đầu'
+                    });
+                }
+                setAiProfile(profile);
+            }
         } catch (error: any) {
             console.error('Error fetching data:', error);
         } finally {
@@ -286,6 +305,31 @@ export default function MyPracticeScreen() {
 
                 {activeTab === 'today' ? (
                     <>
+                        {/* Companion AI Status Strip */}
+                        {aiProfile && isTodaySelected && (
+                            <View className="mb-4 bg-white/60 p-4 rounded-2xl border border-vajra-gold/20 flex-row items-center shadow-sm">
+                                <View className="w-10 h-10 rounded-full bg-vajra-gold/20 items-center justify-center mr-3 border border-vajra-gold/40">
+                                    <MessageCircle size={20} color="#800000" />
+                                </View>
+                                <View className="flex-1">
+                                    <Text className="text-sm font-bold text-gray-800">{aiProfile.companion_name} đang thức</Text>
+                                    <Text className="text-xs text-gray-500 mt-0.5">Tâm trạng hiện tại: {aiProfile.emotional_state}</Text>
+                                </View>
+                                {totalScore >= 10 ? (
+                                    <TouchableOpacity
+                                        onPress={() => router.push('/companion/chat')}
+                                        className="bg-vajra-burgundy px-3 py-1.5 rounded-full"
+                                    >
+                                        <Text className="text-white text-xs font-bold">Trò chuyện</Text>
+                                    </TouchableOpacity>
+                                ) : (
+                                    <View className="bg-gray-200 px-3 py-1.5 rounded-full">
+                                        <Text className="text-gray-500 text-xs font-bold flex-row"><Lock size={12} /> Đang thiền</Text>
+                                    </View>
+                                )}
+                            </View>
+                        )}
+
                         {sortedPractices.length > 0 ? (
                             sortedPractices.map((practice) => (
                                 <CompactPracticeCard
