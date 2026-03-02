@@ -6,7 +6,7 @@ import {
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
-    ArrowLeft, ArrowRight, Sparkles, Leaf, Zap, ChevronRight
+    ArrowLeft, ArrowRight, Sparkles, Leaf, Zap, ChevronRight, Lock
 } from 'lucide-react-native';
 import { userService } from '../../services/userService';
 import { type UserType } from '../../services/aiCoachService';
@@ -152,6 +152,37 @@ export default function KarmaCoachScreen() {
                                 <View style={styles.typeCheck}><Text style={{ color: '#FFF', fontSize: 12 }}>✓</Text></View>
                             )}
                         </TouchableOpacity>
+
+                        {/* Locked Skills */}
+                        <View style={{ marginTop: 24 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                                <Lock size={16} color="#999" />
+                                <Text style={{ fontSize: 16, fontWeight: '700', color: '#555' }}>Kỹ năng sắp ra mắt (Locked)</Text>
+                            </View>
+
+                            {[
+                                "Karma Mirror",
+                                "Ngũ Độc Scanner",
+                                "Ego Dissolver Micro-Challenge",
+                                "Death Awareness Reminder",
+                                "Merit Tracker",
+                                "Relationship Micro-Healer",
+                                "Emotion Regulator",
+                                "Focus Copilot"
+                            ].map((skill, index) => (
+                                <View key={index} style={[styles.typeCard, { opacity: 0.6, marginBottom: 10, padding: 14 }]}>
+                                    <View style={[styles.typeIconBg, { backgroundColor: '#F0F0F0', width: 44, height: 44 }]}>
+                                        <Lock size={20} color="#999" />
+                                    </View>
+                                    <View style={{ flex: 1, justifyContent: 'center' }}>
+                                        <Text style={[styles.typeName, { color: '#666', marginBottom: 2, fontSize: 15 }]}>
+                                            {skill}
+                                        </Text>
+                                        <Text style={{ fontSize: 12, color: '#999' }}>Đang phát triển...</Text>
+                                    </View>
+                                </View>
+                            ))}
+                        </View>
 
                         <View style={{ marginTop: 30 }}>
                             <TouchableOpacity style={styles.nextBtn} onPress={() => setStep(1)} activeOpacity={0.8}>
