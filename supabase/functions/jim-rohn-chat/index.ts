@@ -25,7 +25,7 @@ serve(async (req) => {
         }
 
         const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
         // Extract system prompt and build conversation history for Gemini
         const systemMsg = messages.find((m: any) => m.role === 'system');
@@ -36,6 +36,11 @@ serve(async (req) => {
             role: m.role === 'assistant' ? 'model' : 'user',
             parts: [{ text: m.content }]
         }));
+
+        // Gemini API requires the first message in the history to be from a 'user'.
+        if (history.length > 0 && history[0].role === 'model') {
+            history.unshift({ role: 'user', parts: [{ text: 'Xin chào' }] });
+        }
 
         const lastMessage = chatMessages[chatMessages.length - 1];
 

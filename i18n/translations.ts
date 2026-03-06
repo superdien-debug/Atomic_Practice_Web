@@ -200,9 +200,9 @@ const translations = {
         previous9days: 'Previous 9 days',
         today: 'TODAY',
         habitStacking: 'HABIT STACKING',
-        habitStackingDesc: 'After I {0}, I will {1}.',
+        habitStackingDesc: 'The basic formula is:\n"After I {0}, I will {1}."',
         twoMinVersion: '2-MINUTE VERSION',
-        twoMinVersionDesc: '"{0}"',
+        twoMinVersionDesc: 'Any habit can be scaled down into a "2-minute starting version":\n"Run 5km" → becomes "Tie my shoes and stand at the door".\n\nVersion for this practice: {0}',
 
         // ── Dashboard Details ────────────────────────────────────────────────
         merit: 'MERIT',
@@ -598,9 +598,9 @@ const translations = {
         previous9days: '9 ngày trước',
         today: 'HÔM NAY',
         habitStacking: 'XẾP CHỒNG THÓI QUEN',
-        habitStackingDesc: 'Sau khi Tôi {0}, Tôi sẽ {1}.',
+        habitStackingDesc: 'Công thức cơ bản của nó là:\n"Sau khi {0}, tôi sẽ {1}."',
         twoMinVersion: 'QUY TẮC 2 PHÚT',
-        twoMinVersionDesc: '"{0}"',
+        twoMinVersionDesc: 'Bất kỳ thói quen nào cũng có thể được thu nhỏ lại thành một "phiên bản khởi đầu 2 phút":\n"Chạy 5km" → trở thành "Buộc dây giày và đứng trước cửa".\n\nPhiên bản cho bài này: {0}',
 
         // ── Dashboard Details ────────────────────────────────────────────────
         merit: 'CÔNG ĐỨC',
