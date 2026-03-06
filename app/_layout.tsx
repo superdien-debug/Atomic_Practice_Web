@@ -8,6 +8,7 @@ import { StatusBar } from "expo-status-bar";
 import { HolyDayPopup } from "../components/HolyDayPopup";
 import * as Notifications from "expo-notifications";
 import { useFonts } from 'expo-font';
+import { Analytics } from '@vercel/analytics/react';
 
 
 export default function RootLayout() {
@@ -158,6 +159,7 @@ export default function RootLayout() {
 
             {/* Holy Day Checks */}
             {isReady && session && <HolyDayPopup />}
+            <Analytics />
         </View>
     );
 }
