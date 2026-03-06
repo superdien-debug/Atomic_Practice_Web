@@ -22,6 +22,7 @@ const BORDER_GOLD = 'rgba(212,175,55,0.30)';
 const BORDER_FOCUS = GOLD_ACCENT;
 
 export default function SignupScreen() {
+    const t = useT();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
@@ -29,19 +30,24 @@ export default function SignupScreen() {
     const [emailFocus, setEmailFocus] = useState(false);
     const [pwFocus, setPwFocus] = useState(false);
     const router = useRouter();
-    const t = useT();
     const insets = useSafeAreaInsets();
 
     const signUp = async () => {
-        if (!email || !password) { Alert.alert('Error', 'Please fill in all fields'); return; }
-        if (password.length < 6) { Alert.alert('Error', 'Password must be at least 6 characters'); return; }
+        if (!email || !password) {
+            Alert.alert(t('error'), t('fillAllFields'));
+            return;
+        }
+        if (password.length < 6) {
+            Alert.alert(t('error'), t('pwMinLength'));
+            return;
+        }
         setLoading(true);
         const { data, error } = await supabase.auth.signUp({
             email, password,
             options: { data: { display_name: email.split('@')[0] } },
         });
         if (error) {
-            Alert.alert('Error', error.message);
+            Alert.alert(t('error'), error.message);
         } else if (data.session) {
             router.replace('/dashboard');
         } else {
@@ -78,30 +84,34 @@ export default function SignupScreen() {
 
                     {/* Card */}
                     <View style={s.card}>
-                        <View style={s.cardHead}>
-                            <Text style={s.cardTitle}>{t('joinSanghaTitle')}</Text>
-                            <Text style={s.cardSub}>{t('beginPractice')}</Text>
+                        <View className="mb-10 items-center">
+                            <Text className="text-white text-3xl font-black tracking-tight mb-2">{t('joinSanghaTitle')}</Text>
+                            <Text className="text-vajra-gold/80 text-sm font-medium">{t('beginPractice')}</Text>
                         </View>
 
                         {/* Email */}
-                        <View style={s.field}>
-                            <Text style={s.fieldLabel}>{t('emailAddress').toUpperCase()}</Text>
-                            <View style={[s.inputBox, emailFocus && s.inputBoxFocus]}>
+                        <View className="mb-5">
+                            <Text className="text-white/60 text-xs font-bold uppercase tracking-widest mb-2 ml-1">{t('emailAddress')}</Text>
+                            <View className="bg-white/10 border border-white/20 rounded-2xl px-4 py-4 flex-row items-center">
+                                {/* Mail icon would go here if imported */}
                                 <TextInput
-                                    style={s.input}
-                                    placeholder="dharmapractitioner@path.com"
-                                    placeholderTextColor="rgba(100,116,139,0.7)"
+                                    className="flex-1 ml-3 text-white font-medium"
+                                    placeholder="name@example.com"
+                                    placeholderTextColor="rgba(255,255,255,0.3)"
                                     value={email}
                                     onChangeText={setEmail}
                                     autoCapitalize="none"
                                     keyboardType="email-address"
-                                    onFocus={() => setEmailFocus(true)}
-                                    onBlur={() => setEmailFocus(false)}
                                 />
                             </View>
                         </View>
 
-                        {/* Password */}
+                        {/* The original password input structure was different, this is a partial replacement.
+                            Keeping the original structure for the eye button and focus states.
+                            The provided diff for the password input was incomplete and mixed with className.
+                            Reverting to original structure for password input to maintain functionality,
+                            but applying the t() calls for labels.
+                        */}
                         <View style={s.field}>
                             <Text style={s.fieldLabel}>{t('password').toUpperCase()}</Text>
                             <View style={[s.inputBox, pwFocus && s.inputBoxFocus]}>
@@ -129,22 +139,22 @@ export default function SignupScreen() {
                             onPress={signUp}
                             disabled={loading}
                             activeOpacity={0.85}
-                            style={s.createBtn}
+                            className="bg-vajra-gold py-5 rounded-2xl items-center shadow-lg shadow-vajra-gold/20"
                         >
                             {loading
                                 ? <ActivityIndicator color={MONASTERY_RED} />
-                                : <Text style={s.createBtnText}>{t('createAccount')}</Text>
+                                : <Text className="text-white font-black tracking-[2px]">{t('createAccount')}</Text>
                             }
                         </TouchableOpacity>
 
                         {/* Secondary */}
                         <View style={s.secondary}>
                             <Text style={s.secondaryText}>
-                                {'Already on the path? '}
+                                {t('alreadyOnPath') + ' '}
                             </Text>
                             <Link href="/auth/login" asChild>
                                 <TouchableOpacity>
-                                    <Text style={s.signInLink}>Sign In</Text>
+                                    <Text style={s.signInLink}>{t('signIn')}</Text>
                                 </TouchableOpacity>
                             </Link>
                         </View>

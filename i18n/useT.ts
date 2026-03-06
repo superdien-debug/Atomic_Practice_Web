@@ -12,5 +12,13 @@ import translations, { TranslationKey } from './translations';
 
 export function useT() {
     const lang = useLanguageStore((s) => s.lang);
-    return (key: TranslationKey): string => translations[lang][key] ?? translations['en'][key] ?? key;
+    return (key: TranslationKey, params?: string[]): string => {
+        let str = translations[lang][key] ?? translations['en'][key] ?? key;
+        if (params && params.length > 0) {
+            params.forEach((p, i) => {
+                str = str.replace(`{${i}}`, p);
+            });
+        }
+        return str;
+    };
 }

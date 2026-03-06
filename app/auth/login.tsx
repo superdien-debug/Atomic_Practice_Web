@@ -23,6 +23,7 @@ const BORDER_GOLD = 'rgba(212,175,55,0.30)';
 const BORDER_FOCUS = GOLD_ACCENT;
 
 export default function LoginScreen() {
+    const t = useT();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
@@ -31,11 +32,13 @@ export default function LoginScreen() {
     const [pwFocus, setPwFocus] = useState(false);
     const router = useRouter();
     const setSession = useAuthStore(s => s.setSession);
-    const t = useT();
     const insets = useSafeAreaInsets();
 
     const signIn = async () => {
-        if (!email || !password) { Alert.alert(t('error'), t('fillAllFields')); return; }
+        if (!email || !password) {
+            Alert.alert(t('error'), t('fillAllFields'));
+            return;
+        }
         setLoading(true);
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) { Alert.alert('Error', error.message); }
@@ -142,11 +145,11 @@ export default function LoginScreen() {
                         {/* Secondary */}
                         <View style={s.secondary}>
                             <Text style={s.secondaryText}>
-                                {'New to the path? '}
+                                {t('newToPath') + ' '}
                             </Text>
                             <Link href="/auth/signup" asChild>
                                 <TouchableOpacity>
-                                    <Text style={s.joinLink}>Join the Sangha</Text>
+                                    <Text style={s.joinLink}>{t('joinSangha')}</Text>
                                 </TouchableOpacity>
                             </Link>
 

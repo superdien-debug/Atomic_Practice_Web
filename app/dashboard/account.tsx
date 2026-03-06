@@ -59,7 +59,7 @@ export default function AccountScreen() {
             setScoreBreakdown(breakdown);
         } catch (error) {
             console.error('Account load error:', error);
-            Alert.alert(t('error'), 'Failed to load profile data');
+            Alert.alert(t('error'), t('failedLoadProfile'));
         } finally {
             setLoading(false);
         }
@@ -96,7 +96,7 @@ export default function AccountScreen() {
                 setLoading(true);
                 const url = await userService.uploadAvatar(result.assets[0].uri);
                 setProfile(prev => prev ? { ...prev, avatar_url: url } : null);
-            } catch { Alert.alert(t('error'), 'Failed to upload avatar'); }
+            } catch { Alert.alert(t('error'), t('failedUploadAvatar')); }
             finally { setLoading(false); }
         }
     };
@@ -106,7 +106,7 @@ export default function AccountScreen() {
             await userService.updateProfile({ display_name: displayName, dharma_name: dharmaName });
             setIsEditing(false);
             loadProfile();
-        } catch { Alert.alert(t('error'), 'Failed to update profile'); }
+        } catch { Alert.alert(t('error'), t('failedUpdateProfile')); }
     };
 
     const handleSetLang = (l: Lang) => {
@@ -197,7 +197,7 @@ export default function AccountScreen() {
                         </View>
                     ) : (
                         <View className="items-center">
-                            <Text className="text-2xl font-black text-white mb-2">{displayName || 'Practitioner'}</Text>
+                            <Text className="text-2xl font-black text-white mb-2">{displayName || t('practitionerFallback')}</Text>
                             <View className="flex-row items-center gap-3">
                                 {dharmaName ? (
                                     <View className="bg-vajra-gold/10 px-4 py-1.5 rounded-full border border-vajra-gold/30">
@@ -225,7 +225,7 @@ export default function AccountScreen() {
                                 className="mt-6 bg-white/10 px-6 py-2.5 rounded-full border border-white/20 flex-row items-center gap-2 active:bg-white/20"
                             >
                                 <Globe size={14} color="#FFF" />
-                                <Text className="text-white text-[10px] font-black uppercase tracking-widest">View My Public Profile</Text>
+                                <Text className="text-white text-[10px] font-black uppercase tracking-widest">{t('viewPublicProfile')}</Text>
                             </TouchableOpacity>
                         </View>
                     )}
@@ -249,17 +249,17 @@ export default function AccountScreen() {
                 >
                     <View className="flex-row justify-between items-end mb-4">
                         <View>
-                            <Text className="text-gray-400 text-[10px] uppercase tracking-widest font-black mb-1">Total Merits</Text>
+                            <Text className="text-gray-400 text-[10px] uppercase tracking-widest font-black mb-1">{t('totalMerits') || 'Total Merits'}</Text>
                             <Text className="text-4xl font-black text-vajra-gold">{scoreBreakdown.total.toLocaleString()}</Text>
                         </View>
                         <View style={{ alignItems: 'flex-end', gap: 6 }}>
                             <View className="bg-vajra-cream px-3 py-1.5 rounded-xl border border-vajra-gold/20 flex-row items-center">
                                 <Shield size={12} color={MAROON} />
-                                <Text className="ml-1.5 text-[10px] font-black text-vajra-burgundy uppercase">Karma Points</Text>
+                                <Text className="ml-1.5 text-[10px] font-black text-vajra-burgundy uppercase">{t('karmaPoints')}</Text>
                             </View>
                             <View className="bg-vajra-gold/10 px-3 py-1.5 rounded-xl border border-vajra-gold/30 flex-row items-center">
                                 <Sparkles size={12} color={GOLD} />
-                                <Text className="ml-1.5 text-[10px] font-black text-vajra-gold uppercase">{mpoints.toLocaleString()} Mpoint</Text>
+                                <Text className="ml-1.5 text-[10px] font-black text-vajra-gold uppercase">{mpoints.toLocaleString()} {t('mpoint')}</Text>
                             </View>
                         </View>
                     </View>
@@ -271,7 +271,7 @@ export default function AccountScreen() {
                         <View style={{ flex: scoreBreakdown.challenges || 0, backgroundColor: '#0891B2' }} />
                     </View>
                     <View className="flex-row justify-between mt-3">
-                        <Text className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">View Detailed Breakdown</Text>
+                        <Text className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">{t('viewDetailedBreakdown')}</Text>
                         <ChevronRight size={14} color="#D1D5DB" />
                     </View>
                 </TouchableOpacity>
@@ -279,19 +279,19 @@ export default function AccountScreen() {
                 <View className="bg-white mx-5 rounded-[28px] shadow-sm overflow-hidden mb-8 border border-gray-50 mt-6">
                     <MenuItem
                         icon={<Trophy size={20} color={GOLD} />}
-                        label="Spiritual Collection"
+                        label={t('spiritualCollection')}
                         onPress={() => router.push('/account/collection' as any)}
                     />
                     <MenuItem
                         icon={<Flame size={20} color={GOLD} />}
-                        label="Thực hành Cân bằng 5 đại"
+                        label={t('fiveElementsPractice')}
                         onPress={() => {
                             router.push('/account/five-elements' as any);
                         }}
                     />
                     <MenuItem
                         icon={<Calculator size={20} color={GOLD} />}
-                        label="Đếm Túc Số"
+                        label={t('tabCounter')}
                         onPress={() => router.push('/counter' as any)}
                     />
 
@@ -309,13 +309,13 @@ export default function AccountScreen() {
 
                     <MenuItem
                         icon={<BookOpen size={20} color="#717171" />}
-                        label="Micro Learning"
+                        label={t('tabMicroLearning')}
                         onPress={() => router.push('/account/micro-learning' as any)}
                     />
 
                     <MenuItem
                         icon={<Moon size={20} color={GOLD} />}
-                        label="Lịch Kim Cương Thừa"
+                        label={t('vajrayanaCalendar')}
                         onPress={() => router.push('/calendar' as any)}
                     />
 
@@ -338,7 +338,7 @@ export default function AccountScreen() {
                     {role === 'admin' && (
                         <MenuItem
                             icon={<Settings size={20} color={GOLD} />}
-                            label="Hệ thống Quản trị"
+                            label={t('adminSystem')}
                             onPress={() => router.push('/admin')}
                         />
                     )}
@@ -361,19 +361,19 @@ export default function AccountScreen() {
                         <View className="items-center mb-8">
                             <View className="w-16 h-1 bg-gray-100 rounded-full mb-6" />
                             <Shield size={32} color={GOLD} />
-                            <Text className="text-2xl font-black text-vajra-burgundy mt-4">Karma Breakdown</Text>
-                            <Text className="text-gray-400 text-[10px] uppercase tracking-[3px] font-bold mt-1">Detailed Merits</Text>
+                            <Text className="text-2xl font-black text-vajra-burgundy mt-4">{t('karmaBreakdown')}</Text>
+                            <Text className="text-gray-400 text-[10px] uppercase tracking-[3px] font-bold mt-1">{t('detailedMerits')}</Text>
                         </View>
 
                         <View className="space-y-5">
-                            <ScoreRow label="Daily Practices" pts={scoreBreakdown.base} color="#800000" desc="10 pts per completion" />
-                            <ScoreRow label="Milestone Bonuses" pts={scoreBreakdown.milestones} color="#D4AF37" desc="Rewards for volume goals" />
-                            <ScoreRow label="Practice Streaks" pts={scoreBreakdown.streaks} color="#DB2777" desc="Loyalty to the path" />
-                            <ScoreRow label="Challenge Conquests" pts={scoreBreakdown.challenges} color="#0891B2" desc="Communal spiritual feats" />
+                            <ScoreRow label={t('dailyPracticesLabel')} pts={scoreBreakdown.base} color="#800000" desc={t('ptsPerCompletion')} />
+                            <ScoreRow label={t('milestoneBonusesLabel')} pts={scoreBreakdown.milestones} color="#D4AF37" desc={t('rewardsForVolume')} />
+                            <ScoreRow label={t('practiceStreaksLabel')} pts={scoreBreakdown.streaks} color="#DB2777" desc={t('loyaltyToPath')} />
+                            <ScoreRow label={t('challengeConquestsLabel')} pts={scoreBreakdown.challenges} color="#0891B2" desc={t('communalSpiritualFeats')} />
                         </View>
 
                         <View className="mt-10 pt-6 border-t border-gray-100 flex-row justify-between items-center">
-                            <Text className="text-lg font-black text-gray-800 uppercase tracking-widest">Total Merits</Text>
+                            <Text className="text-lg font-black text-gray-800 uppercase tracking-widest">{t('totalMerits') || 'Total Merits'}</Text>
                             <Text className="text-3xl font-black text-vajra-gold">{scoreBreakdown.total.toLocaleString()}</Text>
                         </View>
 
@@ -381,7 +381,7 @@ export default function AccountScreen() {
                             onPress={() => setScoreModal(false)}
                             className="bg-vajra-burgundy mt-8 p-4 rounded-2xl items-center"
                         >
-                            <Text className="text-white font-black uppercase tracking-widest text-xs">Close</Text>
+                            <Text className="text-white font-black uppercase tracking-widest text-xs">{t('close')}</Text>
                         </TouchableOpacity>
                     </View>
                 </Pressable>

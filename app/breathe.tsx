@@ -7,6 +7,7 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Play, Pause, ArrowLeft, Volume2, VolumeX, Settings, ChevronDown } from 'lucide-react-native';
+import { useT } from '../i18n/useT';
 import { Audio } from 'expo-av';
 
 const { width } = Dimensions.get('window');
@@ -28,38 +29,40 @@ interface BreathingMode {
     sequence: { phase: BreathPhase, duration: number, color: string }[];
 }
 
-const MODES: BreathingMode[] = [
-    {
-        id: 'equal',
-        name: 'Cân bằng (4-4)',
-        description: 'Khám phá sức mạnh của việc hít thở đều, một kỹ thuật đã được chứng minh để giảm áp lực và tăng cường sự bình tâm tĩnh lặng.',
-        sequence: [
-            { phase: 'INHALE', duration: 4, color: '#38bdf8' }, // sky-400
-            { phase: 'EXHALE', duration: 4, color: '#34d399' }  // emerald-400
-        ]
-    },
-    {
-        id: 'box',
-        name: 'Thở hộp (4-4-4-4)',
-        description: 'Tăng cường sự tập trung và giảm căng thẳng tức thì với kỹ thuật thở hộp của đặc nhiệm.',
-        sequence: [
-            { phase: 'INHALE', duration: 4, color: '#38bdf8' },
-            { phase: 'HOLD_IN', duration: 4, color: '#818cf8' }, // indigo-400
-            { phase: 'EXHALE', duration: 4, color: '#34d399' },
-            { phase: 'HOLD_OUT', duration: 4, color: '#a78bfa' }  // indigo-400 (light)
-        ]
-    },
-    {
-        id: '478',
-        name: 'Thư giãn (4-7-8)',
-        description: 'Làm dịu hệ thần kinh để dễ dàng đi vào giấc ngủ hoặc giảm lo âu sâu sắc.',
-        sequence: [
-            { phase: 'INHALE', duration: 4, color: '#38bdf8' },
-            { phase: 'HOLD_IN', duration: 7, color: '#818cf8' },
-            { phase: 'EXHALE', duration: 8, color: '#34d399' }
-        ]
-    }
-];
+function getModes(t: any): BreathingMode[] {
+    return [
+        {
+            id: 'equal',
+            name: t('breatheModeEqual'),
+            description: t('breatheModeEqualDesc'),
+            sequence: [
+                { phase: 'INHALE', duration: 4, color: '#38bdf8' }, // sky-400
+                { phase: 'EXHALE', duration: 4, color: '#34d399' }  // emerald-400
+            ]
+        },
+        {
+            id: 'box',
+            name: t('breatheModeBox'),
+            description: t('breatheModeBoxDesc'),
+            sequence: [
+                { phase: 'INHALE', duration: 4, color: '#38bdf8' },
+                { phase: 'HOLD_IN', duration: 4, color: '#818cf8' }, // indigo-400
+                { phase: 'EXHALE', duration: 4, color: '#34d399' },
+                { phase: 'HOLD_OUT', duration: 4, color: '#a78bfa' }  // indigo-400 (light)
+            ]
+        },
+        {
+            id: '478',
+            name: t('breatheMode478'),
+            description: t('breatheMode478Desc'),
+            sequence: [
+                { phase: 'INHALE', duration: 4, color: '#38bdf8' },
+                { phase: 'HOLD_IN', duration: 7, color: '#818cf8' },
+                { phase: 'EXHALE', duration: 8, color: '#34d399' }
+            ]
+        }
+    ];
+}
 
 function formatTime(secs: number) {
     const m = Math.floor(secs / 60);
@@ -67,16 +70,19 @@ function formatTime(secs: number) {
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
 }
 
-const PhaseLabels: Record<BreathPhase, string> = {
-    INHALE: 'HÍT VÀO',
-    HOLD_IN: 'GIỮ HƠI',
-    EXHALE: 'THỞ RA',
-    HOLD_OUT: 'GIỮ HƠI'
-};
 
 export default function BreatheScreen() {
     const router = useRouter();
     const insets = useSafeAreaInsets();
+
+    const t = useT();
+    const MODES = getModes(t);
+    const PhaseLabels: Record<BreathPhase, string> = {
+        INHALE: t('inhaleLabel'),
+        HOLD_IN: t('holdLabel'),
+        EXHALE: t('exhaleLabel'),
+        HOLD_OUT: t('holdLabel')
+    };
 
     const [mode, setMode] = useState<BreathingMode>(MODES[0]);
     const [isPlaying, setIsPlaying] = useState(false);
@@ -272,7 +278,7 @@ export default function BreatheScreen() {
                 <TouchableOpacity onPress={() => router.back()} style={styles.headerBtn}>
                     <ArrowLeft size={24} color={GOLD} />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>Hơi Thở Chánh Niệm</Text>
+                <Text style={styles.headerTitle}>{t('breatheTitle')}</Text>
                 <TouchableOpacity onPress={() => setSoundEnabled(!soundEnabled)} style={styles.headerBtn}>
                     {soundEnabled ? <Volume2 size={24} color={GOLD} /> : <VolumeX size={24} color={GOLD} />}
                 </TouchableOpacity>
@@ -333,10 +339,10 @@ export default function BreatheScreen() {
                     </TouchableOpacity>
 
                     <Text style={styles.totalTime}>{formatTime(totalElapsed)}</Text>
-                    <Text style={styles.cyclesText}>Số chu kỳ đã hoàn thành: <Text style={{ fontWeight: 'bold' }}>{cycles}</Text></Text>
+                    <Text style={styles.cyclesText}>{t('cyclesCompleted')}: <Text style={{ fontWeight: 'bold' }}>{cycles}</Text></Text>
 
                     <TouchableOpacity onPress={resetSession} style={styles.resetBtn}>
-                        <Text style={styles.resetText}>Làm Lại</Text>
+                        <Text style={styles.resetText}>{t('retry')}</Text>
                     </TouchableOpacity>
                 </View>
             </View>
@@ -345,7 +351,7 @@ export default function BreatheScreen() {
             <Modal visible={showModeModal} transparent animationType="slide">
                 <View style={styles.modalBg}>
                     <View style={styles.modalContent}>
-                        <Text style={styles.modalTitle}>Chọn bài tập thở</Text>
+                        <Text style={styles.modalTitle}>{t('selectBreatheExercise')}</Text>
                         {MODES.map((m) => (
                             <TouchableOpacity
                                 key={m.id}
@@ -361,7 +367,7 @@ export default function BreatheScreen() {
                             </TouchableOpacity>
                         ))}
                         <TouchableOpacity style={styles.modalCloseBtn} onPress={() => setShowModeModal(false)}>
-                            <Text style={styles.modalCloseText}>Đóng</Text>
+                            <Text style={styles.modalCloseText}>{t('close')}</Text>
                         </TouchableOpacity>
                     </View>
                 </View>

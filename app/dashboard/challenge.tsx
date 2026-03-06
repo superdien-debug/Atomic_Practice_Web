@@ -50,13 +50,13 @@ export default function ChallengeScreen() {
     const handleCreateClick = () => {
         console.log('[Challenge Dashboard] Create clicked. Current score:', totalScore);
         if (totalScore < MIN_CREATION_SCORE) {
-            const title = '🔐 Phân quyền';
-            const msg = `Chỉ những Hành giả đạt Cấp độ 2 (từ 500 điểm Merit) mới được phép tạo Thử thách mới. Hiện tại bạn đang có ${totalScore} điểm.`;
+            const title = t('permTitle');
+            const msg = t('permDeniedCreation').replace('{0}', totalScore.toString());
 
             if (Platform.OS === 'web') {
                 window.alert(`${title}\n\n${msg}`);
             } else {
-                Alert.alert(title, msg, [{ text: 'Đã hiểu' }]);
+                Alert.alert(title, msg, [{ text: t('understood') }]);
             }
             return;
         }
@@ -104,7 +104,7 @@ export default function ChallengeScreen() {
                                 "font-bold text-xs uppercase tracking-wider",
                                 activeTab === tab ? "text-white" : "text-gray-400"
                             )}>
-                                {tab}
+                                {t(tab)}
                             </Text>
                         </TouchableOpacity>
                     ))}
@@ -116,14 +116,14 @@ export default function ChallengeScreen() {
                 {challenges.length === 0 && !loading && (
                     <View className="py-20 items-center">
                         <Trophy size={48} color="#DDD" />
-                        <Text className="text-gray-400 italic text-center mt-4">No {activeTab} {t('challenges').toLowerCase()} yet.</Text>
+                        <Text className="text-gray-400 italic text-center mt-4">{t('noChallengesYet').replace('{0}', t(activeTab).toLowerCase())}</Text>
                     </View>
                 )}
 
                 {/* Featured Section (First ongoing challenge) */}
                 {activeTab === 'ongoing' && challenges.length > 0 && !loading && (
                     <View className="mb-8">
-                        <Text className="text-zinc-400 text-[10px] font-black uppercase tracking-widest mb-4">Featured Challenge</Text>
+                        <Text className="text-zinc-400 text-[10px] font-black uppercase tracking-widest mb-4">{t('featuredChallenge')}</Text>
                         <TouchableOpacity
                             onPress={() => router.push({ pathname: '/challenge/[id]', params: { id: challenges[0].id } })}
                             activeOpacity={0.9}
@@ -131,7 +131,7 @@ export default function ChallengeScreen() {
                         >
                             <View className="flex-row justify-between items-start mb-4">
                                 <View className="bg-vajra-gold/20 px-3 py-1 rounded-full border border-vajra-gold/30">
-                                    <Text className="text-vajra-gold text-[10px] font-black uppercase">Active Now</Text>
+                                    <Text className="text-vajra-gold text-[10px] font-black uppercase">{t('activeNow')}</Text>
                                 </View>
                                 <View className="flex-row items-center gap-1">
                                     <Users size={12} color="#D4AF37" />
@@ -146,7 +146,7 @@ export default function ChallengeScreen() {
                                 <View className="flex-row items-center gap-4">
                                     <View className="flex-row items-center gap-1">
                                         <Clock size={14} color="#FFF" opacity={0.6} />
-                                        <Text className="text-white/60 text-xs font-bold">{getDaysLeft(challenges[0].end_date)}d left</Text>
+                                        <Text className="text-white/60 text-xs font-bold">{t('daysLeftSuffix').replace('{0}', getDaysLeft(challenges[0].end_date).toString())}</Text>
                                     </View>
                                     <View className="flex-row items-center gap-1">
                                         <Target size={14} color="#FFF" opacity={0.6} />
@@ -165,7 +165,7 @@ export default function ChallengeScreen() {
                 )}
 
                 {activeTab === 'ongoing' && challenges.length > 1 && (
-                    <Text className="text-zinc-400 text-[10px] font-black uppercase tracking-widest mb-4">Discovery</Text>
+                    <Text className="text-zinc-400 text-[10px] font-black uppercase tracking-widest mb-4">{t('discovery')}</Text>
                 )}
 
                 {challenges.map((challenge, index) => {
@@ -194,7 +194,7 @@ export default function ChallengeScreen() {
                                     <Text className="text-lg font-black text-gray-800 flex-1" numberOfLines={1}>{challenge.title}</Text>
                                     {challenge.is_joined && (
                                         <View className="bg-vajra-gold/10 px-2 py-0.5 rounded-lg border border-vajra-gold/20 ml-2">
-                                            <Text className="text-vajra-gold text-[8px] font-black uppercase">Joined</Text>
+                                            <Text className="text-vajra-gold text-[8px] font-black uppercase">{t('joined')}</Text>
                                         </View>
                                     )}
                                 </View>
@@ -212,7 +212,7 @@ export default function ChallengeScreen() {
                                     </View>
                                     <View className="h-3 w-px bg-gray-200" />
                                     <Text className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">
-                                        {challenge.target_type === 'accumulation' ? 'Accumulate' : 'Maintain'} {challenge.target_goal}
+                                        {challenge.target_type === 'accumulation' ? t('accumulate') : t('maintain')} {challenge.target_goal}
                                     </Text>
                                 </View>
 
@@ -226,7 +226,7 @@ export default function ChallengeScreen() {
                                     {activeTab === 'ongoing' && (
                                         <View className="flex-row items-center">
                                             <Clock size={12} color="#9CA3AF" />
-                                            <Text className="text-[11px] text-gray-400 ml-1.5 font-bold">{getDaysLeft(challenge.end_date)}d</Text>
+                                            <Text className="text-[11px] text-gray-400 ml-1.5 font-bold">{t('daysLeftSuffix').replace('{0}', getDaysLeft(challenge.end_date).toString())}</Text>
                                         </View>
                                     )}
                                 </View>

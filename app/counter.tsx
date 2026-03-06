@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Play, Pause, Square, Music, ChevronDown, Check, Calculator, X } from 'lucide-react-native';
 import { Audio } from 'expo-av';
+import { useT } from '../i18n/useT';
 import { tucsoService, TucSoType } from '../services/tucsoService';
 
 const GOLD = '#D4AF37';
@@ -23,6 +24,7 @@ function formatTime(secs: number) {
 }
 
 export default function CounterScreen() {
+    const t = useT();
     const router = useRouter();
     const insets = useSafeAreaInsets();
 
@@ -117,7 +119,7 @@ export default function CounterScreen() {
             setShowTypeModal(false);
         } catch (err) {
             console.error(err);
-            Alert.alert('Error', 'Không thể tạo loại túc số mới.');
+            Alert.alert(t('error'), t('createTypeFailed'));
         } finally {
             setIsCreatingType(false);
         }
@@ -146,8 +148,7 @@ export default function CounterScreen() {
             await newSound.playAsync();
             setIsPlayingAudio(true);
         } catch (err) {
-            console.error('Audio playback error', err);
-            Alert.alert('Lỗi Audio', 'Không tìm thấy file nhạc meditation hoặc lỗi phát nhạc. Vui lòng đảm bảo file assets/music/Nhacthien01.mp3 tồn tại.');
+            Alert.alert(t('error'), t('audioError'));
         }
     }
 
@@ -156,7 +157,7 @@ export default function CounterScreen() {
     const stopSession = () => {
         setTimerRunning(false);
         if (secondsElapsed < 10 && false) { // disable for now, let's allow 0
-            Alert.alert('Thông báo', 'Thời gian quá ngắn.');
+            Alert.alert(t('ok'), t('tooShort'));
             return;
         }
         setShowEndModal(true);
@@ -175,14 +176,14 @@ export default function CounterScreen() {
         if (!selectedType) return;
         const countNum = parseInt(finalCount, 10);
         if (isNaN(countNum) || countNum < 0) {
-            Alert.alert('Lỗi', 'Vui lòng nhập số đếm hợp lệ.');
+            Alert.alert(t('error'), t('invalidCount'));
             return;
         }
 
         try {
             setIsSaving(true);
             await tucsoService.saveLog(selectedType.id, secondsElapsed, countNum);
-            Alert.alert('Thành công', 'Đã lưu túc số thành công.', [
+            Alert.alert(t('success'), t('saveSuccess'), [
                 {
                     text: 'OK',
                     onPress: () => {
@@ -197,7 +198,7 @@ export default function CounterScreen() {
             fetchHistoricalStats(selectedType.id);
         } catch (err) {
             console.error(err);
-            Alert.alert('Lỗi', 'Có lỗi xảy ra khi lưu. Vui lòng thử lại.');
+            Alert.alert(t('error'), t('saveError'));
         } finally {
             setIsSaving(false);
         }
@@ -220,7 +221,7 @@ export default function CounterScreen() {
                 <TouchableOpacity onPress={() => router.back()} style={{ padding: 8 }}>
                     <X size={24} color={GOLD} />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>Đếm Túc Số</Text>
+                <Text style={styles.headerTitle}>{t('counterTitle')}</Text>
                 <View style={{ width: 40 }} />
             </View>
 
@@ -233,9 +234,9 @@ export default function CounterScreen() {
                     activeOpacity={0.8}
                 >
                     <View>
-                        <Text style={styles.typeSelectorLabel}>Loại Tu Tập</Text>
+                        <Text style={styles.typeSelectorLabel}>{t('practiceType')}</Text>
                         <Text style={styles.typeSelectorValue}>
-                            {selectedType ? selectedType.name : 'Chọn thể loại...'}
+                            {selectedType ? selectedType.name : t('selectCategory')}
                         </Text>
                     </View>
                     <ChevronDown size={20} color="#666" />
@@ -248,14 +249,14 @@ export default function CounterScreen() {
                 >
                     <Music size={20} color={isPlayingAudio ? '#FFF' : MAROON} />
                     <Text style={[styles.audioBtnText, isPlayingAudio && { color: '#FFF' }]}>
-                        {isPlayingAudio ? 'Đang phát nhạc thiền' : 'Phát nhạc thiền'}
+                        {isPlayingAudio ? t('playingMeditationMusic') : t('playMeditationMusic')}
                     </Text>
                 </TouchableOpacity>
 
                 {/* ─ Timer Display ─ */}
                 <View style={styles.timerCircle}>
                     <Text style={styles.timerText}>{formatTime(secondsElapsed)}</Text>
-                    <Text style={styles.timerSubText}>Thời gian thực hành</Text>
+                    <Text style={styles.timerSubText}>{t('practiceTime')}</Text>
                 </View>
 
                 {/* ─ Controls ─ */}
@@ -279,12 +280,12 @@ export default function CounterScreen() {
                 {/* ─ Stats Display ─ */}
                 {selectedType && (
                     <View style={styles.statsBox}>
-                        <Text style={styles.statsTitle}>Tổng Tích Luỹ: {selectedType.name}</Text>
+                        <Text style={styles.statsTitle}>{t('totalAccumulation')}: {selectedType.name}</Text>
                         <Text style={styles.statsValue}>
-                            {historicalStats.total_count.toLocaleString()} <Text style={{ fontSize: 14, color: '#666' }}>lần</Text>
+                            {historicalStats.total_count.toLocaleString()} <Text style={{ fontSize: 14, color: '#666' }}>{t('times')}</Text>
                         </Text>
                         <Text style={styles.statsSub}>
-                            Trong {formatTime(historicalStats.total_duration)} thời gian
+                            {t('inTime', [formatTime(historicalStats.total_duration)])}
                         </Text>
                     </View>
                 )}
@@ -294,9 +295,9 @@ export default function CounterScreen() {
             <Modal visible={showEndModal} transparent animationType="slide">
                 <View style={styles.modalBg}>
                     <View style={styles.modalContent}>
-                        <Text style={styles.modalTitle}>Kết Thúc Thực Hành</Text>
+                        <Text style={styles.modalTitle}>{t('endPractice')}</Text>
                         <Text style={styles.modalSubTitle}>
-                            Bạn đã thực hành {formatTime(secondsElapsed)}. Hãy nhập số lượng túc số hoặc tính tự động.
+                            {t('endPracticeDesc', [formatTime(secondsElapsed)])}
                         </Text>
 
                         <View style={styles.inputContainer}>
@@ -305,7 +306,7 @@ export default function CounterScreen() {
                                 value={finalCount}
                                 onChangeText={setFinalCount}
                                 keyboardType="number-pad"
-                                placeholder="Nhập số lần (VD: 108)"
+                                placeholder={t('enterCount')}
                             />
 
                             <TouchableOpacity
@@ -314,11 +315,11 @@ export default function CounterScreen() {
                                 disabled={!historicalStats || historicalStats.total_duration === 0}
                             >
                                 <Calculator size={18} color="#FFF" />
-                                <Text style={styles.autoCalcText}>Tự tạo tính</Text>
+                                <Text style={styles.autoCalcText}>{t('autoCalculate')}</Text>
                             </TouchableOpacity>
                         </View>
                         {(!historicalStats || historicalStats.total_duration === 0) && (
-                            <Text style={styles.hintText}>* Cần có dữ liệu các lần trước để có thể tự động tính</Text>
+                            <Text style={styles.hintText}>{t('autoCalcHint')}</Text>
                         )}
 
                         <View style={styles.modalActions}>
@@ -327,10 +328,10 @@ export default function CounterScreen() {
                                 setSecondsElapsed(0);
                                 setFinalCount('');
                             }}>
-                                <Text style={styles.modalBtnCancelText}>Làm lại / Đóng</Text>
+                                <Text style={styles.modalBtnCancelText}>{t('retryOrClose')}</Text>
                             </TouchableOpacity>
                             <TouchableOpacity style={styles.modalBtnSave} onPress={handleSaveSession} disabled={isSaving}>
-                                {isSaving ? <ActivityIndicator color="#FFF" /> : <Text style={styles.modalBtnSaveText}>Lưu Lại</Text>}
+                                {isSaving ? <ActivityIndicator color="#FFF" /> : <Text style={styles.modalBtnSaveText}>{t('saveAccumulation')}</Text>}
                             </TouchableOpacity>
                         </View>
                     </View>
@@ -341,7 +342,7 @@ export default function CounterScreen() {
             <Modal visible={showTypeModal} transparent animationType="fade">
                 <View style={styles.modalBg}>
                     <View style={[styles.modalContent, { maxHeight: '80%' }]}>
-                        <Text style={styles.modalTitle}>Chọn Thể Loại Tu Tập</Text>
+                        <Text style={styles.modalTitle}>{t('selectPracticeCategory')}</Text>
 
                         <ScrollView style={{ width: '100%', marginVertical: 15 }} showsVerticalScrollIndicator={false}>
                             {types.map(t => (
@@ -364,19 +365,19 @@ export default function CounterScreen() {
                                 style={styles.inputNewType}
                                 value={newTypeName}
                                 onChangeText={setNewTypeName}
-                                placeholder="Hoặc tạo loại mới..."
+                                placeholder={t('orCreateNew')}
                             />
                             <TouchableOpacity
                                 style={[styles.btnAddType, !newTypeName.trim() && { opacity: 0.5 }]}
                                 onPress={handleCreateType}
                                 disabled={!newTypeName.trim() || isCreatingType}
                             >
-                                {isCreatingType ? <ActivityIndicator color="#FFF" size="small" /> : <Text style={{ color: '#FFF', fontWeight: 'bold' }}>Tạo</Text>}
+                                {isCreatingType ? <ActivityIndicator color="#FFF" size="small" /> : <Text style={{ color: '#FFF', fontWeight: 'bold' }}>{t('create')}</Text>}
                             </TouchableOpacity>
                         </View>
 
                         <TouchableOpacity style={{ marginTop: 15 }} onPress={() => setShowTypeModal(false)}>
-                            <Text style={{ color: '#666', fontWeight: 'bold', fontSize: 16 }}>Đóng</Text>
+                            <Text style={{ color: '#666', fontWeight: 'bold', fontSize: 16 }}>{t('close')}</Text>
                         </TouchableOpacity>
                     </View>
                 </View>

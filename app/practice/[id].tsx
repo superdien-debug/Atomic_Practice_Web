@@ -209,7 +209,7 @@ export default function PracticeDetailScreen() {
 
         } catch (err) {
             console.error('Detail fetch error:', err);
-            showModal('❌', t('error'), 'Could not load practice details.', 'danger');
+            showModal('❌', t('error'), t('loadingError'), 'danger');
             router.back();
         } finally { setLoading(false); }
     };
@@ -231,7 +231,7 @@ export default function PracticeDetailScreen() {
             }
         } catch (e) {
             console.error(e);
-            Alert.alert('Lỗi', 'Không thể lưu số đếm.');
+            Alert.alert(t('error'), t('invalidCount'));
         } finally {
             setLogging(false);
         }
@@ -242,19 +242,19 @@ export default function PracticeDetailScreen() {
         setCloning(true);
         try {
             await practiceService.clonePractice(practice.id);
-            showModal('🙏', t('addToMyPlan'), 'Practice added to your plan! 🙏', 'success');
+            showModal('🙏', t('addToMyPlan'), t('practiceAdded'), 'success');
             router.replace('/dashboard/practice');
         } catch (err) {
             console.error('Clone error:', err);
-            showModal('❌', t('error'), 'Failed to add practice to your plan.', 'danger');
+            showModal('❌', t('error'), t('practiceAddFailed'), 'danger');
         } finally { setCloning(false); }
     };
 
     const handleLeave = () => {
         if (!practice) return;
-        showModal('⚠️', 'Từ bỏ bài thực hành', 'Bạn có chắc chắn muốn bỏ bài này không? Nó sẽ biến mất khỏi lịch trình của bạn.', 'warning', {
-            confirmLabel: 'Đồng ý',
-            cancelLabel: 'Hủy',
+        showModal('⚠️', t('giveUpPractice'), t('giveUpPracticeMsg'), 'warning', {
+            confirmLabel: t('agree'),
+            cancelLabel: t('cancel'),
             onConfirm: async () => {
                 setLeaving(true);
                 try {
@@ -262,7 +262,7 @@ export default function PracticeDetailScreen() {
                     router.replace('/dashboard/practice');
                 } catch (err) {
                     console.error('Leave error:', err);
-                    showModal('❌', 'Lỗi', 'Không thể gỡ bỏ bài thực hành.', 'danger');
+                    showModal('❌', t('error'), t('actionFailed'), 'danger');
                 } finally { setLeaving(false); }
             }
         });
@@ -270,9 +270,9 @@ export default function PracticeDetailScreen() {
 
     const handleDelete = () => {
         if (!practice) return;
-        showModal('🗑️', 'Xóa vĩnh viễn', 'Bạn có chắc chắn muốn xóa bài thực hành này khỏi hệ thống không? Hành động này không thể hoàn tác.', 'danger', {
-            confirmLabel: 'XÓA NGAY',
-            cancelLabel: 'Hủy',
+        showModal('🗑️', t('deletePermanently'), t('deletePracticeMsg'), 'danger', {
+            confirmLabel: t('deleteNow'),
+            cancelLabel: t('cancel'),
             onConfirm: async () => {
                 setDeleting(true);
                 try {
@@ -280,7 +280,7 @@ export default function PracticeDetailScreen() {
                     router.replace('/dashboard/practice');
                 } catch (err) {
                     console.error('Delete error:', err);
-                    showModal('❌', 'Lỗi', 'Không thể xóa bài thực hành.', 'danger');
+                    showModal('❌', t('error'), t('actionFailed'), 'danger');
                 } finally { setDeleting(false); }
             }
         });
@@ -296,10 +296,10 @@ export default function PracticeDetailScreen() {
                 setIsCompleted(res.data.completed);
                 setLogId(res.data.id);
             }
-            showModal(nextStatus ? '🏆' : '✅', nextStatus ? 'Congratulation!' : 'Updated', nextStatus ? 'Tùy hỷ công đức! 🙏' : 'Status reverted.');
+            showModal(nextStatus ? '🏆' : '✅', nextStatus ? t('congratulation') : t('updated'), nextStatus ? t('rejoiceMerit') : t('statusReverted'));
         } catch (err) {
             console.error('Toggle error:', err);
-            showModal('❌', 'Error', 'Failed to update status.', 'danger');
+            showModal('❌', t('error'), t('actionFailed'), 'danger');
         } finally { setCompleting(false); }
     };
 
@@ -314,7 +314,7 @@ export default function PracticeDetailScreen() {
             setComments(cmts || []);
         } catch (err) {
             console.error('Post comment error:', err);
-            showModal('❌', 'Lỗi', 'Không thể gửi bình luận. Bạn có thể cần chạy SQL migration mới nhất.', 'danger');
+            showModal('❌', t('error'), t('postCommentError'), 'danger');
         } finally { setPosting(false); }
     };
 
@@ -329,7 +329,7 @@ export default function PracticeDetailScreen() {
             const { notificationService } = require('../../services/notificationService');
             await notificationService.rescheduleAllPractices([{ ...practice, reminder_times: finalTimes }]);
 
-            showModal('🔔', 'Success', 'Reminders updated successfully! 🙏', 'success');
+            showModal('🔔', t('success'), t('remindersUpdated'), 'success');
         } catch (err) {
             console.error('Update reminders error:', err);
             showModal('❌', t('error'), 'Failed to update reminders.', 'danger');
@@ -340,7 +340,7 @@ export default function PracticeDetailScreen() {
         return (
             <View style={[s.root, { alignItems: 'center', justifyContent: 'center' }]}>
                 <ActivityIndicator size="large" color={C.gold} />
-                <Text style={{ color: C.textMute, marginTop: 12 }}>Loading...</Text>
+                <Text style={{ color: C.textMute, marginTop: 12 }}>{t('loading')}</Text>
             </View>
         );
     }
@@ -376,9 +376,9 @@ export default function PracticeDetailScreen() {
                 {/* Badge Row (Mirroring Difficulty Row) */}
                 <View style={s.badgeRow}>
                     <View style={s.categoryBadge}>
-                        <Text style={s.badgeLabel}>{practice.category?.toUpperCase() || 'PRACTICE'}</Text>
+                        <Text style={s.badgeLabel}>{practice.category?.toUpperCase() || t('practice').toUpperCase()}</Text>
                         <View style={s.badgeDot} />
-                        <Text style={s.badgeSubLabel}>{practice.is_public ? 'PUBLIC' : 'PRIVATE'}</Text>
+                        <Text style={s.badgeSubLabel}>{practice.is_public ? t('public') : t('private')}</Text>
                     </View>
                 </View>
             </View>
@@ -396,30 +396,30 @@ export default function PracticeDetailScreen() {
                                 const style = getStreakStyle(practice.streak || 0);
                                 return <Flame size={22} color={style.color} fill={style.fill} />;
                             })()}
-                            label="Streak"
-                            value={`${practice.streak || 0} Days`}
+                            label={t('streak')}
+                            value={`${practice.streak || 0} ${t('days')}`}
                         />
                         <StatCard
                             icon={<Users size={22} color={C.maroonRed} />}
-                            label="Sangha"
-                            value={`${practice.real_participants_count || 1} users`}
+                            label={t('sangha')}
+                            value={`${practice.real_participants_count || 1} ${t('users')}`}
                         />
                         <StatCard
                             icon={<LayoutGrid size={22} color={C.maroonRed} />}
-                            label="Type"
-                            value={practice.target_type || 'Count'}
+                            label={t('type')}
+                            value={practice.target_type ? t(practice.target_type as any) : t('count')}
                         />
                     </View>
 
                     {/* Personal Reminders (Only for joined practices) */}
                     {isOwner && !isLibraryView && (
                         <View style={s.section}>
-                            <SectionHeading label="Personal Reminders" />
+                            <SectionHeading label={t('personalReminders')} />
                             <View style={s.reminderCard}>
                                 <View style={s.reminderHeader}>
                                     <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                                         <Bell size={18} color={C.maroonRed} />
-                                        <Text style={s.reminderTitle}>Daily Reminders</Text>
+                                        <Text style={s.reminderTitle}>{t('dailyReminders')}</Text>
                                     </View>
                                     <Switch
                                         value={remindersEnabled}
@@ -453,7 +453,7 @@ export default function PracticeDetailScreen() {
                                                     }}
                                                     style={s.removeBtn}
                                                 >
-                                                    <Text style={s.removeBtnText}>Remove</Text>
+                                                    <Text style={s.removeBtnText}>{t('remove')}</Text>
                                                 </TouchableOpacity>
                                             </View>
                                         ))}
@@ -463,7 +463,7 @@ export default function PracticeDetailScreen() {
                                                 style={s.addTimeBtn}
                                             >
                                                 <Plus size={14} color={C.maroonRed} />
-                                                <Text style={s.addTimeText}>Add Time</Text>
+                                                <Text style={s.addTimeText}>{t('addTime')}</Text>
                                             </TouchableOpacity>
                                         </View>
                                     </View>
@@ -477,7 +477,7 @@ export default function PracticeDetailScreen() {
                                     {updatingReminders ? (
                                         <ActivityIndicator size="small" color={C.gold} />
                                     ) : (
-                                        <Text style={s.saveRemindersText}>Update Schedule</Text>
+                                        <Text style={s.saveRemindersText}>{t('updateSchedule')}</Text>
                                     )}
                                 </TouchableOpacity>
                             </View>
@@ -490,18 +490,18 @@ export default function PracticeDetailScreen() {
                             <View style={{ backgroundColor: '#fff', padding: 16, borderRadius: 16, borderWidth: 1, borderColor: '#f1f5f9', shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 5, elevation: 1 }}>
                                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
                                     <Calculator size={18} color={C.gold} />
-                                    <Text style={{ color: C.text, fontWeight: '700', fontSize: 15 }}>Ghi nhận Túc Số (Đồng bộ Yangti)</Text>
+                                    <Text style={{ color: C.text, fontWeight: '700', fontSize: 15 }}>{t('syncYangti')}</Text>
                                 </View>
 
                                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
-                                    <Text style={{ fontSize: 12, color: C.textMute }}>Đã tích lũy:</Text>
+                                    <Text style={{ fontSize: 12, color: C.textMute }}>{t('accumulated')}:</Text>
                                     <Text style={{ fontSize: 14, color: C.maroonRed, fontWeight: '800' }}>{accStats.total_count.toLocaleString()}</Text>
                                 </View>
 
                                 <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
                                     <TextInput
                                         style={{ flex: 1, backgroundColor: '#f8fafc', borderRadius: 12, paddingHorizontal: 16, height: 48, fontSize: 16, fontWeight: '600', color: C.text }}
-                                        placeholder="Nhập số lần / biến..."
+                                        placeholder={t('enterCountVariable')}
                                         placeholderTextColor={C.textFaint}
                                         keyboardType="numeric"
                                         value={newLogCount}
@@ -512,7 +512,7 @@ export default function PracticeDetailScreen() {
                                         disabled={!newLogCount.trim() || logging}
                                         style={{ backgroundColor: C.maroonRed, borderRadius: 12, paddingHorizontal: 20, justifyContent: 'center', alignItems: 'center' }}
                                     >
-                                        {logging ? <ActivityIndicator color={C.gold} /> : <Text style={{ color: C.gold, fontWeight: '800' }}>Lưu</Text>}
+                                        {logging ? <ActivityIndicator color={C.gold} /> : <Text style={{ color: C.gold, fontWeight: '800' }}>{t('saveShort')}</Text>}
                                     </TouchableOpacity>
                                 </View>
                             </View>
@@ -522,7 +522,7 @@ export default function PracticeDetailScreen() {
                     {/* Habit Tracker (Only for joined practices) */}
                     {isOwner && !isLibraryView && (
                         <View style={s.section}>
-                            <SectionHeading label="Habit Mastery" />
+                            <SectionHeading label={t('habitMastery')} />
                             <HabitTracker
                                 currentStreak={practice.streak || 0}
                                 logHistory={logHistory}
@@ -537,7 +537,7 @@ export default function PracticeDetailScreen() {
 
                     {/* Rules/Description */}
                     <View style={s.section}>
-                        <SectionHeading label="Practice Instruction" />
+                        <SectionHeading label={t('practiceInstruction')} />
                         <View style={s.ruleCard}>
                             <Text style={s.ruleText}>
                                 {practice.description || t('practiceTitle')}
@@ -550,7 +550,7 @@ export default function PracticeDetailScreen() {
                     {/* Community Section */}
                     {(practice.is_public || practice.origin_id) && (
                         <View style={s.section}>
-                            <SectionHeading label={`Leaderboard (${leaderboard.length})`} />
+                            <SectionHeading label={`${t('leaderboard')} (${leaderboard.length})`} />
                             <View style={s.listCard}>
                                 {leaderboard.length > 0 ? (
                                     leaderboard.map((p, i) => {
@@ -589,7 +589,7 @@ export default function PracticeDetailScreen() {
                                                                     {userRank.title}
                                                                 </Text>
                                                             </View>
-                                                            <Text style={[s.participantRole, { marginLeft: 6 }]}>Rank #{i + 1}</Text>
+                                                            <Text style={[s.participantRole, { marginLeft: 6 }]}>{t('rankLabel', [(i + 1).toString()])}</Text>
                                                         </View>
                                                     </View>
                                                 </View>
@@ -601,12 +601,12 @@ export default function PracticeDetailScreen() {
                                         );
                                     })
                                 ) : (
-                                    <Text style={s.emptyText}>Be the first to join the Sangha! 🙏</Text>
+                                    <Text style={s.emptyText}>{t('firstToJoin')}</Text>
                                 )}
                             </View>
 
                             <View style={{ marginTop: 28 }}>
-                                <SectionHeading label="Discussions" />
+                                <SectionHeading label={t('discussions')} />
                                 <View style={s.listCard}>
                                     {comments.length > 0 ? (
                                         comments.map((c, i) => (
@@ -630,7 +630,7 @@ export default function PracticeDetailScreen() {
                                             </TouchableOpacity>
                                         ))
                                     ) : (
-                                        <Text style={s.emptyText}>No discussions yet. Share your insights! 🙏</Text>
+                                        <Text style={s.emptyText}>{t('noDiscussions')}</Text>
                                     )}
                                 </View>
 
@@ -638,7 +638,7 @@ export default function PracticeDetailScreen() {
                                 <View style={s.chatInputRow}>
                                     <TextInput
                                         style={s.chatField}
-                                        placeholder="Add a comment..."
+                                        placeholder={t('addComment')}
                                         placeholderTextColor={C.textFaint}
                                         value={commentText}
                                         onChangeText={setCommentText}
@@ -671,7 +671,7 @@ export default function PracticeDetailScreen() {
                     >
                         {cloning
                             ? <ActivityIndicator color={C.maroonDark} />
-                            : <><Plus size={20} color={C.maroonDark} strokeWidth={3} /><Text style={s.actionBtnText}>JOIN Sangha 🙏</Text></>
+                            : <><Plus size={20} color={C.maroonDark} strokeWidth={3} /><Text style={s.actionBtnText}>{t('joinSangha')}</Text></>
                         }
                     </TouchableOpacity>
                 ) : (
@@ -695,7 +695,7 @@ export default function PracticeDetailScreen() {
                         >
                             {leaving
                                 ? <ActivityIndicator color="#fff" />
-                                : <Text style={[s.actionBtnText, { color: '#fff' }]}>TỪ BỎ </Text>
+                                : <Text style={[s.actionBtnText, { color: '#fff' }]}>{t('giveUp')}</Text>
                             }
                         </TouchableOpacity>
 
@@ -710,7 +710,7 @@ export default function PracticeDetailScreen() {
                             ) : (
                                 <>
                                     <Text style={[s.actionBtnText, isCompleted && { color: C.textMute }]}>
-                                        {isCompleted ? 'XONG RỒI' : 'HOÀN THÀNH'}
+                                        {isCompleted ? t('finished') : t('complete')}
                                     </Text>
                                     <Trophy size={18} color={isCompleted ? C.textMute : C.maroonDark} fill={isCompleted ? C.textMute : 'none'} />
                                 </>

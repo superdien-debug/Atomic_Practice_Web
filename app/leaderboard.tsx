@@ -9,7 +9,7 @@ import clsx from 'clsx';
 import { useT } from '../i18n/useT';
 import { getRank } from '../utils/rankUtils';
 
-export default function GlobalLeaderboardScreen() {
+export default function LeaderboardScreen() {
     const router = useRouter();
     const t = useT();
     const insets = useSafeAreaInsets();
@@ -68,7 +68,7 @@ export default function GlobalLeaderboardScreen() {
                 {/* Info */}
                 <View className="flex-1">
                     <Text className="font-bold text-gray-800 text-base">
-                        {item.display_name || 'Anonymous Practitioner'}
+                        {item.display_name || t('anonymousPractitioner')}
                     </Text>
                     <View className="flex-row items-center">
                         <View
@@ -91,7 +91,7 @@ export default function GlobalLeaderboardScreen() {
                         {item.score.toLocaleString()}
                     </Text>
                     <Text className="text-[9px] text-gray-400 uppercase font-bold">
-                        Points
+                        {t('pointsLabel')}
                     </Text>
                 </View>
             </TouchableOpacity>
@@ -126,7 +126,7 @@ export default function GlobalLeaderboardScreen() {
             {loading ? (
                 <View className="flex-1 items-center justify-center">
                     <ActivityIndicator color="#800000" size="large" />
-                    <Text className="mt-4 text-gray-400 font-medium">Loading Sangha...</Text>
+                    <Text className="mt-4 text-gray-400 font-medium">{t('loadingSangha')}</Text>
                 </View>
             ) : (
                 <FlatList
@@ -137,7 +137,7 @@ export default function GlobalLeaderboardScreen() {
                     ListEmptyComponent={
                         <View className="items-center py-20 opacity-50">
                             <Trophy size={48} color="#cbd5e1" />
-                            <Text className="text-gray-400 italic mt-4">No practitioners found yet. 🙏</Text>
+                            <Text className="text-gray-400 italic mt-4">{t('noPractitionersFound')}</Text>
                         </View>
                     }
                     onRefresh={loadLeaderboard}

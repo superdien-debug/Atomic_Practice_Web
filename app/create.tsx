@@ -6,6 +6,7 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { ChevronLeft, Bell, Globe, Plus } from 'lucide-react-native';
+import { useT } from '../i18n/useT';
 import { practiceService } from '../services/practiceService';
 import { MIN_CREATION_SCORE } from '../utils/rankUtils';
 
@@ -23,6 +24,7 @@ const C = {
 const DAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
 export default function CreatePracticeScreen() {
+    const t = useT();
     const router = useRouter();
     const insets = useSafeAreaInsets();
 
@@ -68,14 +70,14 @@ export default function CreatePracticeScreen() {
             const currentScore = await practiceService.calculateTotalScore();
             setScore(currentScore);
             if (currentScore < MIN_CREATION_SCORE) {
-                const title = '🔐 Phân quyền';
-                const msg = `Bạn cần đạt Cấp độ 2 (500 điểm Merit) để tạo bài thực hành mới. Hiện tại bạn đang có ${currentScore} điểm. Hãy thực hành chuyên cần hơn nhé!`;
+                const title = t('levelLockTitle');
+                const msg = t('levelLockMsg', [currentScore.toString()]);
 
                 if (Platform.OS === 'web') {
                     window.alert(`${title}\n\n${msg}`);
                     router.back();
                 } else {
-                    Alert.alert(title, msg, [{ text: 'Đã hiểu', onPress: () => router.back() }]);
+                    Alert.alert(title, msg, [{ text: t('understood'), onPress: () => router.back() }]);
                 }
             }
         } catch (error) {
@@ -127,8 +129,8 @@ export default function CreatePracticeScreen() {
         } catch (e: any) {
             console.error('[Create Practice]', e);
             Alert.alert(
-                'Could not save practice',
-                e?.message || 'Unknown error. Check your connection and try again.',
+                t('saveError'),
+                e?.message || t('unknownError'),
             );
         }
     };
@@ -142,26 +144,26 @@ export default function CreatePracticeScreen() {
                 <TouchableOpacity onPress={() => router.back()} style={s.headerBtn}>
                     <ChevronLeft size={24} color="#FFF" />
                 </TouchableOpacity>
-                <Text style={s.headerTitle}>New Practice</Text>
+                <Text style={s.headerTitle}>{t('newPractice')}</Text>
                 <TouchableOpacity onPress={handleCreate} disabled={!isValid} style={s.headerBtn}>
-                    <Text style={[s.saveBtn, !isValid && { opacity: 0.5 }]}>Save</Text>
+                    <Text style={[s.saveBtn, !isValid && { opacity: 0.5 }]}>{t('save')}</Text>
                 </TouchableOpacity>
             </View>
 
             <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
                 {/* Identity */}
-                <Section icon="🛕" label="Identity">
-                    <FieldLabel>Practice Name</FieldLabel>
+                <Section icon="🛕" label={t('identity')}>
+                    <FieldLabel>{t('practiceName')}</FieldLabel>
                     <TextInput
                         style={s.input}
-                        placeholder="e.g., Meditation, Chanting"
+                        placeholder={t('practiceNamePlaceholder')}
                         value={name}
                         onChangeText={setName}
                         autoFocus
                     />
 
-                    <FieldLabel style={{ marginTop: 20 }}>Library Group</FieldLabel>
+                    <FieldLabel style={{ marginTop: 20 }}>{t('libraryGroup')}</FieldLabel>
                     <View style={s.segmentBar}>
                         {(['AP', 'AH'] as const).map((g) => (
                             <TouchableOpacity
@@ -170,13 +172,13 @@ export default function CreatePracticeScreen() {
                                 style={[s.segmentItem, libraryGroup === g && { backgroundColor: C.burgundy }]}
                             >
                                 <Text style={[s.segmentText, libraryGroup === g && { color: '#FFF' }]}>
-                                    {g === 'AP' ? 'Ancient Practice (AP)' : 'Atomic Habit (AH)'}
+                                    {g === 'AP' ? t('apLong') : t('ahLong')}
                                 </Text>
                             </TouchableOpacity>
                         ))}
                     </View>
 
-                    <FieldLabel style={{ marginTop: 20 }}>Category</FieldLabel>
+                    <FieldLabel style={{ marginTop: 20 }}>{t('category')}</FieldLabel>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 5 }}>
                         <View style={{ flexDirection: 'row', gap: 8 }}>
                             {currentCategories.map((cat) => (
@@ -197,10 +199,10 @@ export default function CreatePracticeScreen() {
                         </View>
                     </ScrollView>
 
-                    <FieldLabel style={{ marginTop: 20 }}>Description</FieldLabel>
+                    <FieldLabel style={{ marginTop: 20 }}>{t('description')}</FieldLabel>
                     <TextInput
                         style={[s.input, s.textarea]}
-                        placeholder="Why are you doing this practice?"
+                        placeholder={t('descriptionPlaceholder')}
                         value={description}
                         onChangeText={setDescription}
                         multiline
@@ -208,7 +210,7 @@ export default function CreatePracticeScreen() {
                 </Section>
 
                 {/* Goal & Target */}
-                <Section icon="🎯" label="Goal & Target">
+                <Section icon="🎯" label={t('goalTarget')}>
                     <View style={s.segmentBar}>
                         {(['at_least', 'exactly'] as const).map((g) => (
                             <TouchableOpacity
@@ -217,7 +219,7 @@ export default function CreatePracticeScreen() {
                                 style={[s.segmentItem, goalType === g && s.segmentActive]}
                             >
                                 <Text style={[s.segmentText, goalType === g && s.segmentTextActive]}>
-                                    {g === 'at_least' ? 'At least' : 'Exactly'}
+                                    {g === 'at_least' ? t('atLeast') : t('exactly')}
                                 </Text>
                             </TouchableOpacity>
                         ))}
@@ -225,7 +227,7 @@ export default function CreatePracticeScreen() {
 
                     <View style={{ flexDirection: 'row', gap: 12, marginTop: 20 }}>
                         <View style={{ flex: 1 }}>
-                            <FieldLabel>Amount</FieldLabel>
+                            <FieldLabel>{t('amount')}</FieldLabel>
                             <TextInput
                                 style={s.input}
                                 keyboardType="numeric"
@@ -234,7 +236,7 @@ export default function CreatePracticeScreen() {
                             />
                         </View>
                         <View style={{ width: 120 }}>
-                            <FieldLabel>Unit</FieldLabel>
+                            <FieldLabel>{t('unit')}</FieldLabel>
                             <View style={s.unitRow}>
                                 {(['Minutes', 'Reps'] as const).map((u) => (
                                     <TouchableOpacity
@@ -242,7 +244,7 @@ export default function CreatePracticeScreen() {
                                         onPress={() => setUnit(u)}
                                         style={[s.unitItem, unit === u && s.unitActive]}
                                     >
-                                        <Text style={[s.unitText, unit === u && s.unitTextActive]}>{u}</Text>
+                                        <Text style={[s.unitText, unit === u && s.unitTextActive]}>{u === 'Minutes' ? t('minutes') : t('reps')}</Text>
                                     </TouchableOpacity>
                                 ))}
                             </View>
@@ -251,7 +253,7 @@ export default function CreatePracticeScreen() {
                 </Section>
 
                 {/* Frequency */}
-                <Section icon="📅" label="Frequency">
+                <Section icon="📅" label={t('frequency')}>
                     <View style={{ flexDirection: 'row', gap: 8, marginBottom: 20 }}>
                         {(['daily', 'weekly', 'monthly'] as const).map((f) => (
                             <TouchableOpacity
@@ -260,7 +262,7 @@ export default function CreatePracticeScreen() {
                                 style={[s.freqPill, frequency === f && s.freqPillActive]}
                             >
                                 <Text style={[s.freqText, frequency === f && s.freqTextActive]}>
-                                    {f.charAt(0).toUpperCase() + f.slice(1)}
+                                    {t(f)}
                                 </Text>
                             </TouchableOpacity>
                         ))}
@@ -286,11 +288,11 @@ export default function CreatePracticeScreen() {
 
                 {/* Settings */}
                 <View style={s.card}>
-                    <SectionHeading icon="⚙️" label="Settings" />
+                    <SectionHeading icon="⚙️" label={t('settings')} />
                     <View style={s.settingRow}>
                         <View style={{ flex: 1 }}>
-                            <Text style={s.settingTitle}>Reminders</Text>
-                            <Text style={s.settingDesc}>Get notified to maintain consistency</Text>
+                            <Text style={s.settingTitle}>{t('remindersLong')}</Text>
+                            <Text style={s.settingDesc}>{t('remindersDesc')}</Text>
                         </View>
                         <Switch
                             value={remindersEnabled}
@@ -301,7 +303,7 @@ export default function CreatePracticeScreen() {
 
                     {remindersEnabled && (
                         <View style={{ marginTop: 16 }}>
-                            <FieldLabel>Reminder Times</FieldLabel>
+                            <FieldLabel>{t('reminderTimesLong')}</FieldLabel>
                             {reminderTimes.map((time, idx) => (
                                 <View key={idx} style={s.reminderTimeRow}>
                                     <TextInput
@@ -324,7 +326,7 @@ export default function CreatePracticeScreen() {
                                         }}
                                         style={s.removeTimeBtn}
                                     >
-                                        <Text style={{ color: C.burgundy, fontWeight: '700' }}>Remove</Text>
+                                        <Text style={{ color: C.burgundy, fontWeight: '700' }}>{t('remove')}</Text>
                                     </TouchableOpacity>
                                 </View>
                             ))}
@@ -333,15 +335,15 @@ export default function CreatePracticeScreen() {
                                 style={s.addTimeBtn}
                             >
                                 <Plus size={16} color={C.burgundy} />
-                                <Text style={s.addTimeText}>Add Time</Text>
+                                <Text style={s.addTimeText}>{t('addTime')}</Text>
                             </TouchableOpacity>
                         </View>
                     )}
                     <View style={s.divider} />
                     <View style={s.settingRow}>
                         <View style={{ flex: 1 }}>
-                            <Text style={s.settingTitle}>Public Sharing</Text>
-                            <Text style={s.settingDesc}>Let others see your merit</Text>
+                            <Text style={s.settingTitle}>{t('publicSharing')}</Text>
+                            <Text style={s.settingDesc}>{t('publicSharingDesc')}</Text>
                         </View>
                         <Switch
                             value={isPublic}

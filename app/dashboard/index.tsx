@@ -10,6 +10,7 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { useAuthStore } from '../../store/authStore';
 import { practiceService, Practice } from '../../services/practiceService';
 import { challengeService, Challenge } from '../../services/challengeService';
+import { useT } from '../../i18n/useT';
 import { userService, Profile, LeaderboardEntry } from '../../services/userService';
 import { microLearningService, type MicroLearningPost } from '../../services/microLearningService';
 import { getRank, MIN_CREATION_SCORE } from '../../utils/rankUtils';
@@ -69,7 +70,8 @@ export default function DashboardScreen() {
     const router = useRouter();
     const insets = useSafeAreaInsets();
     const { user } = useAuthStore();
-    const displayName = user?.user_metadata?.display_name || 'Practitioner';
+    const t = useT();
+    const displayName = user?.user_metadata?.display_name || t('practitioner');
 
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -233,11 +235,11 @@ export default function DashboardScreen() {
                 <View style={{ alignItems: 'flex-end' }}>
                     <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 6 }}>
                         <Text style={styles.scoreNum}>{stats.score.toLocaleString()}</Text>
-                        <Text style={[styles.scoreLabel, { marginBottom: 4 }]}>MERIT</Text>
+                        <Text style={[styles.scoreLabel, { marginBottom: 4 }]}>{t('meritUpper')}</Text>
                     </View>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4, backgroundColor: 'rgba(212, 175, 55, 0.1)', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 12 }}>
                         <Sparkles size={12} color={GOLD} />
-                        <Text style={{ fontSize: 13, fontWeight: '700', color: GOLD }}>{stats.mpoints.toLocaleString()} Mpoint</Text>
+                        <Text style={{ fontSize: 13, fontWeight: '700', color: GOLD }}>{stats.mpoints.toLocaleString()}{t('mpointSpace')}</Text>
                     </View>
                 </View>
             </View>
@@ -254,18 +256,18 @@ export default function DashboardScreen() {
                 <View style={styles.statsGrid}>
                     <StatCard
                         icon={<Flame size={24} color={stats.streak > 0 ? getStreakStyle(stats.streak).color : "#FF4500"} fill={stats.streak > 0 ? getStreakStyle(stats.streak).fill : "transparent"} />}
-                        value={`${stats.streak} Days`}
-                        label="Streak"
+                        value={`${stats.streak} ${t('days')}`}
+                        label={t('streak')}
                     />
                     <StatCard
                         icon={<CheckCircle size={24} color="#32CD32" />}
                         value={`${stats.completedCount}/${stats.totalCount}`}
-                        label="Completions"
+                        label={t('completions')}
                     />
                     <StatCard
                         icon={<Trophy size={24} color={GOLD} />}
-                        value={`${stats.activeChallenges} Active`}
-                        label="Challenges"
+                        value={`${stats.activeChallenges} ${t('active')}`}
+                        label={t('challenges')}
                     />
                 </View>
 
@@ -291,14 +293,14 @@ export default function DashboardScreen() {
                                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 15, marginBottom: 12 }}>
                                     <Award size={24} color={GOLD} />
                                     <View style={{ flex: 1 }}>
-                                        <Text style={[styles.coachBannerTitle, { color: GOLD }]}>Lộ trình Yangti Nakpo</Text>
-                                        <Text style={[styles.coachBannerSub, { color: '#FFF', opacity: 0.8 }]}>Giai đoạn {Math.min(stageNum, 10)}/10: Nhấn để xem chi tiết</Text>
+                                        <Text style={[styles.coachBannerTitle, { color: GOLD }]}>{t('yangtiRoadmap')}</Text>
+                                        <Text style={[styles.coachBannerSub, { color: '#FFF', opacity: 0.8 }]}>{t('stageNof10', [Math.min(stageNum, 10).toString()])}</Text>
                                     </View>
                                 </View>
                                 <View style={{ height: 6, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 3, overflow: 'hidden' }}>
                                     <View style={{ width: `${progressPercent}%`, height: '100%', backgroundColor: GOLD, borderRadius: 3 }} />
                                 </View>
-                                <Text style={{ fontSize: 10, color: GOLD, fontWeight: 'bold', marginTop: 6, textAlign: 'right' }}>{progressPercent}% HOÀN THÀNH</Text>
+                                <Text style={{ fontSize: 10, color: GOLD, fontWeight: 'bold', marginTop: 6, textAlign: 'right' }}>{t('completedUpper', [progressPercent.toString()])}</Text>
                             </TouchableOpacity>
                         );
                     })()}
@@ -311,8 +313,8 @@ export default function DashboardScreen() {
                         <View style={styles.coachBannerContent}>
                             <Sparkles size={24} color={GOLD} />
                             <View style={{ flex: 1 }}>
-                                <Text style={styles.coachBannerTitle}>🌟 AI Coaching Hub</Text>
-                                <Text style={styles.coachBannerSub}>Nhận tư vấn từ Spiritual Coach hoặc huấn luyện kỷ luật cùng Jim Rohn.</Text>
+                                <Text style={styles.coachBannerTitle}>{t('aiCoachingHub')}</Text>
+                                <Text style={styles.coachBannerSub}>{t('aiCoachingDesc')}</Text>
                             </View>
                         </View>
                     </TouchableOpacity>
@@ -325,8 +327,8 @@ export default function DashboardScreen() {
                         <View style={styles.coachBannerContent}>
                             <Wind size={24} color="#38B2AC" />
                             <View style={{ flex: 1 }}>
-                                <Text style={[styles.coachBannerTitle, { color: '#0F766E' }]}>Cân bằng Hơi thở</Text>
-                                <Text style={styles.coachBannerSub}>Kỹ thuật nhịp đếm 4-4 giúp giảm căng thẳng và tĩnh tâm.</Text>
+                                <Text style={[styles.coachBannerTitle, { color: '#0F766E' }]}>{t('mindfulBreath')}</Text>
+                                <Text style={styles.coachBannerSub}>{t('mindfulBreathDesc')}</Text>
                             </View>
                         </View>
                     </TouchableOpacity>
@@ -335,14 +337,14 @@ export default function DashboardScreen() {
                 {/* ─ Top Practitioners ─ */}
                 <View style={styles.section}>
                     <View style={styles.sectionHeader}>
-                        <Text style={styles.sectionTitle}>Hall of Fame</Text>
+                        <Text style={styles.sectionTitle}>{t('hallOfFame')}</Text>
                         <TouchableOpacity onPress={() => router.push('/leaderboard')}>
-                            <Text style={styles.sectionLink}>View All</Text>
+                            <Text style={styles.sectionLink}>{t('viewAll')}</Text>
                         </TouchableOpacity>
                     </View>
                     <LeaderboardPodium entries={
                         stats.leaderboard.map((e, i) => ({
-                            name: e.display_name || 'Anonymous',
+                            name: e.display_name || t('anonymousPractitioner'),
                             avatar_url: e.avatar_url,
                             score: e.score,
                             rank: i + 1
@@ -353,9 +355,9 @@ export default function DashboardScreen() {
                 {/* ─ Your Practices ─ */}
                 <View style={styles.section}>
                     <View style={styles.sectionHeader}>
-                        <Text style={styles.sectionTitle}>Daily Mantras</Text>
+                        <Text style={styles.sectionTitle}>{t('dailyMantras')}</Text>
                         <TouchableOpacity onPress={() => router.push('/dashboard/practice')}>
-                            <Text style={styles.sectionLink}>Full List</Text>
+                            <Text style={styles.sectionLink}>{t('fullList')}</Text>
                         </TouchableOpacity>
                     </View>
                     <View style={{ gap: 12 }}>
@@ -372,9 +374,7 @@ export default function DashboardScreen() {
                             if (pendingPractices.length === 0) {
                                 return (
                                     <View style={styles.emptyContainer}>
-                                        <Text style={styles.emptyText}>
-                                            Excellent! You have completed all tasks for today. 🙏
-                                        </Text>
+                                        <Text style={styles.emptyText}>{t('allTasksDone')}</Text>
                                     </View>
                                 );
                             }
@@ -417,6 +417,7 @@ export default function DashboardScreen() {
 // ─── Micro Learning Ticker (Marquee) ──────────────────────────────────────────
 function MicroLearningTicker() {
     const router = useRouter();
+    const t = useT();
     const [lesson, setLesson] = useState<MicroLearningPost | null>(null);
     const scrollX = React.useRef(new Animated.Value(width)).current;
 
@@ -457,8 +458,8 @@ function MicroLearningTicker() {
             <View style={{ flex: 1, overflow: 'hidden' }}>
                 <Animated.View style={[{ flexDirection: 'row', transform: [{ translateX: scrollX }] }]}>
                     <Text style={styles.tickerText} numberOfLines={1}>
-                        <Text style={{ fontWeight: '900', color: MAROON }}>NEW LESSON: </Text>
-                        {lesson.title} — {lesson.summary || 'Tap to learn more...'} 🙏
+                        <Text style={{ fontWeight: '900', color: MAROON }}>{t('newLessonUpper')}: </Text>
+                        {lesson.title} — {lesson.summary || t('tapToLearnMore')} 🙏
                     </Text>
                 </Animated.View>
             </View>
@@ -559,6 +560,7 @@ function PracticeRow({
 type PodiumEntry = { name: string; score: number; rank: number; avatar_url: string | null };
 
 function LeaderboardPodium({ entries }: { entries: PodiumEntry[] }) {
+    const t = useT();
     const rank1 = entries.find(e => e.rank === 1);
     const rank2 = entries.find(e => e.rank === 2);
     const rank3 = entries.find(e => e.rank === 3);
@@ -579,14 +581,14 @@ function LeaderboardPodium({ entries }: { entries: PodiumEntry[] }) {
                                     {rank2.avatar_url ? (
                                         <Image source={{ uri: rank2.avatar_url }} style={ps.avatarImg} />
                                     ) : (
-                                        <Text style={ps.avatarLetter}>{rank2.name[0].toUpperCase()}</Text>
+                                        <Text style={ps.avatarLetter}>{rank2.name ? rank2.name[0].toUpperCase() : '?'}</Text>
                                     )}
                                 </View>
                                 <View style={[ps.badge2, { backgroundColor: r2Info.color }]}><Text style={ps.badge2Text}>#2</Text></View>
                             </View>
                             <Text style={ps.name2} numberOfLines={1}>{rank2.name}</Text>
                             <Text style={[ps.rankTitle, { color: r2Info.color }]}>{r2Info.title}</Text>
-                            <Text style={ps.score2}>{rank2.score.toLocaleString()} pt</Text>
+                            <Text style={ps.score2}>{rank2.score.toLocaleString()} {t('pointsUnit')}</Text>
                         </View>
                     );
                 })()}
@@ -606,14 +608,14 @@ function LeaderboardPodium({ entries }: { entries: PodiumEntry[] }) {
                                     {rank1.avatar_url ? (
                                         <Image source={{ uri: rank1.avatar_url }} style={ps.avatarImg} />
                                     ) : (
-                                        <Text style={ps.avatarLetter}>{rank1.name[0].toUpperCase()}</Text>
+                                        <Text style={ps.avatarLetter}>{rank1.name ? rank1.name[0].toUpperCase() : '?'}</Text>
                                     )}
                                 </View>
                                 <View style={[ps.badge1, { backgroundColor: r1Info.color }]}><Text style={ps.badge1Text}>#1</Text></View>
                             </View>
                             <Text style={ps.name1} numberOfLines={1}>{rank1.name}</Text>
                             <Text style={[ps.rankTitleLarge, { color: r1Info.color }]}>{r1Info.title}</Text>
-                            <Text style={ps.score1}>{rank1.score.toLocaleString()} pt</Text>
+                            <Text style={ps.score1}>{rank1.score.toLocaleString()} {t('pointsUnit')}</Text>
                         </View>
                     );
                 })()}
@@ -638,7 +640,7 @@ function LeaderboardPodium({ entries }: { entries: PodiumEntry[] }) {
                             </View>
                             <Text style={ps.name2} numberOfLines={1}>{rank3.name}</Text>
                             <Text style={[ps.rankTitle, { color: r3Info.color }]}>{r3Info.title}</Text>
-                            <Text style={ps.score2}>{rank3.score.toLocaleString()} pt</Text>
+                            <Text style={ps.score2}>{rank3.score.toLocaleString()} {t('pointsUnit')}</Text>
                         </View>
                     );
                 })()}

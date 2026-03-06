@@ -144,16 +144,16 @@ export default function RebirdScreen() {
 
         if (timeLeftMs > 0) {
             console.log("[Rebird] Still has life remaining, showing info alert.");
-            Alert.alert("Chưa thể gieo xúc xắc", "Bạn phải tiêu trừ hết sinh lực bằng cách thực hành hoặc chờ đợi trước khi có thể chuyển cõi.");
+            Alert.alert(t('cannotRollDice'), t('rollDiceCondition'));
             return;
         }
 
         if (mpoints < 50) {
-            Alert.alert("Không đủ Mpoints", `Bạn cần 50 Mpoints để gieo xúc xắc. Hiện tại bạn có ${mpoints} Mpoints.`);
+            Alert.alert(t('insufficientMpoints'), t('insufficientPoints').replace('{0}', '50'));
             return;
         }
 
-        const msg = "Mỗi lần gieo xúc xắc sẽ tiêu tốn 50 Mpoints. Bạn có chắc chắn muốn gieo và bước vào cõi tiếp theo dựa trên nghiệp lực?";
+        const msg = t('rollDiceCostMsg');
 
         if (Platform.OS === 'web') {
             if (window.confirm(msg)) {
@@ -161,11 +161,11 @@ export default function RebirdScreen() {
             }
         } else {
             Alert.alert(
-                "Gieo xúc xắc",
+                t('rollAction'),
                 msg,
                 [
-                    { text: "Hủy", style: 'cancel' },
-                    { text: "Gieo", onPress: executeRoll }
+                    { text: t('cancel'), style: 'cancel' },
+                    { text: t('rollAction'), onPress: executeRoll }
                 ]
             );
         }
@@ -193,7 +193,7 @@ export default function RebirdScreen() {
             if (!result.success) {
                 shakeAnim.setValue(0);
                 console.log("[Rebird] rollDice failed:", result.message);
-                Alert.alert("Lỗi", result.message || "Không thể gieo xúc xắc.");
+                Alert.alert(t('error'), result.message || t('actionFailed'));
                 setRolling(false);
                 return;
             }
@@ -210,7 +210,7 @@ export default function RebirdScreen() {
         } catch (err: any) {
             shakeAnim.setValue(0);
             console.error("[Rebird] executeRoll error:", err);
-            Alert.alert("Lỗi", err.message || "Đã xảy ra lỗi khi gieo xúc xắc.");
+            Alert.alert(t('error'), err.message || t('unknownError'));
         } finally {
             console.log("[Rebird] executeRoll finished, setting rolling to false.");
             setRolling(false);
@@ -230,7 +230,7 @@ export default function RebirdScreen() {
             setComments(c);
             setNewComment('');
         } catch (err: any) {
-            Alert.alert("Lỗi", "Không thể gửi bình luận.");
+            Alert.alert(t('error'), t('postCommentError'));
         } finally {
             setPostingComment(false);
         }
@@ -247,7 +247,7 @@ export default function RebirdScreen() {
     if (!state || !state.realm) {
         return (
             <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-                <Text style={{ color: '#fff' }}>Không tìm thấy thông tin cảnh giới.</Text>
+                <Text style={{ color: '#fff' }}>{t('noRealmInfo')}</Text>
             </View>
         );
     }
@@ -265,10 +265,10 @@ export default function RebirdScreen() {
         const seconds = Math.floor((ms % (60 * 1000)) / 1000);
 
         const parts = [];
-        if (days > 0) parts.push(`${days} ngày`);
-        if (hours > 0) parts.push(`${hours} giờ`);
-        parts.push(`${minutes} phút`);
-        if (days === 0 && hours === 0) parts.push(`${seconds} giây`);
+        if (days > 0) parts.push(`${days} ${t('dayTime')}`);
+        if (hours > 0) parts.push(`${hours} ${t('hourTime')}`);
+        parts.push(`${minutes} ${t('minuteTime')}`);
+        if (days === 0 && hours === 0) parts.push(`${seconds} ${t('secondTime')}`);
 
         return parts.join(' ');
     };
@@ -279,7 +279,7 @@ export default function RebirdScreen() {
 
             {/* Header */}
             <View style={[styles.header, { paddingTop: Math.max(insets.top, 15) }]}>
-                <Text style={styles.headerTitle}>Tái Sinh</Text>
+                <Text style={styles.headerTitle}>{t('rebirthTitle')}</Text>
                 <TouchableOpacity onPress={() => router.push('/rebird/history' as any)}>
                     <History size={24} color={GOLD} />
                 </TouchableOpacity>
@@ -292,11 +292,11 @@ export default function RebirdScreen() {
                         {realm.image_url ? (
                             <Image source={{ uri: realm.image_url }} style={styles.realmImage} />
                         ) : (
-                            <Text style={styles.imageText}>Cõi số {realm.id}</Text>
+                            <Text style={styles.imageText}>{t('realmNumber').replace('{0}', realm.id.toString())}</Text>
                         )}
                     </View>
                     <View style={styles.realmOverlay}>
-                        <Text style={styles.realmIdText}>Ô số {realm.id}</Text>
+                        <Text style={styles.realmIdText}>{t('slotNumber').replace('{0}', realm.id.toString())}</Text>
                         <Text style={styles.realmNameText}>{realm.name}</Text>
                     </View>
                 </View>
@@ -332,7 +332,7 @@ export default function RebirdScreen() {
                             ? <ChevronUp size={20} color={MAROON} />
                             : <ChevronDown size={20} color={MAROON} />}
                         <Text style={styles.expandBtnText}>
-                            {descExpanded ? 'Thu gọn' : 'Xem đầy đủ'}
+                            {descExpanded ? t('collapse') : t('viewFull')}
                         </Text>
                     </TouchableOpacity>
                 </View>
@@ -340,14 +340,14 @@ export default function RebirdScreen() {
                 {/* Life Bar */}
                 <View style={styles.card}>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 }}>
-                        <Text style={styles.sectionTitle}>Sinh Lực (Nghiệp Chướng)</Text>
-                        <Text style={styles.lifeText}>{timeLeftMs > 0 ? formatTimeLeft(timeLeftMs) : 'Sẵn sàng'}</Text>
+                        <Text style={styles.sectionTitle}>{t('lifeForceKarma')}</Text>
+                        <Text style={styles.lifeText}>{timeLeftMs > 0 ? formatTimeLeft(timeLeftMs) : t('ready')}</Text>
                     </View>
                     <View style={styles.progressBarBg}>
                         <View style={[styles.progressBarFill, { width: `${progress * 100}%` }]} />
                     </View>
                     <Text style={styles.progressHint}>
-                        Sinh lực sẽ tự động giảm theo thời gian. Hoàn thành 1 bài Thực Hành để giảm ngay 1 ngày.
+                        {t('lifeForceHint')}
                     </Text>
                 </View>
 
@@ -355,12 +355,12 @@ export default function RebirdScreen() {
                 <View style={styles.card}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
                         <Check size={18} color={MAROON} />
-                        <Text style={[styles.sectionTitle, { marginBottom: 0, marginLeft: 8 }]}>Nhiệm Vụ Tu Tập</Text>
+                        <Text style={[styles.sectionTitle, { marginBottom: 0, marginLeft: 8 }]}>{t('practiceTasks')}</Text>
                     </View>
                     {checkingPractices ? (
                         <ActivityIndicator color={MAROON} />
                     ) : requiredPractices.length === 0 ? (
-                        <Text style={{ color: '#999', fontStyle: 'italic', fontSize: 13 }}>Cõi này không có nhiệm vụ bắt buộc.</Text>
+                        <Text style={{ color: '#999', fontStyle: 'italic', fontSize: 13 }}>{t('noMandatoryTasks')}</Text>
                     ) : (
                         <View style={{ marginBottom: 12 }}>
                             {requiredPractices.map((p, idx) => (
@@ -373,7 +373,7 @@ export default function RebirdScreen() {
                                             {p.title}
                                         </Text>
                                         {!p.completed && (
-                                            <Text style={{ fontSize: 10, color: '#94a3b8', marginTop: 2 }}>Cần hoàn thành trong đợt chuyển cõi này</Text>
+                                            <Text style={{ fontSize: 10, color: '#94a3b8', marginTop: 2 }}>{t('completeThisTurn')}</Text>
                                         )}
                                     </View>
                                     {!p.completed && (
@@ -381,7 +381,7 @@ export default function RebirdScreen() {
                                             onPress={() => router.push(`/practice/${p.id}` as any)}
                                             style={[styles.actionBtn, { marginTop: 0, paddingHorizontal: 12, paddingVertical: 4, borderColor: MAROON + '40' }]}
                                         >
-                                            <Text style={[styles.actionBtnText, { fontSize: 10 }]}>Làm ngay</Text>
+                                            <Text style={[styles.actionBtnText, { fontSize: 10 }]}>{t('doNow')}</Text>
                                         </TouchableOpacity>
                                     )}
                                 </View>
@@ -389,7 +389,7 @@ export default function RebirdScreen() {
                             {requiredPractices.some(p => !p.completed) && (
                                 <View style={{ backgroundColor: '#FEF2F2', padding: 10, borderRadius: 8, marginTop: 4, marginBottom: 12 }}>
                                     <Text style={{ fontSize: 11, color: '#ef4444', textAlign: 'center' }}>
-                                        ⚠️ Phải hoàn thành tất cả nhiệm vụ này và sinh lực = 0 mới có thể Tái sinh.
+                                        {t('rebirthLockedWarning')}
                                     </Text>
                                 </View>
                             )}
@@ -399,21 +399,20 @@ export default function RebirdScreen() {
                         style={[styles.actionBtn, { borderStyle: 'dotted' }]}
                         onPress={() => router.push('/dashboard/practice' as any)}
                     >
-                        <Text style={styles.actionBtnText}>Thêm bài thực hành khác</Text>
+                        <Text style={styles.actionBtnText}>{t('addOtherPractice')}</Text>
                     </TouchableOpacity>
                 </View>
 
-                {/* Mara Challenges */}
                 {challenges.length > 0 && (
                     <View style={styles.card}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
                             <ShieldAlert size={20} color="#ef4444" />
-                            <Text style={[styles.sectionTitle, { color: '#ef4444', marginBottom: 0, marginLeft: 8 }]}>Thử Thách Từ MARA</Text>
+                            <Text style={[styles.sectionTitle, { color: '#ef4444', marginBottom: 0, marginLeft: 8 }]}>{t('maraChallenges')}</Text>
                         </View>
                         {challenges.map((c: any, idx: number) => (
                             <View key={idx} style={{ backgroundColor: '#FFF5F5', padding: 12, borderRadius: 8, marginBottom: 8, borderWidth: 1, borderColor: '#ef444422' }}>
                                 <Text style={{ color: '#333', fontSize: 14, marginBottom: 4 }}>{c.description}</Text>
-                                <Text style={{ color: '#ef4444', fontSize: 12, fontWeight: 'bold' }}>Thất bại: +{c.difficulty_days} ngày sinh lực</Text>
+                                <Text style={{ color: '#ef4444', fontSize: 12, fontWeight: 'bold' }}>{t('failurePenalty').replace('{0}', c.difficulty_days.toString())}</Text>
                             </View>
                         ))}
                     </View>
@@ -423,7 +422,7 @@ export default function RebirdScreen() {
                 <View style={styles.card}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
                         <Users size={20} color={GOLD} />
-                        <Text style={[styles.sectionTitle, { marginBottom: 0, marginLeft: 8 }]}>Đồng Đạo ({travelers.length})</Text>
+                        <Text style={[styles.sectionTitle, { marginBottom: 0, marginLeft: 8 }]}>{t('coTravelers').replace('{0}', travelers.length.toString())}</Text>
                     </View>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                         {travelers.map((t: any, idx: number) => (
@@ -432,7 +431,7 @@ export default function RebirdScreen() {
                             </View>
                         ))}
                         {travelers.length === 0 && (
-                            <Text style={{ color: '#999', fontStyle: 'italic' }}>Chưa có ai ở cõi này lúc này.</Text>
+                            <Text style={{ color: '#999', fontStyle: 'italic' }}>{t('noTravelers')}</Text>
                         )}
                     </ScrollView>
                 </View>
@@ -471,7 +470,7 @@ export default function RebirdScreen() {
                     {/* Comments List */}
                     <View style={styles.commentsList}>
                         {comments.length === 0 ? (
-                            <Text style={styles.noCommentsText}>Chưa có trao đổi nào ở cõi này. Hãy là người đầu tiên!</Text>
+                            <Text style={styles.noCommentsText}>{t('noExchanges')}</Text>
                         ) : (
                             comments.map((c) => (
                                 <View key={c.id} style={styles.commentItem}>
@@ -482,7 +481,7 @@ export default function RebirdScreen() {
                                     </View>
                                     <View style={styles.commentContent}>
                                         <View style={styles.commentHeader}>
-                                            <Text style={styles.commentAuthor}>{c.profiles?.display_name || 'Người dùng Maratika'}</Text>
+                                            <Text style={styles.commentAuthor}>{c.profiles?.display_name || t('maratikaUser')}</Text>
                                             <Text style={styles.commentDate}>{format(new Date(c.created_at), 'HH:mm dd/MM')}</Text>
                                         </View>
                                         <Text style={styles.commentText}>{c.content}</Text>
@@ -509,13 +508,13 @@ export default function RebirdScreen() {
                             <>
                                 <Dices size={24} color="#FFF" />
                                 <Text style={styles.diceButtonText}>
-                                    GIEO XÚC XẮC (-50 MP)
+                                    {t('rollDiceBtn')}
                                 </Text>
                             </>
                         )}
                     </TouchableOpacity>
                     {timeLeftMs > 0 && (
-                        <Text style={styles.diceHint}>Bạn phải chờ Sinh lực về 0 để có thể đi tiếp</Text>
+                        <Text style={styles.diceHint}>{t('waitZeroLife')}</Text>
                     )}
                 </View>
 
@@ -527,7 +526,7 @@ export default function RebirdScreen() {
                     <Animated.View style={{ transform: [{ translateX: shakeAnim }] }}>
                         <Dices size={120} color={GOLD} strokeWidth={1} />
                     </Animated.View>
-                    <Text style={styles.rollingText}>Đang gieo xúc xắc...</Text>
+                    <Text style={styles.rollingText}>{t('rollingDice')}</Text>
                 </View>
             )}
 
@@ -535,14 +534,14 @@ export default function RebirdScreen() {
             <Modal visible={showResultModal} transparent animationType="fade">
                 <View style={styles.modalBg}>
                     <View style={styles.resultCard}>
-                        <Text style={styles.resultTitle}>NGHIỆP KHỞI</Text>
+                        <Text style={styles.resultTitle}>{t('karmaArising')}</Text>
                         <View style={styles.diceResultCircle}>
                             <Text style={styles.diceResultNum}>{diceResult}</Text>
                         </View>
                         <Text style={styles.resultDesc}>
-                            Bạn đã gieo được số {diceResult}.
+                            {t('rolledNumber').replace('{0}', diceResult?.toString() || '')}
                         </Text>
-                        <Text style={styles.destText}>Cảnh giới tiếp theo:</Text>
+                        <Text style={styles.destText}>{t('nextRealm')}</Text>
                         <Text style={styles.destName}>{targetRealmName}</Text>
 
                         {rollMessage && (
@@ -558,7 +557,7 @@ export default function RebirdScreen() {
                                 loadData();
                             }}
                         >
-                            <Text style={styles.modalBtnText}>BƯỚC VÀO</Text>
+                            <Text style={styles.modalBtnText}>{t('enterAction')}</Text>
                         </TouchableOpacity>
                     </View>
                 </View>

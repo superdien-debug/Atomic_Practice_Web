@@ -93,7 +93,7 @@ export default function PractitionerProfileScreen() {
         return (
             <View className="flex-1 bg-white items-center justify-center">
                 <ActivityIndicator color="#800000" size="large" />
-                <Text className="mt-4 text-gray-400 font-medium">Seeking practitioner...</Text>
+                <Text className="mt-4 text-gray-400 font-medium">{t('seekingPractitioner')}</Text>
             </View>
         );
     }
@@ -101,9 +101,9 @@ export default function PractitionerProfileScreen() {
     if (!profile) {
         return (
             <View className="flex-1 bg-white items-center justify-center p-10">
-                <Text className="text-gray-400 font-bold text-center">Practitioner not found in the Sangha.</Text>
+                <Text className="text-gray-400 font-bold text-center">{t('practitionerNotFound')}</Text>
                 <TouchableOpacity onPress={() => router.back()} className="mt-6">
-                    <Text className="text-vajra-burgundy font-black">Go Back</Text>
+                    <Text className="text-vajra-burgundy font-black">{t('goBack')}</Text>
                 </TouchableOpacity>
             </View>
         );
@@ -158,46 +158,46 @@ export default function PractitionerProfileScreen() {
                         >
                             <Text className="text-white font-black uppercase text-xs tracking-widest">{userRank.title}</Text>
                         </View>
-                        <Text className="text-2xl font-black text-gray-900">{profile.display_name || 'Anonymous Practitioner'}</Text>
-                        <Text className="text-gray-400 font-bold mt-1">Practitioner ID: {id?.slice(0, 8)}</Text>
+                        <Text className="text-2xl font-black text-gray-900">{profile.display_name || t('anonymousPractitioner')}</Text>
+                        <Text className="text-gray-400 font-bold mt-1">{t('practitionerId')} {id?.slice(0, 8)}</Text>
                     </View>
 
                     {/* Stats Grid */}
                     <View className="flex-row justify-between mt-10">
                         <View className="items-center flex-1">
                             <Text className="text-2xl font-black text-vajra-burgundy">{profile.score?.toLocaleString() || 0}</Text>
-                            <Text className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-1 text-center">Karma</Text>
+                            <Text className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-1 text-center">{t('karma')}</Text>
                         </View>
                         <View className="w-[1px] h-10 bg-gray-100" />
                         <View className="items-center flex-1">
                             <Text className="text-2xl font-black text-vajra-gold">{profile.mpoints?.toLocaleString() || 0}</Text>
-                            <Text className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-1 text-center">Mpoint</Text>
+                            <Text className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-1 text-center">{t('mpoint')}</Text>
                         </View>
                         <View className="w-[1px] h-10 bg-gray-100" />
                         <View className="items-center flex-1">
                             <Text className="text-2xl font-black text-gray-800">{stats?.globalStreak || 0}</Text>
-                            <Text className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-1 text-center">Streak</Text>
+                            <Text className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-1 text-center">{t('streak')}</Text>
                         </View>
                         <View className="w-[1px] h-10 bg-gray-100" />
                         <View className="items-center flex-1">
                             <Text className="text-2xl font-black text-gray-800">{stats?.totalCompletions || 0}</Text>
-                            <Text className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-1 text-center">Logs</Text>
+                            <Text className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-1 text-center">{t('logs')}</Text>
                         </View>
                     </View>
 
                     {/* Spiritual Collection */}
                     <View className="mt-12">
                         <View className="flex-row items-center justify-between mb-6">
-                            <Text className="text-lg font-black text-gray-900 uppercase tracking-wider">Spiritual Collection</Text>
+                            <Text className="text-lg font-black text-gray-900 uppercase tracking-wider">{t('spiritualCollection')}</Text>
                             <View className="px-3 py-1 bg-yellow-50 rounded-full border border-yellow-200">
-                                <Text className="text-yellow-700 font-black text-[10px]">{badges.length} Badges</Text>
+                                <Text className="text-yellow-700 font-black text-[10px]">{badges.length} {t('badges')}</Text>
                             </View>
                         </View>
 
                         {badges.length === 0 ? (
                             <View className="bg-gray-50 border border-dashed border-gray-200 rounded-[28px] p-8 items-center">
                                 <Star size={32} color="#CBD5E1" />
-                                <Text className="text-gray-400 italic mt-3 font-medium text-center">Collection is waiting to be filled through diligent practice. 🙏</Text>
+                                <Text className="text-gray-400 italic mt-3 font-medium text-center">{t('collectionWaiting')}</Text>
                             </View>
                         ) : (
                             <View className="flex-row flex-wrap gap-4">
@@ -217,7 +217,7 @@ export default function PractitionerProfileScreen() {
                                             {badge.label}
                                         </Text>
                                         <Text className="text-[9px] font-bold text-gray-400 uppercase mt-1">
-                                            {badge.type === 'challenge' ? 'Achieved' : `${badge.count} Day Streak`}
+                                            {badge.type === 'challenge' ? t('achieved') : `${badge.count} ${t('dayStreakSuffix')}`}
                                         </Text>
                                     </View>
                                 ))}
