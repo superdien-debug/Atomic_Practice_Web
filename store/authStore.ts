@@ -39,8 +39,12 @@ export const useAuthStore = create<AuthState>((set) => ({
                     role: data.role,
                     isOnboardingComplete: data.is_onboarding_complete === true
                 });
+            } else if (error?.code === 'PGRST116') {
+                // If profile is explicitly missing (no rows found), it's incomplete
+                set({ role: 'user', isOnboardingComplete: false });
+            } else if (error) {
+                console.error('Network or server error fetching profile. Keeping existing onboarding state.', error);
             } else {
-                // If profile is missing, it should definitely be treated as incomplete
                 set({ role: 'user', isOnboardingComplete: false });
             }
         } catch (err) {

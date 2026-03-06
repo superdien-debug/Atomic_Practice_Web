@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabase';
 import { rebirthService } from './rebirthService';
 import { MIN_CREATION_SCORE } from '../utils/rankUtils';
+import { getLocalISODate } from '../utils/dateUtils';
 
 export type Practice = {
     id: string;
@@ -79,7 +80,7 @@ export const practiceService = {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error('No user');
 
-        const logDate = dateStr || new Date().toISOString().split('T')[0];
+        const logDate = dateStr || getLocalISODate();
 
         // Robust Workaround: Fetch first to handle missing UNIQUE constraints in DB
         const { data: existingRows } = await supabase
@@ -242,7 +243,7 @@ export const practiceService = {
         if (fetchError) throw fetchError;
 
         // 2. Insert copy
-        const { error } = await supabase
+        const { data, error } = await supabase
             .from('practices')
             .insert({
                 user_id: user.id,
@@ -259,9 +260,12 @@ export const practiceService = {
                 target_operator: original.target_operator || 'at_least',
                 target_unit: original.target_unit || 'times',
                 origin_id: original.id // Link to original public practice
-            });
+            })
+            .select()
+            .single();
 
         if (error) throw error;
+        return data;
     },
 
     async archivePractice(practiceId: string) {

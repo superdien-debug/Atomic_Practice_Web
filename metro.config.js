@@ -6,6 +6,17 @@ const config = getDefaultConfig(__dirname);
 // Fix for react-native-render-html and @jsamr/counter-style resolution errors
 config.resolver.sourceExts.push('mjs');
 
+// Add support for parsing PDF and additional audio formats
+if (!config.resolver.assetExts.includes('pdf')) {
+    config.resolver.assetExts.push('pdf');
+}
+if (!config.resolver.assetExts.includes('mp3')) {
+    config.resolver.assetExts.push('mp3');
+}
+if (!config.resolver.assetExts.includes('wav')) {
+    config.resolver.assetExts.push('wav');
+}
+
 // Custom resolver to handle @jsamr packages on Windows/Modern RN
 config.resolver.resolveRequest = (context, moduleName, platform) => {
     if (moduleName.startsWith('@jsamr/counter-style/presets/')) {

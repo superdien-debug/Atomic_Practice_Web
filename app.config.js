@@ -40,6 +40,7 @@ export default {
         },
         "plugins": [
             "expo-router",
+            "expo-asset",
             [
                 "expo-notifications",
                 {

@@ -311,8 +311,8 @@ export default function DashboardScreen() {
                         <View style={styles.coachBannerContent}>
                             <Sparkles size={24} color={GOLD} />
                             <View style={{ flex: 1 }}>
-                                <Text style={styles.coachBannerTitle}>🌱 Karma Coaching</Text>
-                                <Text style={styles.coachBannerSub}>Gieo nhân gặt quả — AI phân tích thói quen & tư vấn thực hành vi mô.</Text>
+                                <Text style={styles.coachBannerTitle}>🌟 AI Coaching Hub</Text>
+                                <Text style={styles.coachBannerSub}>Nhận tư vấn từ Spiritual Coach hoặc huấn luyện kỷ luật cùng Jim Rohn.</Text>
                             </View>
                         </View>
                     </TouchableOpacity>
@@ -677,10 +677,10 @@ const styles = StyleSheet.create({
         overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.2)',
     },
     avatarImg: { width: '100%', height: '100%' },
-    headerTitle: { color: GOLD, fontSize: 18, fontWeight: '800' },
-    headerSub: { color: '#FFF', fontSize: 13, fontWeight: '600', opacity: 0.9 },
-    scoreNum: { color: GOLD, fontSize: 20, fontWeight: '800' },
-    scoreLabel: { color: '#FFF', fontSize: 10, fontWeight: '700', opacity: 0.7, textAlign: 'right' },
+    headerTitle: { color: GOLD, fontSize: 18, fontWeight: '800', fontFamily: 'Montserrat-Bold' },
+    headerSub: { color: '#FFF', fontSize: 13, fontWeight: '600', opacity: 0.9, fontFamily: 'Montserrat-SemiBold' },
+    scoreNum: { color: GOLD, fontSize: 20, fontWeight: '800', fontFamily: 'Montserrat-Bold' },
+    scoreLabel: { color: '#FFF', fontSize: 10, fontWeight: '700', opacity: 0.7, textAlign: 'right', fontFamily: 'Montserrat' },
 
     tabTextActive: { color: '#FFF' },
 
@@ -697,7 +697,7 @@ const styles = StyleSheet.create({
     },
     tickerText: {
         fontSize: 13, fontWeight: '700', color: '#64748B',
-        minWidth: 1000, // Ensure long text doesn't wrap
+        minWidth: 1000, fontFamily: 'Montserrat-SemiBold' // Ensure long text doesn't wrap
     },
 
     statsGrid: { flexDirection: 'row', gap: 10, paddingHorizontal: 20, paddingVertical: 10 },
@@ -708,8 +708,8 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.1, shadowRadius: 4,
     },
     statIconWrap: { marginBottom: 5 },
-    statValue: { fontSize: 16, fontWeight: '700', color: '#333' },
-    statLabel: { fontSize: 11, color: '#666' },
+    statValue: { fontSize: 16, fontWeight: '700', color: '#333', fontFamily: 'Montserrat-Bold' },
+    statLabel: { fontSize: 11, color: '#666', fontFamily: 'Montserrat' },
 
     coachBanner: {
         backgroundColor: '#FFF8E7',
@@ -722,16 +722,16 @@ const styles = StyleSheet.create({
         flexDirection: 'row', alignItems: 'center', gap: 15,
     },
     coachBannerTitle: {
-        fontSize: 16, fontWeight: '700', color: MAROON, marginBottom: 4,
+        fontSize: 16, fontWeight: '700', color: MAROON, marginBottom: 4, fontFamily: 'Montserrat-Bold'
     },
     coachBannerSub: {
-        fontSize: 12, color: '#666', lineHeight: 18,
+        fontSize: 12, color: '#666', lineHeight: 18, fontFamily: 'Montserrat'
     },
 
     section: { marginTop: 25, paddingHorizontal: 20 },
     sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
-    sectionTitle: { fontSize: 18, fontWeight: '700', color: '#333' },
-    sectionLink: { color: MAROON, fontSize: 14, fontWeight: '600' },
+    sectionTitle: { fontSize: 18, fontWeight: '700', color: '#333', fontFamily: 'Montserrat-Bold' },
+    sectionLink: { color: MAROON, fontSize: 14, fontWeight: '600', fontFamily: 'Montserrat-SemiBold' },
 
     practiceRow: {
         flexDirection: 'row', alignItems: 'center', gap: 15,
@@ -748,9 +748,9 @@ const styles = StyleSheet.create({
         position: 'absolute', width: 44, height: 44, borderRadius: 22,
         borderWidth: 4, borderColor: 'transparent', transform: [{ rotate: '-90deg' }],
     },
-    ringCount: { fontSize: 11, fontWeight: '700', color: '#333' },
-    practiceTitle: { fontSize: 16, fontWeight: '600', color: '#333' },
-    practiceSub: { fontSize: 12, color: '#666', marginTop: 2 },
+    ringCount: { fontSize: 11, fontWeight: '700', color: '#333', fontFamily: 'Montserrat-Bold' },
+    practiceTitle: { fontSize: 16, fontWeight: '600', color: '#333', fontFamily: 'Montserrat-SemiBold' },
+    practiceSub: { fontSize: 12, color: '#666', marginTop: 2, fontFamily: 'Montserrat' },
     practiceBtn: {
         width: 36, height: 36, borderRadius: 18,
         alignItems: 'center', justifyContent: 'center',

@@ -15,6 +15,8 @@ import { useAuthStore } from '../../store/authStore';
 import { getRank } from '../../utils/rankUtils';
 import { Bell, Clock, Calculator } from 'lucide-react-native';
 import { tucsoService } from '../../services/tucsoService';
+import { getLocalISODate } from '../../utils/dateUtils';
+import { HabitTracker } from '../../components/HabitTracker';
 
 // ─── Colors (Mirroring Challenge Detail Style) ──────────────────────────────
 const C = {
@@ -71,6 +73,7 @@ export default function PracticeDetailScreen() {
     const [isCompleted, setIsCompleted] = useState(false);
     const [logId, setLogId] = useState<string | undefined>();
     const [completing, setCompleting] = useState(false);
+    const [logHistory, setLogHistory] = useState<{ date: string; completed: boolean; streak: number }[]>([]);
 
     // Modal state
     const [modal, setModal] = useState<{
@@ -153,6 +156,56 @@ export default function PracticeDetailScreen() {
                     console.error('Failed to init tucso:', err);
                 }
             }
+
+            // Fetch history to calculate running streaks for the chart
+            const chartDays = 15;
+            const bufferDays = 100; // Enough to calculate streaks effectively
+            const oldestDate = new Date();
+            oldestDate.setDate(oldestDate.getDate() - (chartDays + bufferDays));
+            const dateStr = getLocalISODate(oldestDate);
+
+            const { data: history } = await supabase
+                .from('practice_logs')
+                .select('log_date, completed')
+                .eq('practice_id', id)
+                .gte('log_date', dateStr)
+                .order('log_date', { ascending: true });
+
+            const historyMap = (history || []).reduce((acc: any, curr) => {
+                acc[curr.log_date] = curr.completed;
+                return acc;
+            }, {});
+
+            // Calculate running streaks for each day in the chart window (last 15 days)
+            const fullHistory = [];
+            let runningStreak = 0;
+
+            // Anchor point for the display window
+            const todayStr = getLocalISODate();
+            const startOfWindow = new Date();
+            startOfWindow.setDate(startOfWindow.getDate() - (chartDays - 1));
+            const startStr = getLocalISODate(startOfWindow);
+
+            // Loop from oldestDate up to today
+            const tempDate = new Date(oldestDate);
+            while (getLocalISODate(tempDate) <= todayStr) {
+                const ds = getLocalISODate(tempDate);
+                const completed = !!historyMap[ds];
+
+                if (completed) {
+                    runningStreak++;
+                } else {
+                    runningStreak = 0;
+                }
+
+                // If this date is within our 15-day display window, record it
+                if (ds >= startStr) {
+                    fullHistory.push({ date: ds, completed, streak: runningStreak });
+                }
+
+                tempDate.setDate(tempDate.getDate() + 1);
+            }
+            setLogHistory(fullHistory);
 
         } catch (err) {
             console.error('Detail fetch error:', err);
@@ -431,16 +484,6 @@ export default function PracticeDetailScreen() {
                         </View>
                     )}
 
-                    {/* Rules/Description */}
-                    <View style={s.section}>
-                        <SectionHeading label="Practice Instruction" />
-                        <View style={s.ruleCard}>
-                            <Text style={s.ruleText}>
-                                {practice.description || t('practiceTitle')}
-                            </Text>
-                        </View>
-                    </View>
-
                     {/* Sync Túc Số Logger */}
                     {accType && (
                         <View style={s.section}>
@@ -475,6 +518,34 @@ export default function PracticeDetailScreen() {
                             </View>
                         </View>
                     )}
+
+                    {/* Habit Tracker (Only for joined practices) */}
+                    {isOwner && !isLibraryView && (
+                        <View style={s.section}>
+                            <SectionHeading label="Habit Mastery" />
+                            <HabitTracker
+                                currentStreak={practice.streak || 0}
+                                logHistory={logHistory}
+                                habitStacking={{
+                                    trigger: practice.title.includes('buổi sáng') ? 'uống nước' : 'thức dậy',
+                                    action: practice.title.toLowerCase()
+                                }}
+                                twoMinVersion={practice.title.includes('buổi sáng') ? 'Chỉ cần ngồi yên 1 phút.' : 'Bắt đầu ngay với phiên bản tập trung.'}
+                            />
+                        </View>
+                    )}
+
+                    {/* Rules/Description */}
+                    <View style={s.section}>
+                        <SectionHeading label="Practice Instruction" />
+                        <View style={s.ruleCard}>
+                            <Text style={s.ruleText}>
+                                {practice.description || t('practiceTitle')}
+                            </Text>
+                        </View>
+                    </View>
+
+
 
                     {/* Community Section */}
                     {(practice.is_public || practice.origin_id) && (
@@ -648,7 +719,7 @@ export default function PracticeDetailScreen() {
                     </View>
                 )}
             </View>
-        </View>
+        </View >
     );
 }
 
@@ -685,7 +756,7 @@ const s = StyleSheet.create({
     },
     headerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 14 },
     backBtn: { padding: 8, borderRadius: 999, width: 44, alignItems: 'center' },
-    headerTitle: { flex: 1, textAlign: 'center', color: '#fff', fontWeight: '800', fontSize: 18 },
+    headerTitle: { flex: 1, textAlign: 'center', color: '#fff', fontWeight: '800', fontSize: 18, fontFamily: 'Montserrat-Bold' },
     badgeRow: { alignItems: 'center' },
     categoryBadge: {
         flexDirection: 'row', alignItems: 'center', gap: 8,
@@ -693,9 +764,9 @@ const s = StyleSheet.create({
         borderWidth: 1, borderColor: 'rgba(212,175,55,0.3)',
         borderRadius: 999, paddingHorizontal: 14, paddingVertical: 5,
     },
-    badgeLabel: { color: C.gold, fontSize: 9, fontWeight: '800', letterSpacing: 1.5 },
+    badgeLabel: { color: C.gold, fontSize: 9, fontWeight: '800', letterSpacing: 1.5, fontFamily: 'Montserrat-Bold' },
     badgeDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: C.gold, opacity: 0.5 },
-    badgeSubLabel: { color: '#fff', fontSize: 9, fontWeight: '600', opacity: 0.8 },
+    badgeSubLabel: { color: '#fff', fontSize: 9, fontWeight: '600', opacity: 0.8, fontFamily: 'Montserrat-SemiBold' },
 
     // Content
     content: { flex: 1, backgroundColor: C.bg },
@@ -710,7 +781,7 @@ const s = StyleSheet.create({
         borderLeftWidth: 4, borderLeftColor: C.maroonRed,
         backgroundColor: C.cardBg, padding: 16, borderRadius: 4,
     },
-    ruleText: { color: '#475569', fontSize: 14, lineHeight: 22 },
+    ruleText: { color: '#475569', fontSize: 14, lineHeight: 22, fontFamily: 'Montserrat' },
 
     listCard: {
         backgroundColor: '#fff', borderRadius: 12,
@@ -729,9 +800,9 @@ const s = StyleSheet.create({
         backgroundColor: C.maroonRed,
         alignItems: 'center', justifyContent: 'center',
     },
-    avatarLetter: { color: '#fff', fontWeight: '800', fontSize: 18 },
-    participantName: { color: C.text, fontWeight: '600', fontSize: 14 },
-    participantRole: { color: C.textMute, fontSize: 10, marginTop: 1 },
+    avatarLetter: { color: '#fff', fontWeight: '800', fontSize: 18, fontFamily: 'Montserrat-Bold' },
+    participantName: { color: C.text, fontWeight: '600', fontSize: 14, fontFamily: 'Montserrat-SemiBold' },
+    participantRole: { color: C.textMute, fontSize: 10, marginTop: 1, fontFamily: 'Montserrat' },
     emptyText: { color: C.textFaint, fontStyle: 'italic', textAlign: 'center', padding: 20 },
 
     // Chat / Comments
@@ -746,7 +817,7 @@ const s = StyleSheet.create({
     chatField: {
         flex: 1, backgroundColor: '#f1f5f9', borderRadius: 999,
         paddingHorizontal: 16, paddingVertical: 10,
-        fontSize: 14, color: C.text,
+        fontSize: 14, color: C.text, fontFamily: 'Montserrat'
     },
     sendBtn: {
         width: 44, height: 44, borderRadius: 22,
@@ -770,7 +841,7 @@ const s = StyleSheet.create({
         shadowOpacity: 0, elevation: 0,
         borderWidth: 1, borderColor: '#e2e8f0',
     },
-    actionBtnText: { color: C.maroonDark, fontSize: 14, fontWeight: '800', letterSpacing: 0.5 },
+    actionBtnText: { color: C.maroonDark, fontSize: 14, fontWeight: '800', letterSpacing: 0.5, fontFamily: 'Montserrat-Bold' },
 
     // Reminders
     reminderCard: {
@@ -779,13 +850,13 @@ const s = StyleSheet.create({
         shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 5, elevation: 1,
     },
     reminderHeader: { flexDirection: 'row', alignItems: 'center' },
-    reminderTitle: { color: C.text, fontWeight: '700', fontSize: 15 },
+    reminderTitle: { color: C.text, fontWeight: '700', fontSize: 15, fontFamily: 'Montserrat-Bold' },
     reminderRow: {
         flexDirection: 'row', alignItems: 'center', gap: 12,
         backgroundColor: '#f8fafc', paddingHorizontal: 12,
         borderRadius: 10, marginBottom: 10, height: 48,
     },
-    timeInput: { flex: 1, color: C.text, fontWeight: '600', fontSize: 15 },
+    timeInput: { flex: 1, color: C.text, fontWeight: '600', fontSize: 15, fontFamily: 'Montserrat-SemiBold' },
     removeBtn: { padding: 4 },
     removeBtnText: { color: '#ef4444', fontSize: 11, fontWeight: '700' },
     addTimeBtn: {
@@ -798,7 +869,7 @@ const s = StyleSheet.create({
         backgroundColor: C.maroonRed, borderRadius: 12, height: 44,
         alignItems: 'center', justifyContent: 'center', marginTop: 12,
     },
-    saveRemindersText: { color: C.gold, fontWeight: '800', fontSize: 13, letterSpacing: 0.5 },
+    saveRemindersText: { color: C.gold, fontWeight: '800', fontSize: 13, letterSpacing: 0.5, fontFamily: 'Montserrat-Bold' },
 });
 
 const sc = StyleSheet.create({
@@ -811,9 +882,9 @@ const sc = StyleSheet.create({
     iconWrap: { marginBottom: 2 },
     statLabel: {
         color: C.textFaint, fontSize: 9, fontWeight: '700',
-        letterSpacing: 1.2, textTransform: 'uppercase',
+        letterSpacing: 1.2, textTransform: 'uppercase', fontFamily: 'Montserrat-Bold'
     },
-    statValue: { color: C.text, fontSize: 12, fontWeight: '800', textAlign: 'center' },
+    statValue: { color: C.text, fontSize: 12, fontWeight: '800', textAlign: 'center', fontFamily: 'Montserrat-Bold' },
 
     sectionHeadRow: {
         flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12,
@@ -821,6 +892,6 @@ const sc = StyleSheet.create({
     headDash: { width: 24, height: 1.5, backgroundColor: 'rgba(94,11,11,0.2)' },
     sectionTitle: {
         color: C.maroonRed, fontSize: 10, fontWeight: '800',
-        letterSpacing: 1.5, textTransform: 'uppercase',
+        letterSpacing: 1.5, textTransform: 'uppercase', fontFamily: 'Montserrat-Bold'
     },
 });

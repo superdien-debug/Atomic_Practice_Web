@@ -14,7 +14,7 @@ import {
     type KarmaCoachingResponse,
     type KarmaPractice,
     type UserType
-} from '../../services/aiCoachService';
+} from '../../../services/aiCoachService';
 
 const BG = '#FDFBF7';
 const MAROON = '#800000';
@@ -172,7 +172,7 @@ export default function KarmaCoachResultScreen() {
                     </TouchableOpacity>
                     <View style={styles.headerAgentThumb}>
                         <Image
-                            source={require('../../assets/AIagent.jpg')}
+                            source={require('../../../assets/AIagent.jpg')}
                             style={styles.headerAgentImg}
                         />
                     </View>

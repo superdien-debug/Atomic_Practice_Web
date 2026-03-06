@@ -18,6 +18,8 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
         autoRefreshToken: true,
         persistSession: true,
         detectSessionInUrl: false,
+        // Override the default lock to prevent acquiring a broken Navigator LockManager hanging in React Native
+        lock: async (name: string, timeout: number, fn: () => Promise<any>) => fn(),
     },
 });
 

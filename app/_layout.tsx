@@ -7,13 +7,23 @@ import { View, ActivityIndicator, StyleSheet } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { HolyDayPopup } from "../components/HolyDayPopup";
 import * as Notifications from "expo-notifications";
+import { useFonts } from 'expo-font';
+
 
 export default function RootLayout() {
-    const { session, isLoading, setSession } = useAuthStore();
+    const { session, isLoading, setSession, isOnboardingComplete, forceUpdateLoading } = useAuthStore();
     const segments = useSegments();
     const navigationState = useRootNavigationState();
     const router = useRouter();
     const [isReady, setIsReady] = useState(false);
+    const [isFailsafeTriggered, setIsFailsafeTriggered] = useState(false);
+
+    const [fontsLoaded] = useFonts({
+        'Montserrat': require('../assets/Montserrat/static/Montserrat-Regular.ttf'),
+        'Montserrat-SemiBold': require('../assets/Montserrat/static/Montserrat-SemiBold.ttf'),
+        'Montserrat-Bold': require('../assets/Montserrat/static/Montserrat-Bold.ttf'),
+    });
+
 
     // ── Register Notifications ────────────────────────────────────────────────
     useEffect(() => {
@@ -61,16 +71,16 @@ export default function RootLayout() {
 
     // ── Navigation guard ──────────────────────────────────────────────────────
     useEffect(() => {
-        const { isOnboardingComplete, forceUpdateLoading } = useAuthStore.getState();
         let timer: NodeJS.Timeout;
 
         // Logging for debug purposes to identify why it's stuck
-        if (isLoading || !isReady || !navigationState?.key) {
+        if (isLoading || !isReady || (!isFailsafeTriggered && !navigationState?.key)) {
             console.log("[RootLayout] Waiting for state:", {
                 isLoading,
                 isReady,
                 hasNavKey: !!navigationState?.key,
-                segments: segments.length
+                segments: segments.length,
+                isFailsafeTriggered
             });
             // Do not return early so the failsafe timeout can be registered
         } else {
@@ -109,6 +119,7 @@ export default function RootLayout() {
             if (isLoading || !isReady || !navigationState?.key) {
                 console.warn("[RootLayout] Safety timeout reached. Forcing app to render to prevent hanging.");
                 setIsReady(true);
+                setIsFailsafeTriggered(true);
                 forceUpdateLoading(false);
             }
         }, 5000);
@@ -117,7 +128,7 @@ export default function RootLayout() {
             if (timer) clearTimeout(timer);
             clearTimeout(failsafe);
         };
-    }, [session, isLoading, segments, navigationState?.key, isReady, useAuthStore.getState().isOnboardingComplete]);
+    }, [session, isLoading, segments, navigationState?.key, isReady, isOnboardingComplete, isFailsafeTriggered]);
 
     // Keep Stack ALWAYS mounted to provide navigation context to children
     return (
@@ -136,7 +147,7 @@ export default function RootLayout() {
             </Stack>
 
             {/* Splash Overlay — only shows while initialization is pending */}
-            {(!isReady || isLoading || !navigationState?.key) && (
+            {(!isFailsafeTriggered && (!isReady || isLoading || !navigationState?.key || !fontsLoaded)) && (
                 <View
                     pointerEvents="none"
                     style={[StyleSheet.absoluteFill, { backgroundColor: '#1A0008', justifyContent: 'center', alignItems: 'center', zIndex: 999 }]}
