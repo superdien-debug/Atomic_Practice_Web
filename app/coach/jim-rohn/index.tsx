@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ArrowLeft, BookOpen, PenTool, MessageSquare, ChevronRight, Zap } from 'lucide-react-native';
+import { ArrowLeft, BookOpen, PenTool, MessageSquare, ChevronRight, Zap, ClipboardList } from 'lucide-react-native';
 
 const BG = '#FDFBF7';
 const JR_BRAND = '#6B21A8'; // Purple for Jim Rohn
@@ -82,7 +82,6 @@ export default function JimRohnCoachScreen() {
                     <ChevronRight size={20} color="#CBD5E1" />
                 </TouchableOpacity>
 
-                {/* Skill 3: Trò chuyện & Tư vấn trực tiếp */}
                 <TouchableOpacity
                     style={styles.skillCard}
                     onPress={() => router.push('/coach/jim-rohn/chat')}
@@ -95,6 +94,24 @@ export default function JimRohnCoachScreen() {
                         <Text style={styles.skillTitle}>Trò chuyện trực tiếp</Text>
                         <Text style={styles.skillDesc} numberOfLines={2}>
                             Nhận lời khuyên thẳng thắn và thực tế từ Jim Rohn Coach.
+                        </Text>
+                    </View>
+                    <ChevronRight size={20} color="#CBD5E1" />
+                </TouchableOpacity>
+
+                {/* Skill 4: Lập kế hoạch & Tự đánh giá */}
+                <TouchableOpacity
+                    style={styles.skillCard}
+                    onPress={() => router.push('/coach/jim-rohn/rituals')}
+                    activeOpacity={0.8}
+                >
+                    <View style={[styles.iconWrap, { backgroundColor: '#DCFCE7' }]}>
+                        <ClipboardList size={24} color="#16A34A" />
+                    </View>
+                    <View style={styles.skillContent}>
+                        <Text style={styles.skillTitle}>Kế hoạch & Đánh giá</Text>
+                        <Text style={styles.skillDesc} numberOfLines={2}>
+                            Lập kế hoạch trên giấy (To-do list) và Tự soi chiếu (1-10) mỗi ngày.
                         </Text>
                     </View>
                     <ChevronRight size={20} color="#CBD5E1" />
