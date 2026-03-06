@@ -57,7 +57,7 @@ export default function KarmaCoachScreen() {
             return;
         }
         router.push({
-            pathname: '/coach/session',
+            pathname: '/coach/spiritual/session',
             params: { userType, routine, goals, flaws }
         });
     };

@@ -51,7 +51,7 @@ Nguyên Tắc Cốt Lõi (Core Philosophies) cần đưa vào lời khuyên:
         setLoading(true);
 
         try {
-            const { data, error } = await supabase.functions.invoke('karma-coach', {
+            const { data, error } = await supabase.functions.invoke('jim-rohn-chat', {
                 body: {
                     messages: [
                         { role: 'system', content: SYSTEM_PROMPT },
