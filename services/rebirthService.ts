@@ -139,7 +139,7 @@ export const rebirthService = {
         }));
     },
 
-    async getRequiredPracticesForRealm(realmId: number): Promise<{ id: string, title: string, completed: boolean }[]> {
+    async getRequiredPracticesForRealm(realmId: number, lastUpdatedAt?: string): Promise<{ id: string, title: string, completed: boolean }[]> {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return [];
 
@@ -162,14 +162,20 @@ export const rebirthService = {
         // Filter out entries where the join returned null (e.g. if practice was deleted)
         const validRequired = required.filter(r => r.practices != null);
 
-        // Check completion (at least once ever — can be made stricter to 'since last rebirth')
+        // Check completion (only since current turn started)
         const practiceIds = validRequired.map(r => r.practice_id);
-        const { data: logs, error: logsError } = await supabase
+        let query = supabase
             .from('practice_logs')
             .select('practice_id')
             .eq('user_id', user.id)
             .eq('completed', true)
             .in('practice_id', practiceIds);
+
+        if (lastUpdatedAt) {
+            query = query.gte('created_at', lastUpdatedAt);
+        }
+
+        const { data: logs, error: logsError } = await query;
 
         if (logsError) {
             console.error('[RebirthService] practice_logs query error:', logsError);
@@ -228,8 +234,8 @@ export const rebirthService = {
             return { success: false, dice: 0, from: state.realm_id, to: state.realm_id, toName: state.realm?.name || '', message: "Sinh lực chưa về 0. Hãy kiên nhẫn hoặc thực hành để giảm thanh sinh lực!" };
         }
 
-        // Check mandatory practices
-        const required = await this.getRequiredPracticesForRealm(state.realm_id);
+        // Check mandatory practices (only since current turn started)
+        const required = await this.getRequiredPracticesForRealm(state.realm_id, (state as any).updated_at);
         const uncompleted = required.filter(p => !p.completed);
         if (uncompleted.length > 0) {
             console.log("[RebirthService] Uncompleted mandatory practices:", uncompleted.map(p => p.title).join(', '));

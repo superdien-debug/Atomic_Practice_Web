@@ -112,7 +112,7 @@ export default function RebirdScreen() {
                 // Fetch mandatory practices for this realm
                 setCheckingPractices(true);
                 try {
-                    const reqs = await rebirthService.getRequiredPracticesForRealm(currentState.realm_id);
+                    const reqs = await rebirthService.getRequiredPracticesForRealm(currentState.realm_id, (currentState as any).updated_at);
                     console.log('[Rebird] Required practices loaded:', JSON.stringify(reqs));
                     setRequiredPractices(reqs);
                 } catch (err) {
@@ -543,6 +543,11 @@ export default function RebirdScreen() {
                         </Text>
                         <Text style={styles.destText}>{t('nextRealm')}</Text>
                         <Text style={styles.destName}>{targetRealmName}</Text>
+                        {diceResult && (
+                            <Text style={{ color: GOLD, fontSize: 12, marginTop: 4, fontWeight: 'bold' }}>
+                                {t('slotNumber').replace('{0}', diceResult?.toString() || '')}
+                            </Text>
+                        )}
 
                         {rollMessage && (
                             <View style={styles.rewardBadge}>
