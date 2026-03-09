@@ -96,6 +96,16 @@ export const rebirthService = {
         return data as RebirthState;
     },
 
+    async getAllRealms(): Promise<Realm[]> {
+        const { data, error } = await supabase
+            .from('game_rebirth_realms')
+            .select('*')
+            .order('id', { ascending: true });
+
+        if (error) throw error;
+        return data as Realm[];
+    },
+
     // 2. Fetch all users in a specific realm (excluding current user)
     async getTravelersInRealm(realmId: number) {
         console.log(`[RebirthService] Fetching travelers for realm: ${realmId}`);
@@ -207,7 +217,7 @@ export const rebirthService = {
     },
 
     // 3. Roll dice and move to next realm
-    async rollDice(): Promise<{ success: boolean, dice: number, from: number, to: number, toName: string, message?: string }> {
+    async rollDice(): Promise<{ success: boolean, dice: number, from: number, to: number, toName: string, message?: string, encounterMara?: boolean }> {
         console.log("[RebirthService] rollDice called.");
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) {
@@ -293,6 +303,24 @@ export const rebirthService = {
 
         // Check if first time to Mahayana/Vajrayana (Groups III, V)
         const mahayanaGroups = [22, 23, 38, 39, 40, 47, 48, 25, 33, 42, 52, 54, 59, 60, 71, 77, 93, 104];
+
+        // Mara Encounter Check (25% chance for high realms)
+        if (mahayanaGroups.includes(nextRealmId)) {
+            const maraChance = Math.random();
+            if (maraChance < 0.25) {
+                console.log("[RebirthService] Mara encountered!");
+                return {
+                    success: true,
+                    encounterMara: true,
+                    dice,
+                    from: state.realm_id,
+                    to: targetRealm.id,
+                    toName: targetRealm.name,
+                    message: "Ma vương xuất hiện! Ngài muốn thử thách định lực của bạn."
+                };
+            }
+        }
+
         if (mahayanaGroups.includes(nextRealmId)) {
             const { count } = await supabase
                 .from('game_rebirth_history')
@@ -365,7 +393,59 @@ export const rebirthService = {
         };
     },
 
+    // Process result of a Mara encounter
+    async processMaraBattleResult(userId: string, isWin: boolean, fromRealmId: number, targetRealmId: number, diceResult: number) {
+        console.log(`[RebirthService] processMaraBattleResult - win: ${isWin}`);
+
+        const state = await this.getState(userId);
+        if (!state || !state.realm) throw new Error("Cannot fetch state");
+
+        // Fetch target realm data 
+        let finalRealmId = isWin ? targetRealmId : 20; // 20 is B?c Cu L? Chu (Deva Realm fallback)
+
+        const { data: targetRealm, error: targetError } = await supabase
+            .from('game_rebirth_realms')
+            .select('*')
+            .eq('id', finalRealmId)
+            .single();
+
+        if (targetError || !targetRealm) throw new Error("Target realm not found");
+
+        let meritChange = isWin ? 10 : 0; // Reward for defeating Mara
+
+        // Log history
+        const { error: histError } = await supabase.from('game_rebirth_history').insert({
+            user_id: userId,
+            from_realm_id: fromRealmId,
+            to_realm_id: finalRealmId,
+            dice_result: diceResult,
+            days_spent: state.realm.life_days || 0
+        });
+
+        if (histError) throw new Error("Lỗi khi lưu lịch sử tái sinh.");
+
+        // Update State
+        const nextExpiresAt = new Date();
+        const lifeDays = parseInt(targetRealm.life_days as any) || 0;
+        nextExpiresAt.setDate(nextExpiresAt.getDate() + lifeDays);
+
+        const { error: updateError } = await supabase.from('user_rebirth_state').update({
+            realm_id: finalRealmId,
+            expires_at: nextExpiresAt.toISOString(),
+            updated_at: new Date().toISOString()
+        }).eq('user_id', userId);
+
+        if (updateError) throw new Error("Lỗi khi cập nhật cảnh giới mới.");
+
+        return {
+            success: true,
+            finalRealm: targetRealm,
+            meritChange
+        };
+    },
+
     // 4. Reduce Life Bar (called when completing a practice)
+
     async reduceLifeDays(userId?: string) {
         if (!userId) {
             const { data: { user } } = await supabase.auth.getUser();

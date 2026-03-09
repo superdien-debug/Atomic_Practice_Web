@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIn
 import RenderHTML from 'react-native-render-html';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { Dices, History, Users, ShieldAlert, Check, ChevronDown, ChevronUp, MessageSquare, Send } from 'lucide-react-native';
+import { Dices, History, Users, ShieldAlert, Check, ChevronDown, ChevronUp, MessageSquare, Send, Gift, Map } from 'lucide-react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { rebirthService, RebirthState, Realm, RebirthComment } from '../../services/rebirthService';
 import { useT } from '../../i18n/useT';
@@ -11,6 +11,7 @@ import { format } from 'date-fns';
 import { practiceService, Practice } from '../../services/practiceService';
 import { userService } from '../../services/userService';
 import { useAuthStore } from '../../store/authStore';
+import { treasureService, GameTreasure } from '../../services/treasureService';
 
 // ─── Colors (Consistent with Theme) ─────────────────────────────────────────
 const GOLD = '#D4AF37';
@@ -46,6 +47,10 @@ export default function RebirdScreen() {
     const [comments, setComments] = useState<RebirthComment[]>([]);
     const [newComment, setNewComment] = useState('');
     const [postingComment, setPostingComment] = useState(false);
+
+    // Treasure state
+    const [treasures, setTreasures] = useState<GameTreasure[]>([]);
+    const [digging, setDigging] = useState(false);
 
     const shakeAnim = React.useRef(new Animated.Value(0)).current;
 
@@ -128,6 +133,19 @@ export default function RebirdScreen() {
                 } catch (err) {
                     console.error('Load comments error:', err);
                 }
+
+                // Fetch treasures
+                try {
+                    const realmTreasures = await treasureService.getActiveTreasuresInRealm(currentState.realm_id);
+                    const available = [];
+                    for (const t of realmTreasures) {
+                        const hasWon = await treasureService.hasUserWonTreasure(t.id, user.id);
+                        if (!hasWon) available.push(t);
+                    }
+                    setTreasures(available);
+                } catch (err) {
+                    console.error('Load treasures error:', err);
+                }
             }
 
             // Load generic practices removed here to avoid confusion with realm-mandatory tasks
@@ -202,6 +220,20 @@ export default function RebirdScreen() {
             await new Promise(res => setTimeout(res, 2000));
             shakeAnim.setValue(0);
 
+            if (result.encounterMara) {
+                setRolling(false);
+                router.push({
+                    pathname: '/dashboard/mara-battle',
+                    params: {
+                        targetRealmId: result.to?.toString(),
+                        targetRealmName: result.toName,
+                        fromRealmId: result.from?.toString(),
+                        dice: result.dice?.toString()
+                    }
+                } as any);
+                return;
+            }
+
             setDiceResult(result.dice);
             setRollMessage(result.message || null);
             setTargetRealmName(result.toName);
@@ -233,6 +265,51 @@ export default function RebirdScreen() {
             Alert.alert(t('error'), t('postCommentError'));
         } finally {
             setPostingComment(false);
+        }
+    };
+
+    const handleDigTreasure = async (treasure: GameTreasure) => {
+        if (mpoints < 5) {
+            Alert.alert(t('insufficientMpoints'), "Bạn cần ít nhất 5 MPoints để khám phá Pháp Bảo.");
+            return;
+        }
+
+        if (Platform.OS === 'web') {
+            if (window.confirm(`Sử dụng 5 MPoints để tìm ${treasure.name}?`)) {
+                executeDig(treasure);
+            }
+        } else {
+            Alert.alert(
+                "Khám phá Pháp Bảo",
+                `Sử dụng 5 MPoints để tìm kiếm ${treasure.name} với tỷ lệ thành công ${treasure.drop_rate_percent}%?`,
+                [
+                    { text: t('cancel'), style: 'cancel' },
+                    { text: "Khám phá", onPress: () => executeDig(treasure) }
+                ]
+            );
+        }
+    };
+
+    const executeDig = async (treasure: GameTreasure) => {
+        if (!user) return;
+        setDigging(true);
+        try {
+            const won = await treasureService.claimTreasure(treasure.id, user.id, 5);
+
+            // Deduct locally for UI feedback
+            setMpoints(prev => prev - 5);
+
+            if (won) {
+                Alert.alert("🎉 Tuyệt vời!", `Bạn đã tìm thấy Pháp Bảo: ${treasure.name}. Admin sẽ liên hệ để trao vật phẩm cho bạn nghen! Chúc mừng đạo hữu!`);
+                // Remove from list so they can't dig again immediately
+                setTreasures(prev => prev.filter(t => t.id !== treasure.id));
+            } else {
+                Alert.alert("Chưa đủ duyên", "Rất tiếc bạn chưa tìm thấy Pháp Bảo vòng này. Hãy tinh tấn hơn và thử lại sau nha!");
+            }
+        } catch (err: any) {
+            Alert.alert(t('error'), err.message);
+        } finally {
+            setDigging(false);
         }
     };
 
@@ -280,9 +357,14 @@ export default function RebirdScreen() {
             {/* Header */}
             <View style={[styles.header, { paddingTop: Math.max(insets.top, 15) }]}>
                 <Text style={styles.headerTitle}>{t('rebirthTitle')}</Text>
-                <TouchableOpacity onPress={() => router.push('/rebird/history' as any)}>
-                    <History size={24} color={GOLD} />
-                </TouchableOpacity>
+                <View style={{ flexDirection: 'row', gap: 16 }}>
+                    <TouchableOpacity onPress={() => router.push('/dashboard/samsara-map' as any)}>
+                        <Map size={24} color={GOLD} />
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => router.push('/rebird/history' as any)}>
+                        <History size={24} color={GOLD} />
+                    </TouchableOpacity>
+                </View>
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
@@ -418,6 +500,32 @@ export default function RebirdScreen() {
                     </View>
                 )}
 
+                {/* Treasures */}
+                {treasures.length > 0 && (
+                    <View style={[styles.card, { borderColor: GOLD, borderWidth: 2, backgroundColor: '#FFFAED' }]}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+                            <Gift size={20} color={GOLD} />
+                            <Text style={[styles.sectionTitle, { color: '#B45309', marginBottom: 0, marginLeft: 8 }]}>Kỳ Ngộ: Pháp Bảo Xuất Hiện!</Text>
+                        </View>
+                        {treasures.map(t => (
+                            <View key={t.id} style={{ marginBottom: 16 }}>
+                                <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#92400E', marginBottom: 4 }}>{t.name}</Text>
+                                <Text style={{ fontSize: 13, color: '#B45309', marginBottom: 12 }}>{t.description}</Text>
+                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#92400E' }}>Số lượng còn: {t.remaining_quantity}</Text>
+                                    <TouchableOpacity
+                                        style={[styles.actionBtn, { marginTop: 0, backgroundColor: GOLD, borderColor: GOLD }]}
+                                        onPress={() => handleDigTreasure(t)}
+                                        disabled={digging}
+                                    >
+                                        {digging ? <ActivityIndicator size="small" color="#FFF" /> : <Text style={[styles.actionBtnText, { color: '#FFF' }]}>Khám phá (5 MP)</Text>}
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+                        ))}
+                    </View>
+                )}
+
                 {/* Co-travelers */}
                 <View style={styles.card}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
@@ -518,17 +626,19 @@ export default function RebirdScreen() {
                     )}
                 </View>
 
-            </ScrollView>
+            </ScrollView >
 
             {/* Rolling Animation Overlay */}
-            {rolling && (
-                <View style={styles.animationOverlay}>
-                    <Animated.View style={{ transform: [{ translateX: shakeAnim }] }}>
-                        <Dices size={120} color={GOLD} strokeWidth={1} />
-                    </Animated.View>
-                    <Text style={styles.rollingText}>{t('rollingDice')}</Text>
-                </View>
-            )}
+            {
+                rolling && (
+                    <View style={styles.animationOverlay}>
+                        <Animated.View style={{ transform: [{ translateX: shakeAnim }] }}>
+                            <Dices size={120} color={GOLD} strokeWidth={1} />
+                        </Animated.View>
+                        <Text style={styles.rollingText}>{t('rollingDice')}</Text>
+                    </View>
+                )
+            }
 
             {/* Result Modal */}
             <Modal visible={showResultModal} transparent animationType="fade">
@@ -567,7 +677,7 @@ export default function RebirdScreen() {
                     </View>
                 </View>
             </Modal>
-        </View>
+        </View >
     );
 }
 
