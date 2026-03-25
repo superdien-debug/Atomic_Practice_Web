@@ -84,6 +84,9 @@ export default function DashboardLayout() {
                 }}
             />
             <Tabs.Screen name="account" options={{ title: t('tabAccount'), tabBarIcon: ({ color }) => <User size={24} color={color} /> }} />
+            {/* Hidden screens from Tab Bar */}
+            <Tabs.Screen name="mara-battle" options={{ href: null }} />
+            <Tabs.Screen name="samsara-map" options={{ href: null }} />
         </Tabs>
     );
 }

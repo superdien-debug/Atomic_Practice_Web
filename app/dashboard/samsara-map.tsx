@@ -41,23 +41,33 @@ export default function SamsaraMapScreen() {
     const loadMapData = async () => {
         setLoading(true);
         try {
-            const [allRealms, distData, tRealmsArray] = await Promise.all([
-                rebirthService.getAllRealms(),
-                treasureService.getUserDistribution(),
-                treasureService.getTreasureLocations()
-            ]);
+            // Fetch Realms robustly
+            const allRealms = await rebirthService.getAllRealms().catch(err => {
+                console.error('Failed to load realms:', err);
+                return [];
+            });
+            setRealms(allRealms || []);
 
-            setRealms(allRealms);
-
+            // Fetch User Distribution robustly
+            const distData = await treasureService.getUserDistribution().catch(err => {
+                console.error('Failed to load distribution:', err);
+                return [];
+            });
             const distMap: Record<number, number> = {};
-            distData.forEach((d: any) => {
+            (distData || []).forEach((d: any) => {
                 distMap[d.realm_id] = d.user_count;
             });
             setDistribution(distMap);
 
-            setTreasureRealms(new Set(tRealmsArray));
+            // Fetch Treasure Locations robustly
+            const tRealmsArray = await treasureService.getTreasureLocations().catch(err => {
+                console.error('Failed to load treasures:', err);
+                return [];
+            });
+            setTreasureRealms(new Set(tRealmsArray || []));
+            
         } catch (error) {
-            console.error('Failed to load map data', error);
+            console.error('Failed to load map data entirely', error);
         } finally {
             setLoading(false);
         }
@@ -132,6 +142,10 @@ export default function SamsaraMapScreen() {
 
                 {loading ? (
                     <Text style={{ textAlign: 'center', marginTop: 50, color: '#666' }}>Đang tải bản đồ...</Text>
+                ) : realms.length === 0 ? (
+                    <Text style={{ textAlign: 'center', marginTop: 50, color: '#dc2626' }}>
+                        Không thể kết nối đến máy chủ để tải bản đồ luân hồi. Xin vui lòng thử lại sau.
+                    </Text>
                 ) : (
                     <View style={styles.mapGrid}>
                         {/* Higher Realms (25 -> 104) */}

@@ -69,7 +69,8 @@ export const treasureService = {
 
         if (error) {
             console.error('[TreasureService] Error fetching user distribution:', error);
-            throw error;
+            // Return empty array instead of throwing, so the map can still load realms
+            return [];
         }
 
         return data as RealmUserDistribution[];
@@ -90,7 +91,7 @@ export const treasureService = {
             return [];
         }
 
-        return Array.from(new Set(data.map(t => t.realm_id)));
+        return Array.from(new Set((data || []).map(t => t.realm_id)));
     },
 
     /**
