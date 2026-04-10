@@ -37,6 +37,7 @@ export default {
         },
         "web": {
             "bundler": "metro",
+            "output": "static",
             "favicon": "./assets/favicon.png",
             "name": "Atomic Practice",
             "shortName": "Atomic",

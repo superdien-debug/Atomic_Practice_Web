@@ -2,7 +2,7 @@
   "name": "Atomic Practice",
   "short_name": "Atomic",
   "description": "Nền tảng thực hành tâm linh chuyên sâu.",
-  "start_url": "/",
+  "start_url": "/?source=pwa",
   "display": "standalone",
   "background_color": "#0A0A0F",
   "theme_color": "#0A0A0F",
