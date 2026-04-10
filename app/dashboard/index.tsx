@@ -23,7 +23,7 @@ const CARD = '#FFF';
 const BG = '#FEF9EF';
 const MAROON = '#800000';
 const { width } = Dimensions.get('window');
-import { BookOpen, Sparkles, Wind, Award } from 'lucide-react-native';
+import { BookOpen, Sparkles, Wind, Award, Flower } from 'lucide-react-native';
 import { EventAnnouncementModal } from '../../components/EventAnnouncementModal';
 
 // Session-based flag to ensure popup only shows once per boot
@@ -339,7 +339,7 @@ export default function DashboardScreen() {
                         activeOpacity={0.9}
                     >
                         <View style={styles.coachBannerContent}>
-                            <Sparkles size={24} color="#E53E3E" />
+                            <Flower size={24} color="#E53E3E" />
                             <View style={{ flex: 1 }}>
                                 <Text style={[styles.coachBannerTitle, { color: '#C53030' }]}>Thiền Vipassana | Thầy Minh Niệm</Text>
                                 <Text style={styles.coachBannerSub}>41:13 phút thiền sâu</Text>
