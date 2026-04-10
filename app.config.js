@@ -36,7 +36,16 @@ export default {
             "predictiveBackGestureEnabled": false
         },
         "web": {
-            "favicon": "./assets/favicon.png"
+            "bundler": "metro",
+            "favicon": "./assets/favicon.png",
+            "name": "Atomic Practice",
+            "shortName": "Atomic",
+            "description": "Nền tảng thực hành tâm linh chuyên sâu.",
+            "themeColor": "#0A0A0F",
+            "backgroundColor": "#0A0A0F",
+            "display": "standalone",
+            "orientation": "portrait",
+            "icon": "./assets/adaptive-icon.png"
         },
         "plugins": [
             "expo-router",

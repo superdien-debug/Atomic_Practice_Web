@@ -332,6 +332,20 @@ export default function DashboardScreen() {
                             </View>
                         </View>
                     </TouchableOpacity>
+
+                    <TouchableOpacity
+                        onPress={() => router.push('/practice/vipassana' as any)}
+                        style={[styles.coachBanner, { marginTop: 15, backgroundColor: '#FFF5F5', borderColor: '#E53E3E40', shadowColor: '#E53E3E' }]}
+                        activeOpacity={0.9}
+                    >
+                        <View style={styles.coachBannerContent}>
+                            <Sparkles size={24} color="#E53E3E" />
+                            <View style={{ flex: 1 }}>
+                                <Text style={[styles.coachBannerTitle, { color: '#C53030' }]}>Thiền Vipassana | Thầy Minh Niệm</Text>
+                                <Text style={styles.coachBannerSub}>41:13 phút thiền sâu</Text>
+                            </View>
+                        </View>
+                    </TouchableOpacity>
                 </View>
 
                 {/* ─ Top Practitioners ─ */}
