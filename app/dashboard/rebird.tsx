@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIn
 import RenderHTML from 'react-native-render-html';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { Dices, History, Users, ShieldAlert, Check, ChevronDown, ChevronUp, MessageSquare, Send, Gift, Map } from 'lucide-react-native';
+import { Dices, History, Users, ShieldAlert, Check, ChevronDown, ChevronUp, MessageSquare, Send, Gift, Map, Flame, HeartHandshake, Trophy, Award, Lock, Sparkles } from 'lucide-react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { rebirthService, RebirthState, Realm, RebirthComment } from '../../services/rebirthService';
 import { useT } from '../../i18n/useT';
@@ -13,12 +13,37 @@ import { userService } from '../../services/userService';
 import { useAuthStore } from '../../store/authStore';
 import { treasureService, GameTreasure } from '../../services/treasureService';
 
-// ─── Colors (Consistent with Theme) ─────────────────────────────────────────
 const GOLD = '#D4AF37';
-const CARD = '#FFF';
-const BG = '#FEF9EF';
+const BG_LIGHT = '#FEF9EF';
 const MAROON = '#800000';
-const { width } = Dimensions.get('window');
+const BRONZE = '#CD7F32';
+const { width, height } = Dimensions.get('window');
+
+interface BlessingRequest {
+    id: string;
+    user_id: string;
+    realm_id: number;
+    message: string;
+    is_fulfilled: boolean;
+    profiles: {
+        display_name: string;
+        avatar_url: string | null;
+    } | null;
+    realm: {
+        name: string;
+    } | null;
+}
+
+interface LeaderboardUser {
+    user_id: string;
+    display_name: string;
+    avatar_url: string | null;
+    practices_count: number;
+    blessings_count: number;
+    mara_wins_count: number;
+    streak_score: number;
+    total_score: number;
+}
 
 export default function RebirdScreen() {
     const insets = useSafeAreaInsets();
@@ -29,8 +54,6 @@ export default function RebirdScreen() {
 
     const [state, setState] = useState<RebirthState | null>(null);
     const [travelers, setTravelers] = useState<any[]>([]);
-    const [practices, setPractices] = useState<Practice[]>([]);
-    const [challenges, setChallenges] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [rolling, setRolling] = useState(false);
     const [diceResult, setDiceResult] = useState<number | null>(null);
@@ -39,9 +62,23 @@ export default function RebirdScreen() {
     const [showResultModal, setShowResultModal] = useState(false);
     const [rollMessage, setRollMessage] = useState<string | null>(null);
     const [targetRealmName, setTargetRealmName] = useState<string>('');
-    const [requiredPractices, setRequiredPractices] = useState<{ id: string, title: string, completed: boolean }[]>([]);
-    const [checkingPractices, setCheckingPractices] = useState(false);
     const [descExpanded, setDescExpanded] = useState(false);
+
+    // Cooldown Reduce Modal
+    const [showReduceModal, setShowReduceModal] = useState(false);
+    const [reduceDays, setReduceDays] = useState(1);
+
+    // Blessing requests (cõi thấp thỉnh cầu / cõi cao hộ trì)
+    const [blessingRequests, setBlessingRequests] = useState<BlessingRequest[]>([]);
+    const [myRequestMessage, setMyRequestMessage] = useState('');
+    const [submittingRequest, setSubmittingRequest] = useState(false);
+    const [showRequestModal, setShowRequestModal] = useState(false);
+
+    // Tournament Leaderboard Modal
+    const [showLeaderboardModal, setShowLeaderboardModal] = useState(false);
+    const [periodTab, setPeriodTab] = useState<'month' | 'quarter'>('month');
+    const [leaderboard, setLeaderboard] = useState<LeaderboardUser[]>([]);
+    const [loadingLeaderboard, setLoadingLeaderboard] = useState(false);
 
     // Comments state
     const [comments, setComments] = useState<RebirthComment[]>([]);
@@ -54,8 +91,6 @@ export default function RebirdScreen() {
 
     const shakeAnim = React.useRef(new Animated.Value(0)).current;
 
-    // Reload data every time this screen comes into focus
-    // This ensures practice completion status refreshes after returning from practice screen
     useFocusEffect(
         useCallback(() => {
             if (user) loadData();
@@ -69,7 +104,6 @@ export default function RebirdScreen() {
             const expires = new Date(state.expires_at);
             let expiresTs = expires.getTime();
 
-            // Fallback for legacy numeric data
             if (isNaN(expiresTs)) {
                 const days = parseInt(state.expires_at as any);
                 if (!isNaN(days)) {
@@ -97,41 +131,39 @@ export default function RebirdScreen() {
             setMpoints(mpointsBalance);
 
             if (currentState?.realm_id) {
-                // Each fetch is independent — one failure won't block others
+                const isLower = currentState.realm_id >= 1 && currentState.realm_id <= 13;
+                const isHigher = currentState.realm_id >= 70 && currentState.realm_id <= 104;
+
+                // Load travelers in same realm
                 try {
                     const tr = await rebirthService.getTravelersInRealm(currentState.realm_id);
                     setTravelers(tr);
                 } catch (err) {
                     console.error('Load travelers error:', err);
-                    setTravelers([]);
                 }
 
+                // Load blessing requests
                 try {
-                    const challs = await rebirthService.getChallenges(currentState.realm_id);
-                    setChallenges(challs);
+                    if (isHigher) {
+                        const reqs = await rebirthService.getBlessingRequests();
+                        setBlessingRequests(reqs);
+                    } else if (isLower) {
+                        // Load own requests or cõi-specific active requests
+                        const reqs = await rebirthService.getBlessingRequests(currentState.realm_id);
+                        setBlessingRequests(reqs);
+                    }
                 } catch (err) {
-                    console.error('Load challenges error:', err);
-                    setChallenges([]);
+                    console.error('Load blessings error:', err);
                 }
 
-                // Fetch mandatory practices for this realm
-                setCheckingPractices(true);
-                try {
-                    const reqs = await rebirthService.getRequiredPracticesForRealm(currentState.realm_id, (currentState as any).updated_at);
-                    console.log('[Rebird] Required practices loaded:', JSON.stringify(reqs));
-                    setRequiredPractices(reqs);
-                } catch (err) {
-                    console.error('Load mandatory practices error:', err);
-                } finally {
-                    setCheckingPractices(false);
-                }
-
-                // Fetch comments
-                try {
-                    const c = await rebirthService.getRealmComments(currentState.realm_id);
-                    setComments(c);
-                } catch (err) {
-                    console.error('Load comments error:', err);
+                // Fetch comments (locked for cõi thấp)
+                if (!isLower) {
+                    try {
+                        const c = await rebirthService.getRealmComments(currentState.realm_id);
+                        setComments(c);
+                    } catch (err) {
+                        console.error('Load comments error:', err);
+                    }
                 }
 
                 // Fetch treasures
@@ -147,9 +179,6 @@ export default function RebirdScreen() {
                     console.error('Load treasures error:', err);
                 }
             }
-
-            // Load generic practices removed here to avoid confusion with realm-mandatory tasks
-
         } catch (err) {
             console.error('Failed to load rebirth state:', err);
         } finally {
@@ -157,95 +186,187 @@ export default function RebirdScreen() {
         }
     };
 
-    const handleRollDice = async () => {
-        console.log("[Rebird] handleRollDice called. timeLeftMs:", timeLeftMs, "rolling:", rolling);
+    const handleReduceCooldown = async () => {
+        if (!state) return;
+        const currentExpires = new Date(state.expires_at).getTime();
+        const startTurn = state.updated_at ? new Date(state.updated_at).getTime() : new Date(state.created_at || new Date()).getTime();
+        const minExpires = startTurn + (24 * 60 * 60 * 1000); // 1-day min wait
 
+        if (currentExpires <= minExpires) {
+            Alert.alert("Chưa đủ điều kiện", "Cảnh giới này đã chạm thời hạn tối thiểu 1 ngày (24 giờ). Bạn cần trải nghiệm nốt thời gian còn lại trước khi gieo xúc xắc.");
+            return;
+        }
+
+        const maxDaysToReduce = Math.floor((currentExpires - minExpires) / (24 * 60 * 60 * 1000));
+        if (maxDaysToReduce <= 0) {
+            Alert.alert("Chưa đủ điều kiện", "Thời gian chờ còn lại của bạn chưa đầy 1 ngày bổ sung để có thể rút ngắn.");
+            return;
+        }
+
+        if (reduceDays > maxDaysToReduce) {
+            Alert.alert("Lượt giảm vượt giới hạn", `Ở lượt này, bạn chỉ có thể giảm tối đa thêm ${maxDaysToReduce} ngày để đảm bảo thọ mạng tối thiểu 1 ngày.`);
+            return;
+        }
+
+        const cost = reduceDays * 10;
+        if (mpoints < cost) {
+            Alert.alert("Không đủ Mpoints", `Bạn cần ${cost} Mpoints để giảm ${reduceDays} ngày chờ đợi.`);
+            return;
+        }
+
+        try {
+            setLoading(true);
+            const result = await rebirthService.reduceCooldownWithMPoints(reduceDays);
+            if (result.success) {
+                Alert.alert("🎉 Tiêu Nghiệp Thành Công", `Bạn đã rút ngắn thời gian chờ thành công thêm ${reduceDays} ngày!`);
+                setShowReduceModal(false);
+                loadData();
+            } else {
+                Alert.alert("Thất bại", result.message);
+            }
+        } catch (err: any) {
+            Alert.alert("Lỗi", err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleCreateBlessingRequest = async () => {
+        if (!myRequestMessage.trim()) return;
+        setSubmittingRequest(true);
+        try {
+            await rebirthService.createBlessingRequest(myRequestMessage.trim());
+            Alert.alert("🎉 Phát Nguyện Thành Công", "Lời thỉnh cầu hộ trì của bạn đã được đăng lên bảng tin chung. Cầu chúc các đồng tu cõi trên trợ duyên cho bạn!");
+            setMyRequestMessage('');
+            setShowRequestModal(false);
+            loadData();
+        } catch (err: any) {
+            Alert.alert("Lỗi", err.message || "Không thể gửi thỉnh cầu.");
+        } finally {
+            setSubmittingRequest(false);
+        }
+    };
+
+    const handleSendBlessing = async (requestId: string) => {
+        if (mpoints < 50) {
+            Alert.alert("Không đủ Mpoints", "Bạn cần ít nhất 50 Mpoints để thực hiện hồi hướng hộ trì.");
+            return;
+        }
+
+        const confirmMsg = "Xác nhận tiêu hao 50 Mpoints để hồi hướng hộ trì cho đạo hữu này? Bạn sẽ nhận được +15 Công đức đua Top!";
+        const execute = async () => {
+            try {
+                setLoading(true);
+                const result = await rebirthService.sendBlessing(requestId);
+                if (result.success) {
+                    Alert.alert("🙏 Tùy Hỷ Công Đức", result.message);
+                    loadData();
+                } else {
+                    Alert.alert("Thất bại", result.message);
+                }
+            } catch (err: any) {
+                Alert.alert("Lỗi", err.message);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        if (Platform.OS === 'web') {
+            if (window.confirm(confirmMsg)) execute();
+        } else {
+            Alert.alert("Hồi Hướng Công Đức", confirmMsg, [
+                { text: t('cancel'), style: 'cancel' },
+                { text: "Hồi hướng", onPress: execute }
+            ]);
+        }
+    };
+
+    const handleOpenLeaderboard = async (tab: 'month' | 'quarter') => {
+        setPeriodTab(tab);
+        setLoadingLeaderboard(true);
+        setShowLeaderboardModal(true);
+        try {
+            const data = await rebirthService.getTournamentLeaderboard(tab);
+            setLeaderboard(data);
+        } catch (err) {
+            console.error('Failed to load tournament leaderboard:', err);
+        } finally {
+            setLoadingLeaderboard(false);
+        }
+    };
+
+    const handleRollDice = async () => {
         if (timeLeftMs > 0) {
-            console.log("[Rebird] Still has life remaining, showing info alert.");
-            Alert.alert(t('cannotRollDice'), t('rollDiceCondition'));
+            Alert.alert("Chưa hết thọ mạng", "Cảnh giới hiện tại chưa kết thúc thời gian chờ. Đạo hữu có thể tiêu Mpoints hoặc cầu nguyện cõi trên hộ trì để rút ngắn!");
             return;
         }
 
         if (mpoints < 50) {
-            Alert.alert(t('insufficientMpoints'), t('insufficientPoints').replace('{0}', '50'));
+            Alert.alert("Không đủ Mpoints", "Bạn cần ít nhất 50 Mpoints để gieo xúc xắc tái sinh.");
             return;
         }
 
-        const msg = t('rollDiceCostMsg');
+        const msg = "Xác nhận sử dụng 50 Mpoints để gieo xúc xắc Nghiệp Lực và luân hồi tái sinh?";
+
+        const execute = async () => {
+            setRolling(true);
+            setDiceResult(null);
+
+            // Shaking animation
+            Animated.loop(
+                Animated.sequence([
+                    Animated.timing(shakeAnim, { toValue: 10, duration: 50, useNativeDriver: true }),
+                    Animated.timing(shakeAnim, { toValue: -10, duration: 50, useNativeDriver: true }),
+                    Animated.timing(shakeAnim, { toValue: 0, duration: 50, useNativeDriver: true }),
+                ]),
+                { iterations: 15 }
+            ).start();
+
+            try {
+                const result = await rebirthService.rollDice();
+                await new Promise(res => setTimeout(res, 2000));
+                shakeAnim.setValue(0);
+
+                if (!result.success) {
+                    Alert.alert(t('error'), result.message || t('actionFailed'));
+                    setRolling(false);
+                    return;
+                }
+
+                if (result.encounterMara) {
+                    setRolling(false);
+                    router.push({
+                        pathname: '/dashboard/mara-battle',
+                        params: {
+                            targetRealmId: result.to?.toString(),
+                            targetRealmName: result.toName,
+                            fromRealmId: result.from?.toString(),
+                            dice: result.dice?.toString()
+                        }
+                    } as any);
+                    return;
+                }
+
+                setDiceResult(result.dice);
+                setRollMessage(result.message || null);
+                setTargetRealmName(result.toName);
+                setShowResultModal(true);
+
+            } catch (err: any) {
+                shakeAnim.setValue(0);
+                Alert.alert(t('error'), err.message || t('unknownError'));
+            } finally {
+                setRolling(false);
+            }
+        };
 
         if (Platform.OS === 'web') {
-            if (window.confirm(msg)) {
-                executeRoll();
-            }
+            if (window.confirm(msg)) execute();
         } else {
-            Alert.alert(
-                t('rollAction'),
-                msg,
-                [
-                    { text: t('cancel'), style: 'cancel' },
-                    { text: t('rollAction'), onPress: executeRoll }
-                ]
-            );
-        }
-    };
-
-    const executeRoll = async () => {
-        console.log("[Rebird] executeRoll started.");
-        setRolling(true);
-        setDiceResult(null);
-
-        // Start shaking animation
-        Animated.loop(
-            Animated.sequence([
-                Animated.timing(shakeAnim, { toValue: 10, duration: 50, useNativeDriver: true }),
-                Animated.timing(shakeAnim, { toValue: -10, duration: 50, useNativeDriver: true }),
-                Animated.timing(shakeAnim, { toValue: 0, duration: 50, useNativeDriver: true }),
-            ]),
-            { iterations: 15 }
-        ).start();
-
-        try {
-            const result = await rebirthService.rollDice();
-            console.log("[Rebird] rollDice result:", result);
-
-            if (!result.success) {
-                shakeAnim.setValue(0);
-                console.log("[Rebird] rollDice failed:", result.message);
-                Alert.alert(t('error'), result.message || t('actionFailed'));
-                setRolling(false);
-                return;
-            }
-
-            // Keep rolling for at least 2 seconds to show animation
-            await new Promise(res => setTimeout(res, 2000));
-            shakeAnim.setValue(0);
-
-            if (result.encounterMara) {
-                setRolling(false);
-                router.push({
-                    pathname: '/dashboard/mara-battle',
-                    params: {
-                        targetRealmId: result.to?.toString(),
-                        targetRealmName: result.toName,
-                        fromRealmId: result.from?.toString(),
-                        dice: result.dice?.toString()
-                    }
-                } as any);
-                return;
-            }
-
-            setDiceResult(result.dice);
-            setRollMessage(result.message || null);
-            setTargetRealmName(result.toName);
-            setShowResultModal(true);
-
-        } catch (err: any) {
-            shakeAnim.setValue(0);
-            console.error("[Rebird] executeRoll error:", err);
-            Alert.alert(t('error'), err.message || t('unknownError'));
-        } finally {
-            console.log("[Rebird] executeRoll finished, setting rolling to false.");
-            setRolling(false);
+            Alert.alert("Tái sinh luân hồi", msg, [
+                { text: t('cancel'), style: 'cancel' },
+                { text: "Gieo Xúc Xắc", onPress: execute }
+            ]);
         }
     };
 
@@ -254,15 +375,12 @@ export default function RebirdScreen() {
 
         setPostingComment(true);
         try {
-            const tempComment = await rebirthService.addRealmComment(state.realm_id, newComment.trim());
-
-            // For a better UX, fetch the list again or manually append
-            // Fetching again ensures we get profile info
+            await rebirthService.addRealmComment(state.realm_id, newComment.trim());
             const c = await rebirthService.getRealmComments(state.realm_id);
             setComments(c);
             setNewComment('');
         } catch (err: any) {
-            Alert.alert(t('error'), t('postCommentError'));
+            Alert.alert(t('error'), "Không thể đăng bình luận.");
         } finally {
             setPostingComment(false);
         }
@@ -274,49 +392,44 @@ export default function RebirdScreen() {
             return;
         }
 
-        if (Platform.OS === 'web') {
-            if (window.confirm(`Sử dụng 5 MPoints để tìm ${treasure.name}?`)) {
-                executeDig(treasure);
+        const execute = async () => {
+            if (!user) return;
+            setDigging(true);
+            try {
+                const won = await treasureService.claimTreasure(treasure.id, user.id, 5);
+                setMpoints(prev => prev - 5);
+
+                if (won) {
+                    Alert.alert("🎉 Chúc Mừng Đạo Hữu!", `Bạn đã tìm thấy Pháp Bảo: ${treasure.name}. Admin sẽ liên hệ để gửi tặng phẩm đến bạn!`);
+                    setTreasures(prev => prev.filter(t => t.id !== treasure.id));
+                } else {
+                    Alert.alert("Chưa đủ duyên", "Rất tiếc bạn chưa tìm thấy Pháp Bảo trong vòng này. Hãy tinh tấn thực hành và thử lại sau nha!");
+                }
+            } catch (err: any) {
+                Alert.alert(t('error'), err.message);
+            } finally {
+                setDigging(false);
             }
+        };
+
+        if (Platform.OS === 'web') {
+            if (window.confirm(`Sử dụng 5 MPoints để tìm ${treasure.name}?`)) execute();
         } else {
             Alert.alert(
                 "Khám phá Pháp Bảo",
                 `Sử dụng 5 MPoints để tìm kiếm ${treasure.name} với tỷ lệ thành công ${treasure.drop_rate_percent}%?`,
                 [
                     { text: t('cancel'), style: 'cancel' },
-                    { text: "Khám phá", onPress: () => executeDig(treasure) }
+                    { text: "Khám phá", onPress: execute }
                 ]
             );
-        }
-    };
-
-    const executeDig = async (treasure: GameTreasure) => {
-        if (!user) return;
-        setDigging(true);
-        try {
-            const won = await treasureService.claimTreasure(treasure.id, user.id, 5);
-
-            // Deduct locally for UI feedback
-            setMpoints(prev => prev - 5);
-
-            if (won) {
-                Alert.alert("🎉 Tuyệt vời!", `Bạn đã tìm thấy Pháp Bảo: ${treasure.name}. Admin sẽ liên hệ để trao vật phẩm cho bạn nghen! Chúc mừng đạo hữu!`);
-                // Remove from list so they can't dig again immediately
-                setTreasures(prev => prev.filter(t => t.id !== treasure.id));
-            } else {
-                Alert.alert("Chưa đủ duyên", "Rất tiếc bạn chưa tìm thấy Pháp Bảo vòng này. Hãy tinh tấn hơn và thử lại sau nha!");
-            }
-        } catch (err: any) {
-            Alert.alert(t('error'), err.message);
-        } finally {
-            setDigging(false);
         }
     };
 
     if (loading && !state) {
         return (
             <View style={[styles.container, { justifyContent: 'center' }]}>
-                <ActivityIndicator size="large" color="#D4AF37" />
+                <ActivityIndicator size="large" color={GOLD} />
             </View>
         );
     }
@@ -324,14 +437,16 @@ export default function RebirdScreen() {
     if (!state || !state.realm) {
         return (
             <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-                <Text style={{ color: '#fff' }}>{t('noRealmInfo')}</Text>
+                <Text style={{ color: '#666' }}>Không tìm thấy dữ liệu cảnh giới.</Text>
             </View>
         );
     }
 
-    const { realm, expires_at } = state;
+    const { realm } = state;
+    const isLowerRealm = realm.id >= 1 && realm.id <= 13;
+    const isHigherRealm = realm.id >= 70 && realm.id <= 104;
 
-    // Calculate progress based on real-time countdown
+    // Countdown configuration
     const totalLifeMs = (realm.life_days || 1) * 24 * 60 * 60 * 1000;
     const progress = Math.min(1, timeLeftMs / totalLifeMs);
 
@@ -342,161 +457,194 @@ export default function RebirdScreen() {
         const seconds = Math.floor((ms % (60 * 1000)) / 1000);
 
         const parts = [];
-        if (days > 0) parts.push(`${days} ${t('dayTime')}`);
-        if (hours > 0) parts.push(`${hours} ${t('hourTime')}`);
-        parts.push(`${minutes} ${t('minuteTime')}`);
-        if (days === 0 && hours === 0) parts.push(`${seconds} ${t('secondTime')}`);
+        if (days > 0) parts.push(`${days} ngày`);
+        if (hours > 0) parts.push(`${hours} giờ`);
+        parts.push(`${minutes} phút`);
+        if (days === 0 && hours === 0) parts.push(`${seconds} giây`);
 
         return parts.join(' ');
     };
 
+    // Monthly prizes shelf
+    const monthlyPrizes = [
+        "1. Torma 3kaya (01)",
+        "2. Chuỗi San Hô Đỏ (01)",
+        "3. Bình Tẩy Tịnh Bumpa (01)",
+        "4. Hương Maratika (02)",
+        "5. Mặt phật trường thọ nhựa (02)",
+        "6. Áo đồng phục Maratika (03)"
+    ];
+
+    // Quarterly prizes shelf
+    const quarterlyPrizes = [
+        "1. Bình tài bảo Maratika (01)",
+        "2. Dakar (Mũi tên trường thọ) (01)",
+        "3. Thangkar (01)",
+        "4. Cốc sọ bằng nhựa (02)",
+        "5. Túi bọc nghi quỹ (02)",
+        "6. Bài cúng trên bàn ăn (03)"
+    ];
+
     return (
-        <View style={styles.container}>
+        <View style={[styles.container, isLowerRealm && styles.darkUAmBg]}>
             <StatusBar style="light" />
 
             {/* Header */}
             <View style={[styles.header, { paddingTop: Math.max(insets.top, 15) }]}>
-                <Text style={styles.headerTitle}>{t('rebirthTitle')}</Text>
-                <View style={{ flexDirection: 'row', gap: 16 }}>
-                    <TouchableOpacity onPress={() => router.push('/dashboard/samsara-map' as any)}>
-                        <Map size={24} color={GOLD} />
+                <Text style={styles.headerTitle}>GAME TÁI SINH</Text>
+                
+                <View style={styles.headerIcons}>
+                    {/* Event Trophies Button */}
+                    <TouchableOpacity onPress={() => handleOpenLeaderboard('month')} style={styles.eventBtn}>
+                        <Trophy size={20} color={GOLD} />
+                        <Text style={styles.eventBtnText}>Giải Đấu</Text>
                     </TouchableOpacity>
+                    
+                    <TouchableOpacity onPress={() => router.push('/dashboard/samsara-map' as any)}>
+                        <Map size={22} color={GOLD} />
+                    </TouchableOpacity>
+                    
                     <TouchableOpacity onPress={() => router.push('/rebird/history' as any)}>
-                        <History size={24} color={GOLD} />
+                        <History size={22} color={GOLD} />
                     </TouchableOpacity>
                 </View>
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
-                {/* Realm Image */}
+                {/* Realm Banner Image */}
                 <View style={styles.imageContainer}>
                     <View style={styles.imagePlaceholder}>
                         {realm.image_url ? (
                             <Image source={{ uri: realm.image_url }} style={styles.realmImage} />
                         ) : (
-                            <Text style={styles.imageText}>{t('realmNumber').replace('{0}', realm.id.toString())}</Text>
+                            <Text style={styles.imageText}>CÕI GIỚI SỐ {realm.id}</Text>
                         )}
                     </View>
                     <View style={styles.realmOverlay}>
-                        <Text style={styles.realmIdText}>{t('slotNumber').replace('{0}', realm.id.toString())}</Text>
+                        <Text style={styles.realmIdText}>CẢNH GIỚI #{realm.id}</Text>
                         <Text style={styles.realmNameText}>{realm.name}</Text>
                     </View>
                 </View>
 
-                {/* Realm Description - Collapsible */}
-                <View style={styles.infoCard}>
+                {/* Realm Descriptions */}
+                <View style={[styles.infoCard, isLowerRealm && styles.darkUAmCard, isHigherRealm && styles.lightGoldenCard]}>
                     <View style={[styles.descInner, !descExpanded && { maxHeight: Math.round(height * 0.28), overflow: 'hidden' }]}>
                         {realm.short_desc && (
                             <RenderHTML
                                 contentWidth={width - 80}
                                 source={{ html: realm.short_desc }}
-                                baseStyle={styles.shortDescHTML}
+                                baseStyle={isLowerRealm ? styles.shortDescHTMLDark : styles.shortDescHTML}
                             />
                         )}
                         <View style={{ height: 10 }} />
                         <RenderHTML
                             contentWidth={width - 80}
                             source={{ html: realm.description }}
-                            baseStyle={styles.descHTML}
+                            baseStyle={isLowerRealm ? styles.descHTMLDark : styles.descHTML}
                         />
                     </View>
 
-                    {/* Gradient fade + expand button */}
                     {!descExpanded && (
-                        <View style={styles.descFadeCover} pointerEvents="none" />
+                        <View style={[styles.descFadeCover, isLowerRealm && { backgroundColor: 'rgba(30,41,59,0.9)' }]} pointerEvents="none" />
                     )}
+                    
                     <TouchableOpacity
                         style={styles.expandBtn}
                         onPress={() => setDescExpanded(v => !v)}
                         activeOpacity={0.7}
                     >
                         {descExpanded
-                            ? <ChevronUp size={20} color={MAROON} />
-                            : <ChevronDown size={20} color={MAROON} />}
-                        <Text style={styles.expandBtnText}>
-                            {descExpanded ? t('collapse') : t('viewFull')}
+                            ? <ChevronUp size={20} color={isLowerRealm ? '#ef4444' : MAROON} />
+                            : <ChevronDown size={20} color={isLowerRealm ? '#ef4444' : MAROON} />}
+                        <Text style={[styles.expandBtnText, isLowerRealm && { color: '#ef4444' }]}>
+                            {descExpanded ? "Thu gọn mô tả" : "Đọc toàn bộ cảnh giới"}
                         </Text>
                     </TouchableOpacity>
                 </View>
 
-                {/* Life Bar */}
-                <View style={styles.card}>
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 }}>
-                        <Text style={styles.sectionTitle}>{t('lifeForceKarma')}</Text>
-                        <Text style={styles.lifeText}>{timeLeftMs > 0 ? formatTimeLeft(timeLeftMs) : t('ready')}</Text>
+                {/* Cooldown Time Bar (Thọ Mạng) */}
+                <View style={[styles.card, isLowerRealm && styles.darkUAmCard]}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12, alignItems: 'center' }}>
+                        <Text style={[styles.sectionTitle, isLowerRealm && { color: '#ef4444' }]}>Thọ mạng (Thời gian chờ)</Text>
+                        <Text style={styles.lifeText}>{timeLeftMs > 0 ? formatTimeLeft(timeLeftMs) : "Đã hết thọ mạng"}</Text>
                     </View>
+                    
                     <View style={styles.progressBarBg}>
-                        <View style={[styles.progressBarFill, { width: `${progress * 100}%` }]} />
+                        <View style={[styles.progressBarFill, isLowerRealm && { backgroundColor: '#ef4444' }, { width: `${progress * 100}%` }]} />
                     </View>
+                    
                     <Text style={styles.progressHint}>
-                        {t('lifeForceHint')}
+                        Sau khi hết thời hạn đếm ngược thọ mạng cõi giới, đạo hữu sẽ được gieo xúc xắc luân hồi tái sinh.
                     </Text>
-                </View>
 
-                {/* Requirements / Practices */}
-                <View style={styles.card}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
-                        <Check size={18} color={MAROON} />
-                        <Text style={[styles.sectionTitle, { marginBottom: 0, marginLeft: 8 }]}>{t('practiceTasks')}</Text>
-                    </View>
-                    {checkingPractices ? (
-                        <ActivityIndicator color={MAROON} />
-                    ) : requiredPractices.length === 0 ? (
-                        <Text style={{ color: '#999', fontStyle: 'italic', fontSize: 13 }}>{t('noMandatoryTasks')}</Text>
-                    ) : (
-                        <View style={{ marginBottom: 12 }}>
-                            {requiredPractices.map((p, idx) => (
-                                <View key={p.id} style={styles.practiceItem}>
-                                    <View style={[styles.practiceIcon, { backgroundColor: p.completed ? '#059669' : '#94a3b8' }]}>
-                                        <Check size={14} color="#FFF" />
-                                    </View>
-                                    <View style={{ flex: 1, marginLeft: 12 }}>
-                                        <Text style={[styles.practiceText, p.completed && { color: '#059669', textDecorationLine: 'line-through' }]}>
-                                            {p.title}
-                                        </Text>
-                                        {!p.completed && (
-                                            <Text style={{ fontSize: 10, color: '#94a3b8', marginTop: 2 }}>{t('completeThisTurn')}</Text>
-                                        )}
-                                    </View>
-                                    {!p.completed && (
-                                        <TouchableOpacity
-                                            onPress={() => router.push(`/practice/${p.id}` as any)}
-                                            style={[styles.actionBtn, { marginTop: 0, paddingHorizontal: 12, paddingVertical: 4, borderColor: MAROON + '40' }]}
-                                        >
-                                            <Text style={[styles.actionBtnText, { fontSize: 10 }]}>{t('doNow')}</Text>
-                                        </TouchableOpacity>
-                                    )}
-                                </View>
-                            ))}
-                            {requiredPractices.some(p => !p.completed) && (
-                                <View style={{ backgroundColor: '#FEF2F2', padding: 10, borderRadius: 8, marginTop: 4, marginBottom: 12 }}>
-                                    <Text style={{ fontSize: 11, color: '#ef4444', textAlign: 'center' }}>
-                                        {t('rebirthLockedWarning')}
-                                    </Text>
-                                </View>
-                            )}
-                        </View>
+                    {/* Spend Mpoints to reduce cooldown button */}
+                    {timeLeftMs > 0 && (
+                        <TouchableOpacity 
+                            style={[styles.reduceBtn, isLowerRealm && { borderColor: '#ef4444' }]}
+                            onPress={() => setShowReduceModal(true)}
+                        >
+                            <Flame size={16} color={isLowerRealm ? '#ef4444' : MAROON} />
+                            <Text style={[styles.reduceBtnText, isLowerRealm && { color: '#ef4444' }]}>Tiêu Nghiệp Tốc Hành (Rút ngắn thời gian)</Text>
+                        </TouchableOpacity>
                     )}
-                    <TouchableOpacity
-                        style={[styles.actionBtn, { borderStyle: 'dotted' }]}
-                        onPress={() => router.push('/dashboard/practice' as any)}
-                    >
-                        <Text style={styles.actionBtnText}>{t('addOtherPractice')}</Text>
-                    </TouchableOpacity>
                 </View>
 
-                {challenges.length > 0 && (
-                    <View style={styles.card}>
+                {/* Low Realm Blessing Board (Thỉnh cầu Hộ trì) */}
+                {isLowerRealm && (
+                    <View style={[styles.card, styles.darkUAmCard, { borderColor: '#ef4444', borderWidth: 1.5 }]}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
                             <ShieldAlert size={20} color="#ef4444" />
-                            <Text style={[styles.sectionTitle, { color: '#ef4444', marginBottom: 0, marginLeft: 8 }]}>{t('maraChallenges')}</Text>
+                            <Text style={[styles.sectionTitle, { color: '#ef4444', marginBottom: 0, marginLeft: 8 }]}>Phát nguyện Cầu Hộ trì</Text>
                         </View>
-                        {challenges.map((c: any, idx: number) => (
-                            <View key={idx} style={{ backgroundColor: '#FFF5F5', padding: 12, borderRadius: 8, marginBottom: 8, borderWidth: 1, borderColor: '#ef444422' }}>
-                                <Text style={{ color: '#333', fontSize: 14, marginBottom: 4 }}>{c.description}</Text>
-                                <Text style={{ color: '#ef4444', fontSize: 12, fontWeight: 'bold' }}>{t('failurePenalty').replace('{0}', c.difficulty_days.toString())}</Text>
-                            </View>
-                        ))}
+                        
+                        <Text style={styles.progressHint}>
+                            Cõi ác đạo tăm tối khổ đau. Nếu thiếu Mpoints, đạo hữu có thể gửi lời thỉnh cầu lên cõi Trời để các bậc cõi trên Hồi hướng Công đức trợ duyên (Giảm 24h-48h chờ đợi miễn phí!).
+                        </Text>
+
+                        <TouchableOpacity 
+                            style={[styles.actionBtn, { borderColor: '#ef4444', marginTop: 12 }]}
+                            onPress={() => setShowRequestModal(true)}
+                        >
+                            <HeartHandshake size={16} color="#ef4444" style={{ marginRight: 6 }} />
+                            <Text style={[styles.actionBtnText, { color: '#ef4444' }]}>Gửi thỉnh cầu hồi hướng</Text>
+                        </TouchableOpacity>
+                    </View>
+                )}
+
+                {/* High Realm Blessing Hub (Hộ trì đồng tu cõi thấp) */}
+                {isHigherRealm && (
+                    <View style={[styles.card, styles.lightGoldenCard, { borderColor: GOLD, borderWidth: 1.5 }]}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+                            <Sparkles size={20} color={GOLD} />
+                            <Text style={[styles.sectionTitle, { color: '#92400E', marginBottom: 0, marginLeft: 8 }]}>Ban Phước Hồi Hướng (Hộ Trì Cõi Khổ)</Text>
+                        </View>
+                        
+                        <Text style={styles.progressHint}>
+                            Với tư cách đồng tu cõi Trời, bạn có thể hồi hướng phước đức của mình cho các hương linh cõi thấp (trừ 50 Mpoints) để trợ duyên giảm thọ mạng khổ cực cho họ, bạn nhận ngay +15 Công đức.
+                        </Text>
+
+                        <View style={{ marginTop: 12 }}>
+                            {blessingRequests.length === 0 ? (
+                                <Text style={{ color: '#666', fontStyle: 'italic', fontSize: 13, textAlign: 'center', marginVertical: 12 }}>
+                                    Hiện chưa có lời phát nguyện thỉnh cầu nào từ cõi dưới.
+                                </Text>
+                            ) : (
+                                blessingRequests.map((req) => (
+                                    <View key={req.id} style={styles.blessingRequestItem}>
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={styles.blessingUser}>{req.profiles?.display_name || "Đồng tu"} ({req.realm?.name})</Text>
+                                            <Text style={styles.blessingMsg}>"{req.message}"</Text>
+                                        </View>
+                                        <TouchableOpacity 
+                                            style={styles.blessBtn}
+                                            onPress={() => handleSendBlessing(req.id)}
+                                        >
+                                            <Text style={styles.blessBtnText}>Hồi Hướng</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                ))
+                            )}
+                        </View>
                     </View>
                 )}
 
@@ -527,10 +675,12 @@ export default function RebirdScreen() {
                 )}
 
                 {/* Co-travelers */}
-                <View style={styles.card}>
+                <View style={[styles.card, isLowerRealm && styles.darkUAmCard]}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
                         <Users size={20} color={GOLD} />
-                        <Text style={[styles.sectionTitle, { marginBottom: 0, marginLeft: 8 }]}>{t('coTravelers').replace('{0}', travelers.length.toString())}</Text>
+                        <Text style={[styles.sectionTitle, isLowerRealm && { color: '#ef4444' }, { marginBottom: 0, marginLeft: 8 }]}>
+                            Bạn tu cõi này ({travelers.length})
+                        </Text>
                     </View>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                         {travelers.map((t: any, idx: number) => (
@@ -539,76 +689,85 @@ export default function RebirdScreen() {
                             </View>
                         ))}
                         {travelers.length === 0 && (
-                            <Text style={{ color: '#999', fontStyle: 'italic' }}>{t('noTravelers')}</Text>
+                            <Text style={{ color: '#999', fontStyle: 'italic', fontSize: 13 }}>Hiện tại bạn đang độc hành tại cõi này...</Text>
                         )}
                     </ScrollView>
                 </View>
 
-                {/* Realm Comments (Exchanges) */}
-                <View style={styles.card}>
+                {/* Realm Comments (Locked in lower cõi) */}
+                <View style={[styles.card, isLowerRealm && styles.darkUAmCard]}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
                         <MessageSquare size={20} color={GOLD} />
-                        <Text style={[styles.sectionTitle, { marginBottom: 0, marginLeft: 8 }]}>{t('exchanges')}</Text>
+                        <Text style={[styles.sectionTitle, isLowerRealm && { color: '#ef4444' }, { marginBottom: 0, marginLeft: 8 }]}>Đàm đạo cõi giới</Text>
                     </View>
 
-                    {/* Input Area */}
-                    <View style={styles.commentInputContainer}>
-                        <TextInput
-                            style={styles.commentInput}
-                            placeholder={t('saySomething')}
-                            placeholderTextColor="#94A3B8"
-                            multiline
-                            value={newComment}
-                            onChangeText={setNewComment}
-                            maxLength={500}
-                        />
-                        <TouchableOpacity
-                            onPress={handlePostComment}
-                            disabled={postingComment || !newComment.trim()}
-                            style={[styles.sendBtn, (!newComment.trim() || postingComment) && { opacity: 0.5 }]}
-                        >
-                            {postingComment ? (
-                                <ActivityIndicator size="small" color="#FFF" />
-                            ) : (
-                                <Send size={18} color="#FFF" />
-                            )}
-                        </TouchableOpacity>
-                    </View>
+                    {isLowerRealm ? (
+                        <View style={styles.lockedBox}>
+                            <Lock size={20} color="#94A3B8" />
+                            <Text style={styles.lockedText}>Khóa đàm đạo. Cảnh giới đọa xứ tăm tối không thể tự do giao lưu, hãy sám hối tinh tấn để thoát cõi!</Text>
+                        </View>
+                    ) : (
+                        <>
+                            {/* Input Area */}
+                            <View style={styles.commentInputContainer}>
+                                <TextInput
+                                    style={styles.commentInput}
+                                    placeholder="Chia sẻ kinh nghiệm hành thiền..."
+                                    placeholderTextColor="#94A3B8"
+                                    multiline
+                                    value={newComment}
+                                    onChangeText={setNewComment}
+                                    maxLength={500}
+                                />
+                                <TouchableOpacity
+                                    onPress={handlePostComment}
+                                    disabled={postingComment || !newComment.trim()}
+                                    style={[styles.sendBtn, (!newComment.trim() || postingComment) && { opacity: 0.5 }]}
+                                >
+                                    {postingComment ? (
+                                        <ActivityIndicator size="small" color="#FFF" />
+                                    ) : (
+                                        <Send size={18} color="#FFF" />
+                                    )}
+                                </TouchableOpacity>
+                            </View>
 
-                    {/* Comments List */}
-                    <View style={styles.commentsList}>
-                        {comments.length === 0 ? (
-                            <Text style={styles.noCommentsText}>{t('noExchanges')}</Text>
-                        ) : (
-                            comments.map((c) => (
-                                <View key={c.id} style={styles.commentItem}>
-                                    <View style={styles.commentAvatar}>
-                                        <Text style={styles.commentAvatarText}>
-                                            {c.profiles?.display_name?.charAt(0) || 'U'}
-                                        </Text>
-                                    </View>
-                                    <View style={styles.commentContent}>
-                                        <View style={styles.commentHeader}>
-                                            <Text style={styles.commentAuthor}>{c.profiles?.display_name || t('maratikaUser')}</Text>
-                                            <Text style={styles.commentDate}>{format(new Date(c.created_at), 'HH:mm dd/MM')}</Text>
+                            {/* Comments List */}
+                            <View style={styles.commentsList}>
+                                {comments.length === 0 ? (
+                                    <Text style={styles.noCommentsText}>Chưa có đàm đạo nào. Hãy khởi xướng!</Text>
+                                ) : (
+                                    comments.map((c) => (
+                                        <View key={c.id} style={styles.commentItem}>
+                                            <View style={styles.commentAvatar}>
+                                                <Text style={styles.commentAvatarText}>
+                                                    {c.profiles?.display_name?.charAt(0) || 'U'}
+                                                </Text>
+                                            </View>
+                                            <View style={styles.commentContent}>
+                                                <View style={styles.commentHeader}>
+                                                    <Text style={styles.commentAuthor}>{c.profiles?.display_name || "Đồng tu"}</Text>
+                                                    <Text style={styles.commentDate}>{format(new Date(c.created_at), 'HH:mm dd/MM')}</Text>
+                                                </View>
+                                                <Text style={styles.commentText}>{c.content}</Text>
+                                            </View>
                                         </View>
-                                        <Text style={styles.commentText}>{c.content}</Text>
-                                    </View>
-                                </View>
-                            ))
-                        )}
-                    </View>
+                                    ))
+                                )}
+                            </View>
+                        </>
+                    )}
                 </View>
 
-                {/* Dice Button Container */}
+                {/* Rebirth Roll Dice Button Container */}
                 <View style={styles.diceContainer}>
                     <TouchableOpacity
                         style={[
                             styles.diceButton,
-                            (timeLeftMs > 0 || rolling || requiredPractices.some(p => !p.completed)) && styles.diceButtonDisabled
+                            (timeLeftMs > 0 || rolling) && styles.diceButtonDisabled
                         ]}
                         onPress={handleRollDice}
-                        disabled={timeLeftMs > 0 || rolling || requiredPractices.some(p => !p.completed)}
+                        disabled={timeLeftMs > 0 || rolling}
                     >
                         {rolling ? (
                             <ActivityIndicator color="#FFF" />
@@ -616,48 +775,205 @@ export default function RebirdScreen() {
                             <>
                                 <Dices size={24} color="#FFF" />
                                 <Text style={styles.diceButtonText}>
-                                    {t('rollDiceBtn')}
+                                    Tái sinh luân hồi
                                 </Text>
                             </>
                         )}
                     </TouchableOpacity>
                     {timeLeftMs > 0 && (
-                        <Text style={styles.diceHint}>{t('waitZeroLife')}</Text>
+                        <Text style={styles.diceHint}>Thọ mạng cõi chưa hết. Hãy tiêu Mpoints hoặc thỉnh cầu cõi trên hộ trì để giảm ngày thọ mạng!</Text>
                     )}
                 </View>
+            </ScrollView>
 
-            </ScrollView >
+            {/* Cooldown Reduce Modal */}
+            <Modal visible={showReduceModal} transparent animationType="slide">
+                <View style={styles.modalBg}>
+                    <View style={styles.resultCard}>
+                        <Text style={styles.resultTitle}>TIÊU NGHIỆP TỐC HÀNH</Text>
+                        
+                        <Text style={styles.reduceDesc}>
+                            Tỷ lệ quy đổi tiêu nghiệp rút ngắn thời gian:
+                            {"\n"}<Text style={{ fontWeight: 'bold', color: GOLD }}>10 MPoints = Giảm 1 ngày chờ</Text>
+                            {"\n\n"}Số ngày thọ mạng muốn giảm bớt:
+                        </Text>
+
+                        <View style={styles.selectorRow}>
+                            {[1, 2, 3, 5].map((d) => (
+                                <TouchableOpacity 
+                                    key={d} 
+                                    style={[styles.selectorItem, reduceDays === d && styles.selectorItemSelected]}
+                                    onPress={() => setReduceDays(d)}
+                                >
+                                    <Text style={[styles.selectorText, reduceDays === d && styles.selectorTextSelected]}>{d} ngày</Text>
+                                    <Text style={styles.selectorCost}>{d * 10} MP</Text>
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+
+                        <Text style={styles.minWaitHint}>
+                            * Lưu ý: Ràng buộc thọ mạng tối thiểu 1 ngày (24 giờ) bắt buộc luôn được giữ lại để đảm bảo sự tĩnh lặng chiêm nghiệm cõi giới.
+                        </Text>
+
+                        <View style={styles.modalActions}>
+                            <TouchableOpacity 
+                                style={[styles.modalBtn, { width: '48%', backgroundColor: '#CCC', marginTop: 20 }]}
+                                onPress={() => setShowReduceModal(false)}
+                            >
+                                <Text style={[styles.modalBtnText, { color: '#666' }]}>Đóng</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity 
+                                style={[styles.modalBtn, { width: '48%', marginTop: 20 }]}
+                                onPress={handleReduceCooldown}
+                            >
+                                <Text style={styles.modalBtnText}>Xác nhận</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* Blessing Request Modal */}
+            <Modal visible={showRequestModal} transparent animationType="slide">
+                <View style={styles.modalBg}>
+                    <View style={styles.resultCard}>
+                        <Text style={styles.resultTitle}>PHÁT NGUYỆN THỈNH CẦU CỨU TRỢ</Text>
+                        
+                        <TextInput 
+                            style={styles.requestTextInput}
+                            placeholder="Nhập lời cầu khấn (Ví dụ: Con sám hối nghiệp chướng cõi ngạ quỷ, nguyện xin đồng tu cõi Trời ban phước hồi hướng...)"
+                            placeholderTextColor="#94a3b8"
+                            multiline
+                            numberOfLines={4}
+                            value={myRequestMessage}
+                            onChangeText={setMyRequestMessage}
+                        />
+
+                        <View style={styles.modalActions}>
+                            <TouchableOpacity 
+                                style={[styles.modalBtn, { width: '48%', backgroundColor: '#CCC', marginTop: 20 }]}
+                                onPress={() => setShowRequestModal(false)}
+                            >
+                                <Text style={[styles.modalBtnText, { color: '#666' }]}>Đóng</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity 
+                                style={[styles.modalBtn, { width: '48%', marginTop: 20 }]}
+                                onPress={handleCreateBlessingRequest}
+                                disabled={submittingRequest || !myRequestMessage.trim()}
+                            >
+                                <Text style={styles.modalBtnText}>Phát Nguyện</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* Tournament Leaderboard Modal */}
+            <Modal visible={showLeaderboardModal} transparent animationType="slide">
+                <View style={styles.modalBg}>
+                    <View style={[styles.resultCard, { width: '95%', maxHeight: '85%' }]}>
+                        <Text style={styles.resultTitle}>🏆 BẢNG XẾP HẠNG TINH TẤN</Text>
+
+                        {/* Leaderboard Tabs */}
+                        <View style={styles.tabRow}>
+                            <TouchableOpacity 
+                                style={[styles.tabItem, periodTab === 'month' && styles.tabItemSelected]}
+                                onPress={() => handleOpenLeaderboard('month')}
+                            >
+                                <Text style={[styles.tabText, periodTab === 'month' && styles.tabTextSelected]}>Đua Top Tháng</Text>
+                            </TouchableOpacity>
+                            
+                            <TouchableOpacity 
+                                style={[styles.tabItem, periodTab === 'quarter' && styles.tabItemSelected]}
+                                onPress={() => handleOpenLeaderboard('quarter')}
+                            >
+                                <Text style={[styles.tabText, periodTab === 'quarter' && styles.tabTextSelected]}>Đua Top Quý</Text>
+                            </TouchableOpacity>
+                        </View>
+
+                        {/* Event Prizes Display */}
+                        <View style={styles.prizeCard}>
+                            <Text style={styles.prizeHeader}>🎁 PHẦN THƯỞNG TOP 10 {periodTab === 'month' ? 'THÁNG' : 'QUÝ'}:</Text>
+                            <ScrollView style={{ maxHeight: 110 }} nestedScrollEnabled>
+                                {(periodTab === 'month' ? monthlyPrizes : quarterlyPrizes).map((p, i) => (
+                                    <Text key={i} style={styles.prizeItemText}>{p}</Text>
+                                ))}
+                            </ScrollView>
+                        </View>
+
+                        <Text style={styles.formulaText}>
+                            * Điểm xếp hạng = (Số bài tập x 10) + (Hồi hướng x 15) + (Vượt Ma Vương x 10) + (Streak ngày x 10)
+                        </Text>
+
+                        {/* Leaderboard Users List */}
+                        {loadingLeaderboard ? (
+                            <ActivityIndicator size="large" color={MAROON} style={{ marginVertical: 40 }} />
+                        ) : (
+                            <ScrollView style={styles.leaderboardScroll} nestedScrollEnabled>
+                                {leaderboard.length === 0 ? (
+                                    <Text style={{ textAlign: 'center', color: '#666', fontStyle: 'italic', marginVertical: 30 }}>
+                                        Chưa có bảng xếp hạng trong kỳ này.
+                                    </Text>
+                                ) : (
+                                    leaderboard.map((item, idx) => (
+                                        <View key={item.user_id} style={[styles.leaderboardItem, idx === 0 && styles.firstPlace, idx === 1 && styles.secondPlace, idx === 2 && styles.thirdPlace]}>
+                                            <View style={styles.leaderboardRankBox}>
+                                                {idx < 3 ? (
+                                                    <Award size={20} color={idx === 0 ? GOLD : (idx === 1 ? '#C0C0C0' : BRONZE)} />
+                                                ) : (
+                                                    <Text style={styles.rankNumText}>{idx + 1}</Text>
+                                                )}
+                                            </View>
+                                            
+                                            <View style={{ flex: 1, marginLeft: 12 }}>
+                                                <Text style={styles.rankNameText}>{item.display_name}</Text>
+                                                <Text style={styles.rankDetailsText}>
+                                                    Thiền: {item.practices_count} | Hộ trì: {item.blessings_count} | Thắng Mara: {item.mara_wins_count} | Chuỗi: {item.streak_score / 10}
+                                                </Text>
+                                            </View>
+
+                                            <Text style={styles.rankScoreText}>{item.total_score} pts</Text>
+                                        </View>
+                                    ))
+                                )}
+                            </ScrollView>
+                        )}
+
+                        <TouchableOpacity 
+                            style={[styles.modalBtn, { marginTop: 16 }]}
+                            onPress={() => setShowLeaderboardModal(false)}
+                        >
+                            <Text style={styles.modalBtnText}>ĐÓNG</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
 
             {/* Rolling Animation Overlay */}
-            {
-                rolling && (
-                    <View style={styles.animationOverlay}>
-                        <Animated.View style={{ transform: [{ translateX: shakeAnim }] }}>
-                            <Dices size={120} color={GOLD} strokeWidth={1} />
-                        </Animated.View>
-                        <Text style={styles.rollingText}>{t('rollingDice')}</Text>
-                    </View>
-                )
-            }
+            {rolling && (
+                <View style={styles.animationOverlay}>
+                    <Animated.View style={{ transform: [{ translateX: shakeAnim }] }}>
+                        <Dices size={120} color={GOLD} strokeWidth={1} />
+                    </Animated.View>
+                    <Text style={styles.rollingText}>ĐANG XOAY XÚC XẮC NGHIỆP LỰC...</Text>
+                </View>
+            )}
 
             {/* Result Modal */}
             <Modal visible={showResultModal} transparent animationType="fade">
                 <View style={styles.modalBg}>
                     <View style={styles.resultCard}>
-                        <Text style={styles.resultTitle}>{t('karmaArising')}</Text>
+                        <Text style={styles.resultTitle}>NGHIỆP LỰC KHỞI SINH</Text>
                         <View style={styles.diceResultCircle}>
                             <Text style={styles.diceResultNum}>{diceResult}</Text>
                         </View>
                         <Text style={styles.resultDesc}>
-                            {t('rolledNumber').replace('{0}', diceResult?.toString() || '')}
+                            Đạo hữu gieo xúc xắc đạt: {diceResult} nút.
                         </Text>
-                        <Text style={styles.destText}>{t('nextRealm')}</Text>
+                        <Text style={styles.destText}>CẢNH GIỚI TÁI SINH TIẾP THEO</Text>
                         <Text style={styles.destName}>{targetRealmName}</Text>
-                        {diceResult && (
-                            <Text style={{ color: GOLD, fontSize: 12, marginTop: 4, fontWeight: 'bold' }}>
-                                {t('slotNumber').replace('{0}', diceResult?.toString() || '')}
-                            </Text>
-                        )}
 
                         {rollMessage && (
                             <View style={styles.rewardBadge}>
@@ -672,19 +988,22 @@ export default function RebirdScreen() {
                                 loadData();
                             }}
                         >
-                            <Text style={styles.modalBtnText}>{t('enterAction')}</Text>
+                            <Text style={styles.modalBtnText}>BƯỚC VÀO CẢNH GIỚI</Text>
                         </TouchableOpacity>
                     </View>
                 </View>
             </Modal>
-        </View >
+        </View>
     );
 }
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: BG,
+        backgroundColor: BG_LIGHT,
+    },
+    darkUAmBg: {
+        backgroundColor: '#0F172A',
     },
     header: {
         flexDirection: 'row',
@@ -697,11 +1016,31 @@ const styles = StyleSheet.create({
     headerTitle: {
         color: GOLD,
         fontSize: 18,
-        fontWeight: '800'
+        fontWeight: '900',
+        letterSpacing: 1.5,
+    },
+    headerIcons: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 16,
+    },
+    eventBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'rgba(255,255,255,0.1)',
+        paddingHorizontal: 10,
+        paddingVertical: 5,
+        borderRadius: 12,
+        gap: 4,
+    },
+    eventBtnText: {
+        color: GOLD,
+        fontSize: 11,
+        fontWeight: 'bold',
     },
     imageContainer: {
         width: width,
-        height: 300,
+        height: 260,
         backgroundColor: '#222',
         position: 'relative'
     },
@@ -729,7 +1068,7 @@ const styles = StyleSheet.create({
         right: 0,
         padding: 20,
         paddingTop: 40,
-        backgroundColor: 'rgba(0,0,0,0.5)'
+        backgroundColor: 'rgba(0,0,0,0.6)'
     },
     realmIdText: {
         color: GOLD,
@@ -741,257 +1080,34 @@ const styles = StyleSheet.create({
     },
     realmNameText: {
         color: '#fff',
-        fontSize: 28,
+        fontSize: 26,
         fontWeight: '900'
     },
     infoCard: {
-        margin: 20,
-        padding: 20,
-        backgroundColor: CARD,
+        margin: 16,
+        padding: 16,
+        backgroundColor: '#FFF',
         borderRadius: 20,
         elevation: 2,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
+        shadowOpacity: 0.08,
         shadowRadius: 4,
     },
-    shortDescHTML: {
-        color: MAROON,
-        fontSize: 16,
-        fontWeight: 'bold',
-        fontStyle: 'italic',
-        lineHeight: 24
-    },
-    descHTML: {
-        color: '#444',
-        fontSize: 14,
-        lineHeight: 22
-    },
-    card: {
-        marginHorizontal: 20,
-        marginBottom: 20,
-        padding: 20,
-        backgroundColor: CARD,
-        borderRadius: 20,
-        elevation: 2,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-    },
-    sectionTitle: {
-        color: MAROON,
-        fontSize: 16,
-        fontWeight: 'bold',
-        textTransform: 'uppercase',
-        letterSpacing: 1,
-        marginBottom: 16
-    },
-    lifeText: {
-        color: '#ef4444',
-        fontWeight: '900',
-        fontSize: 16
-    },
-    progressBarBg: {
-        height: 12,
-        backgroundColor: '#F5F5F5',
-        borderRadius: 6,
-        overflow: 'hidden',
-        marginBottom: 12
-    },
-    progressBarFill: {
-        height: '100%',
-        backgroundColor: MAROON,
-        borderRadius: 6
-    },
-    progressHint: {
-        color: '#666',
-        fontSize: 12,
-        fontStyle: 'italic'
-    },
-    practiceItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#FDFCF0',
-        padding: 12,
-        borderRadius: 12,
-        marginBottom: 8,
+    darkUAmCard: {
+        backgroundColor: '#1E293B',
+        borderColor: '#334155',
         borderWidth: 1,
-        borderColor: MAROON + '10'
+        shadowColor: '#000',
+        shadowOpacity: 0.2,
     },
-    practiceIcon: {
-        width: 24,
-        height: 24,
-        borderRadius: 12,
-        backgroundColor: GOLD,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginRight: 12
-    },
-    practiceText: {
-        color: '#333',
-        fontSize: 14,
-        fontWeight: '600'
-    },
-    noPracticeText: {
-        color: '#999',
-        fontSize: 13,
-        marginBottom: 12
-    },
-    actionBtn: {
-        marginTop: 8,
+    lightGoldenCard: {
+        backgroundColor: '#FFFDF9',
+        borderColor: '#FEF3C7',
         borderWidth: 1.5,
-        borderColor: MAROON,
-        paddingVertical: 10,
-        borderRadius: 12,
-        alignItems: 'center'
-    },
-    actionBtnText: {
-        color: MAROON,
-        fontWeight: 'bold',
-        fontSize: 12,
-        textTransform: 'uppercase'
-    },
-    travelerAvatar: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: '#F5F5F5',
-        borderWidth: 2,
-        borderColor: GOLD,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginRight: -10
-    },
-    travelerInitial: {
-        color: MAROON,
-        fontWeight: '900',
-        fontSize: 16
-    },
-    diceContainer: {
-        margin: 20,
-        marginTop: 10,
-        alignItems: 'center'
-    },
-    diceButton: {
-        backgroundColor: MAROON,
-        paddingVertical: 16,
-        paddingHorizontal: 40,
-        borderRadius: 30,
-        flexDirection: 'row',
-        alignItems: 'center',
-        elevation: 5,
-        shadowColor: MAROON,
-        shadowOpacity: 0.3,
+        shadowColor: GOLD,
+        shadowOpacity: 0.08,
         shadowRadius: 10,
-    },
-    diceButtonDisabled: {
-        backgroundColor: '#CCC',
-        shadowOpacity: 0,
-        elevation: 0
-    },
-    diceButtonText: {
-        color: '#FFF',
-        fontWeight: '900',
-        fontSize: 16,
-        marginLeft: 12,
-        letterSpacing: 1
-    },
-    diceHint: {
-        color: '#ef4444',
-        fontSize: 12,
-        marginTop: 12,
-        fontStyle: 'italic',
-        fontWeight: '600'
-    },
-    animationOverlay: {
-        ...StyleSheet.absoluteFillObject,
-        backgroundColor: 'rgba(0,0,0,0.85)',
-        justifyContent: 'center',
-        alignItems: 'center',
-        zIndex: 1000
-    },
-    rollingText: {
-        color: GOLD,
-        fontSize: 20,
-        fontWeight: 'bold',
-        marginTop: 30,
-        letterSpacing: 2,
-        textTransform: 'uppercase'
-    },
-    modalBg: {
-        flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.85)',
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: 20
-    },
-    resultCard: {
-        backgroundColor: BG,
-        width: '90%',
-        borderRadius: 30,
-        padding: 30,
-        alignItems: 'center',
-        borderWidth: 2,
-        borderColor: GOLD
-    },
-    resultTitle: {
-        color: MAROON,
-        fontSize: 14,
-        fontWeight: 'bold',
-        letterSpacing: 4,
-        marginBottom: 20
-    },
-    diceResultCircle: {
-        width: 100,
-        height: 100,
-        borderRadius: 50,
-        backgroundColor: MAROON,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginBottom: 20,
-        elevation: 10,
-        shadowColor: MAROON,
-        shadowOpacity: 0.5,
-        shadowRadius: 15
-    },
-    diceResultNum: {
-        color: GOLD,
-        fontSize: 48,
-        fontWeight: '900'
-    },
-    resultDesc: {
-        color: '#666',
-        fontSize: 16,
-        marginBottom: 10
-    },
-    destText: {
-        color: '#999',
-        fontSize: 12,
-        textTransform: 'uppercase',
-        letterSpacing: 1,
-        marginTop: 10
-    },
-    destName: {
-        color: MAROON,
-        fontSize: 24,
-        fontWeight: '900',
-        marginTop: 5,
-        textAlign: 'center'
-    },
-    rewardBadge: {
-        backgroundColor: '#FFF5E6',
-        paddingHorizontal: 15,
-        paddingVertical: 8,
-        borderRadius: 20,
-        marginTop: 20,
-        borderWidth: 1,
-        borderColor: GOLD + '40'
-    },
-    rewardText: {
-        color: '#B8860B',
-        fontWeight: 'bold',
-        fontSize: 14
     },
     descInner: {
         overflow: 'hidden',
@@ -1002,7 +1118,6 @@ const styles = StyleSheet.create({
         left: 0,
         right: 0,
         height: 60,
-        // Using semi-transparent background as simple fade effect
         backgroundColor: 'rgba(255,255,255,0.85)',
     },
     expandBtn: {
@@ -1021,75 +1136,207 @@ const styles = StyleSheet.create({
         fontWeight: '700',
         letterSpacing: 0.5,
     },
-    modalBtn: {
-        backgroundColor: MAROON,
-        width: '100%',
-        paddingVertical: 16,
-        borderRadius: 15,
-        marginTop: 30,
-        alignItems: 'center'
+    shortDescHTML: {
+        color: MAROON,
+        fontSize: 15,
+        fontWeight: 'bold',
+        fontStyle: 'italic',
+        lineHeight: 22
     },
-    modalBtnText: {
-        color: GOLD,
+    shortDescHTMLDark: {
+        color: '#f87171',
+        fontSize: 15,
+        fontWeight: 'bold',
+        fontStyle: 'italic',
+        lineHeight: 22
+    },
+    descHTML: {
+        color: '#444',
+        fontSize: 13.5,
+        lineHeight: 20
+    },
+    descHTMLDark: {
+        color: '#CBD5E1',
+        fontSize: 13.5,
+        lineHeight: 20
+    },
+    card: {
+        marginHorizontal: 16,
+        marginBottom: 16,
+        padding: 16,
+        backgroundColor: '#FFF',
+        borderRadius: 20,
+        elevation: 2,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 4,
+    },
+    sectionTitle: {
+        color: MAROON,
+        fontSize: 14,
+        fontWeight: 'bold',
+        textTransform: 'uppercase',
+        letterSpacing: 1,
+    },
+    lifeText: {
+        color: '#ef4444',
         fontWeight: '900',
-        fontSize: 16,
-        letterSpacing: 2
+        fontSize: 15
     },
-    // Comments Styles
+    progressBarBg: {
+        height: 10,
+        backgroundColor: '#F1F5F9',
+        borderRadius: 5,
+        overflow: 'hidden',
+        marginVertical: 10,
+    },
+    progressBarFill: {
+        height: '100%',
+        backgroundColor: MAROON,
+        borderRadius: 5
+    },
+    progressHint: {
+        color: '#64748B',
+        fontSize: 11,
+        lineHeight: 16,
+    },
+    reduceBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1.5,
+        borderColor: MAROON + '30',
+        borderRadius: 12,
+        paddingVertical: 10,
+        marginTop: 12,
+        gap: 6,
+    },
+    reduceBtnText: {
+        fontSize: 11,
+        fontWeight: 'bold',
+        color: MAROON,
+    },
+    actionBtn: {
+        marginTop: 8,
+        borderWidth: 1.5,
+        borderColor: MAROON,
+        paddingVertical: 10,
+        borderRadius: 12,
+        alignItems: 'center',
+        flexDirection: 'row',
+        justifyContent: 'center',
+    },
+    actionBtnText: {
+        color: MAROON,
+        fontWeight: 'bold',
+        fontSize: 11,
+        textTransform: 'uppercase'
+    },
+    blessingRequestItem: {
+        backgroundColor: '#FFFBEB',
+        borderWidth: 1,
+        borderColor: '#FDE68A',
+        borderRadius: 12,
+        padding: 12,
+        marginBottom: 8,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+    },
+    blessingUser: {
+        fontSize: 12,
+        fontWeight: 'bold',
+        color: '#92400E',
+    },
+    blessingMsg: {
+        fontSize: 12,
+        color: '#B45309',
+        fontStyle: 'italic',
+        marginTop: 2,
+    },
+    blessBtn: {
+        backgroundColor: GOLD,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 8,
+    },
+    blessBtnText: {
+        color: '#FFF',
+        fontSize: 11,
+        fontWeight: 'bold',
+    },
+    travelerAvatar: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: '#F8FAFC',
+        borderWidth: 1.5,
+        borderColor: GOLD,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: -8,
+        shadowColor: '#000',
+        shadowOpacity: 0.05,
+    },
+    travelerInitial: {
+        color: MAROON,
+        fontWeight: '900',
+        fontSize: 13
+    },
     commentInputContainer: {
         flexDirection: 'row',
         alignItems: 'flex-end',
         gap: 10,
-        marginBottom: 20,
+        marginBottom: 16,
     },
     commentInput: {
         flex: 1,
         backgroundColor: '#F8FAFC',
         borderRadius: 12,
         padding: 12,
-        paddingTop: 12,
-        fontSize: 14,
+        fontSize: 13.5,
         color: '#1E293B',
         borderWidth: 1,
         borderColor: '#E2E8F0',
-        minHeight: 48,
-        maxHeight: 100,
+        minHeight: 44,
+        maxHeight: 80,
     },
     sendBtn: {
-        width: 48,
-        height: 48,
-        borderRadius: 24,
+        width: 44,
+        height: 44,
+        borderRadius: 22,
         backgroundColor: MAROON,
         alignItems: 'center',
         justifyContent: 'center',
     },
     commentsList: {
-        marginTop: 10,
+        marginTop: 8,
     },
     commentItem: {
         flexDirection: 'row',
-        gap: 12,
-        marginBottom: 16,
+        gap: 10,
+        marginBottom: 12,
     },
     commentAvatar: {
-        width: 32,
-        height: 32,
-        borderRadius: 16,
-        backgroundColor: GOLD + '20',
+        width: 28,
+        height: 28,
+        borderRadius: 14,
+        backgroundColor: GOLD + '15',
         alignItems: 'center',
         justifyContent: 'center',
         borderWidth: 1,
-        borderColor: GOLD + '40',
+        borderColor: GOLD + '30',
     },
     commentAvatarText: {
         color: GOLD,
-        fontSize: 12,
+        fontSize: 11,
         fontWeight: '900',
     },
     commentContent: {
         flex: 1,
         backgroundColor: '#F8FAFC',
-        padding: 12,
+        padding: 10,
         borderRadius: 12,
         borderTopLeftRadius: 0,
     },
@@ -1097,27 +1344,357 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 4,
+        marginBottom: 2,
     },
     commentAuthor: {
-        fontSize: 12,
+        fontSize: 11,
         fontWeight: 'bold',
         color: MAROON,
     },
     commentDate: {
-        fontSize: 10,
+        fontSize: 9,
         color: '#94A3B8',
     },
     commentText: {
-        fontSize: 13,
+        fontSize: 12.5,
         color: '#334155',
-        lineHeight: 18,
+        lineHeight: 17,
     },
     noCommentsText: {
         textAlign: 'center',
         color: '#94A3B8',
-        fontSize: 13,
+        fontSize: 12,
         fontStyle: 'italic',
-        paddingVertical: 20,
+        paddingVertical: 16,
+    },
+    lockedBox: {
+        flexDirection: 'row',
+        gap: 10,
+        backgroundColor: '#1E293B',
+        borderWidth: 1,
+        borderColor: '#334155',
+        borderRadius: 12,
+        padding: 12,
+        alignItems: 'center',
+    },
+    lockedText: {
+        flex: 1,
+        fontSize: 11,
+        color: '#94A3B8',
+        lineHeight: 16,
+    },
+    diceContainer: {
+        margin: 20,
+        marginTop: 10,
+        alignItems: 'center'
+    },
+    diceButton: {
+        backgroundColor: MAROON,
+        paddingVertical: 14,
+        paddingHorizontal: 36,
+        borderRadius: 28,
+        flexDirection: 'row',
+        alignItems: 'center',
+        elevation: 4,
+        shadowColor: MAROON,
+        shadowOpacity: 0.25,
+        shadowRadius: 8,
+    },
+    diceButtonDisabled: {
+        backgroundColor: '#CBD5E1',
+        shadowOpacity: 0,
+        elevation: 0
+    },
+    diceButtonText: {
+        color: '#FFF',
+        fontWeight: '900',
+        fontSize: 15,
+        marginLeft: 10,
+        letterSpacing: 1
+    },
+    diceHint: {
+        color: '#ef4444',
+        fontSize: 11,
+        marginTop: 10,
+        fontStyle: 'italic',
+        fontWeight: '600',
+        textAlign: 'center',
+        paddingHorizontal: 20,
+    },
+    animationOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'rgba(0,0,0,0.85)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 1000
+    },
+    rollingText: {
+        color: GOLD,
+        fontSize: 16,
+        fontWeight: 'bold',
+        marginTop: 24,
+        letterSpacing: 2,
+        textTransform: 'uppercase'
+    },
+    modalBg: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.85)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 16
+    },
+    resultCard: {
+        backgroundColor: BG_LIGHT,
+        width: '90%',
+        borderRadius: 24,
+        padding: 24,
+        alignItems: 'center',
+        borderWidth: 2,
+        borderColor: GOLD
+    },
+    resultTitle: {
+        color: MAROON,
+        fontSize: 13,
+        fontWeight: 'bold',
+        letterSpacing: 3,
+        marginBottom: 16
+    },
+    diceResultCircle: {
+        width: 88,
+        height: 88,
+        borderRadius: 44,
+        backgroundColor: MAROON,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 16,
+        elevation: 8,
+        shadowColor: MAROON,
+        shadowOpacity: 0.4,
+        shadowRadius: 12
+    },
+    diceResultNum: {
+        color: GOLD,
+        fontSize: 40,
+        fontWeight: '900'
+    },
+    resultDesc: {
+        color: '#333',
+        fontSize: 15,
+        marginBottom: 8,
+        fontWeight: '600',
+    },
+    reduceDesc: {
+        fontSize: 12.5,
+        color: '#475569',
+        textAlign: 'center',
+        lineHeight: 18,
+        marginBottom: 16,
+    },
+    selectorRow: {
+        flexDirection: 'row',
+        gap: 6,
+        justifyContent: 'center',
+        width: '100%',
+        marginBottom: 16,
+    },
+    selectorItem: {
+        backgroundColor: '#FFF',
+        borderWidth: 1.5,
+        borderColor: '#E2E8F0',
+        borderRadius: 12,
+        padding: 10,
+        alignItems: 'center',
+        width: 62,
+    },
+    selectorItemSelected: {
+        borderColor: GOLD,
+        backgroundColor: '#FFFBEB',
+    },
+    selectorText: {
+        fontSize: 11,
+        fontWeight: 'bold',
+        color: '#475569',
+    },
+    selectorTextSelected: {
+        color: '#92400E',
+    },
+    selectorCost: {
+        fontSize: 9,
+        color: '#94A3B8',
+        marginTop: 2,
+    },
+    minWaitHint: {
+        fontSize: 10,
+        color: '#ef4444',
+        fontStyle: 'italic',
+        textAlign: 'center',
+        lineHeight: 15,
+    },
+    requestTextInput: {
+        backgroundColor: '#FFF',
+        borderWidth: 1.5,
+        borderColor: '#E2E8F0',
+        borderRadius: 12,
+        padding: 12,
+        width: '100%',
+        fontSize: 13,
+        color: '#333',
+        minHeight: 100,
+        textAlignVertical: 'top',
+        marginBottom: 10,
+    },
+    modalActions: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        width: '100%',
+    },
+    destText: {
+        color: '#94A3B8',
+        fontSize: 11,
+        textTransform: 'uppercase',
+        letterSpacing: 1,
+        marginTop: 8
+    },
+    destName: {
+        color: MAROON,
+        fontSize: 20,
+        fontWeight: '900',
+        marginTop: 4,
+        textAlign: 'center'
+    },
+    rewardBadge: {
+        backgroundColor: '#FFFBEB',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 16,
+        marginTop: 16,
+        borderWidth: 1,
+        borderColor: GOLD + '30'
+    },
+    rewardText: {
+        color: '#B45309',
+        fontWeight: 'bold',
+        fontSize: 12
+    },
+    modalBtn: {
+        backgroundColor: MAROON,
+        width: '100%',
+        paddingVertical: 12,
+        borderRadius: 12,
+        marginTop: 20,
+        alignItems: 'center'
+    },
+    modalBtnText: {
+        color: GOLD,
+        fontWeight: '900',
+        fontSize: 14,
+        letterSpacing: 2
+    },
+    // Tournament Tab styles
+    tabRow: {
+        flexDirection: 'row',
+        width: '100%',
+        backgroundColor: '#F1F5F9',
+        borderRadius: 10,
+        padding: 4,
+        marginBottom: 12,
+    },
+    tabItem: {
+        flex: 1,
+        paddingVertical: 8,
+        alignItems: 'center',
+        borderRadius: 8,
+    },
+    tabItemSelected: {
+        backgroundColor: '#FFF',
+        shadowColor: '#000',
+        shadowOpacity: 0.05,
+        shadowRadius: 3,
+        elevation: 1,
+    },
+    tabText: {
+        fontSize: 11,
+        fontWeight: 'bold',
+        color: '#64748B',
+    },
+    tabTextSelected: {
+        color: MAROON,
+    },
+    prizeCard: {
+        backgroundColor: '#FFFBEB',
+        borderWidth: 1,
+        borderColor: '#FDE68A',
+        borderRadius: 12,
+        padding: 10,
+        width: '100%',
+        marginBottom: 12,
+    },
+    prizeHeader: {
+        fontSize: 10.5,
+        fontWeight: 'bold',
+        color: '#92400E',
+        marginBottom: 6,
+    },
+    prizeItemText: {
+        fontSize: 10,
+        color: '#B45309',
+        marginBottom: 2,
+    },
+    formulaText: {
+        fontSize: 9,
+        color: '#64748B',
+        fontStyle: 'italic',
+        marginBottom: 12,
+    },
+    leaderboardScroll: {
+        width: '100%',
+        maxHeight: 200,
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
+        borderRadius: 12,
+        backgroundColor: '#FFF',
+        padding: 6,
+    },
+    leaderboardItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 8,
+        borderBottomWidth: 1,
+        borderBottomColor: '#F1F5F9',
+    },
+    firstPlace: {
+        backgroundColor: '#FFFBEB',
+    },
+    secondPlace: {
+        backgroundColor: '#F8FAFC',
+    },
+    thirdPlace: {
+        backgroundColor: '#FFFDF9',
+    },
+    leaderboardRankBox: {
+        width: 24,
+        height: 24,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    rankNumText: {
+        fontSize: 11,
+        fontWeight: 'bold',
+        color: '#64748B',
+    },
+    rankNameText: {
+        fontSize: 11,
+        fontWeight: 'bold',
+        color: '#1E293B',
+    },
+    rankDetailsText: {
+        fontSize: 8.5,
+        color: '#64748B',
+        marginTop: 1,
+    },
+    rankScoreText: {
+        fontSize: 11,
+        fontWeight: 'bold',
+        color: MAROON,
     }
 });

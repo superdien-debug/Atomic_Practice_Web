@@ -20,6 +20,8 @@ export interface RebirthState {
     user_id: string;
     realm_id: number;
     expires_at: string;
+    created_at?: string;
+    updated_at?: string;
     realm?: Realm;
 }
 
@@ -241,22 +243,7 @@ export const rebirthService = {
 
         if (!isExpired) {
             console.log("[RebirthService] Not expired yet. timeLeftMs:", expires.getTime() - now.getTime());
-            return { success: false, dice: 0, from: state.realm_id, to: state.realm_id, toName: state.realm?.name || '', message: "Sinh lực chưa về 0. Hãy kiên nhẫn hoặc thực hành để giảm thanh sinh lực!" };
-        }
-
-        // Check mandatory practices (only since current turn started)
-        const required = await this.getRequiredPracticesForRealm(state.realm_id, (state as any).updated_at);
-        const uncompleted = required.filter(p => !p.completed);
-        if (uncompleted.length > 0) {
-            console.log("[RebirthService] Uncompleted mandatory practices:", uncompleted.map(p => p.title).join(', '));
-            return {
-                success: false,
-                dice: 0,
-                from: state.realm_id,
-                to: state.realm_id,
-                toName: state.realm?.name || '',
-                message: `Bạn chưa hoàn thành các bài thực hành bắt buộc: ${uncompleted.map(p => p.title).join(', ')}`
-            };
+            return { success: false, dice: 0, from: state.realm_id, to: state.realm_id, toName: state.realm?.name || '', message: "Chưa hết thời hạn chờ tại cảnh giới này. Bạn có thể kiên nhẫn tích lũy thêm ngày hoặc tiêu Mpoints để rút ngắn!" };
         }
 
         // Deduct 50 Mpoints
@@ -542,5 +529,210 @@ export const rebirthService = {
 
         if (error) throw error;
         return data as RebirthComment;
+    },
+
+    // 9. Spend Mpoints to reduce countdown time (10 MP = 1 day, minimum 1-day rule)
+    async reduceCooldownWithMPoints(daysToReduce: number): Promise<{ success: boolean, message: string, newExpiresAt?: string }> {
+        console.log(`[RebirthService] reduceCooldownWithMPoints called with ${daysToReduce} days`);
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error("Not authenticated");
+
+        const state = await this.getState(user.id);
+        if (!state) throw new Error("State not found");
+
+        const cost = daysToReduce * 10;
+        
+        try {
+            await userService.spendMPoints(cost);
+        } catch (e: any) {
+            return { success: false, message: e.message || "Không đủ Mpoints để rút ngắn thời gian." };
+        }
+
+        // Calculate new expires_at
+        const currentExpires = this.parseExpiresAt(state.expires_at);
+        const startTurnDate = state.updated_at ? new Date(state.updated_at) : new Date(state.created_at || new Date());
+        
+        let newExpiresMs = currentExpires.getTime() - (daysToReduce * 24 * 60 * 60 * 1000);
+        const minExpiresMs = startTurnDate.getTime() + (24 * 60 * 60 * 1000); // Tối thiểu 1 ngày (24h)
+
+        if (newExpiresMs < minExpiresMs) {
+            newExpiresMs = minExpiresMs;
+        }
+
+        const newExpiresAt = new Date(newExpiresMs).toISOString();
+
+        const { error: updateError } = await supabase
+            .from('user_rebirth_state')
+            .update({
+                expires_at: newExpiresAt,
+                updated_at: new Date().toISOString()
+            })
+            .eq('user_id', user.id);
+
+        if (updateError) {
+            throw updateError;
+        }
+
+        return {
+            success: true,
+            message: `Đã rút ngắn thời gian thành công!`,
+            newExpiresAt
+        };
+    },
+
+    // 10. Create Blessing Request (Cõi thấp thỉnh cầu)
+    async createBlessingRequest(message: string): Promise<any> {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error("Not authenticated");
+
+        const state = await this.getState(user.id);
+        if (!state) throw new Error("State not found");
+
+        const { data, error } = await supabase
+            .from('game_rebirth_blessing_requests')
+            .insert({
+                user_id: user.id,
+                realm_id: state.realm_id,
+                message
+            })
+            .select()
+            .single();
+
+        if (error) throw error;
+        return data;
+    },
+
+    // 11. Get Active Blessing Requests
+    async getBlessingRequests(realmId?: number): Promise<any[]> {
+        let query = supabase
+            .from('game_rebirth_blessing_requests')
+            .select(`
+                *,
+                profiles:user_id(display_name, avatar_url),
+                realm:realm_id(name)
+            `)
+            .eq('is_fulfilled', false);
+
+        if (realmId !== undefined) {
+            query = query.eq('realm_id', realmId);
+        }
+
+        const { data, error } = await query.order('created_at', { ascending: false });
+        if (error) {
+            console.error("[RebirthService] getBlessingRequests error:", error);
+            return [];
+        }
+        return data || [];
+    },
+
+    // 12. Send Blessing (Hồi hướng cõi Trời)
+    async sendBlessing(requestId: string): Promise<{ success: boolean, message: string }> {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error("Not authenticated");
+
+        // 1. Fetch the request
+        const { data: request, error: reqError } = await supabase
+            .from('game_rebirth_blessing_requests')
+            .select('*')
+            .eq('id', requestId)
+            .single();
+
+        if (reqError || !request) {
+            return { success: false, message: "Không tìm thấy lời thỉnh cầu này hoặc đã bị xóa." };
+        }
+
+        if (request.is_fulfilled) {
+            return { success: false, message: "Lời thỉnh cầu này đã được đồng tu khác hồi hướng hộ trì." };
+        }
+
+        if (request.user_id === user.id) {
+            return { success: false, message: "Bạn không thể tự hồi hướng hộ trì cho lời thỉnh cầu của chính mình." };
+        }
+
+        // 2. Spend 50 Mpoints of sender
+        try {
+            await userService.spendMPoints(50);
+        } catch (e: any) {
+            return { success: false, message: e.message || "Không đủ Mpoints để ban phước hồi hướng." };
+        }
+
+        // 3. Calculate and reduce recipient's cooldown (random 24h to 48h)
+        const recipientState = await this.getState(request.user_id);
+        if (recipientState) {
+            const currentExpires = this.parseExpiresAt(recipientState.expires_at);
+            const startTurnDate = recipientState.updated_at ? new Date(recipientState.updated_at) : new Date(recipientState.created_at || new Date());
+            
+            // Randomly reduce 24 to 48 hours
+            const reduceHours = Math.floor(Math.random() * 25) + 24; // 24 to 48
+            let newExpiresMs = currentExpires.getTime() - (reduceHours * 60 * 60 * 1000);
+            const minExpiresMs = startTurnDate.getTime() + (24 * 60 * 60 * 1000); // 1-day min limit
+
+            if (newExpiresMs < minExpiresMs) {
+                newExpiresMs = minExpiresMs;
+            }
+
+            // Update recipient state
+            await supabase
+                .from('user_rebirth_state')
+                .update({
+                    expires_at: new Date(newExpiresMs).toISOString(),
+                    updated_at: new Date().toISOString()
+                })
+                .eq('user_id', request.user_id);
+
+            // 4. Log the Blessing transaction
+            await supabase
+                .from('game_rebirth_blessings')
+                .insert({
+                    sender_id: user.id,
+                    receiver_id: request.user_id,
+                    request_id: request.id,
+                    mpoints_spent: 50,
+                    life_reduced_hours: reduceHours,
+                    merit_reward: 15
+                });
+
+            // 5. Update request status to fulfilled
+            await supabase
+                .from('game_rebirth_blessing_requests')
+                .update({
+                    is_fulfilled: true,
+                    fulfilled_by: user.id
+                })
+                .eq('id', request.id);
+        }
+
+        return {
+            success: true,
+            message: "Hồi hướng công đức thành công! Bạn nhận được +15 điểm xếp hạng."
+        };
+    },
+
+    // 13. Fetch Tournament Leaderboard
+    async getTournamentLeaderboard(period: 'month' | 'quarter'): Promise<any[]> {
+        const now = new Date();
+        let startDate: Date;
+        let endDate: Date;
+
+        if (period === 'month') {
+            startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+            endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+        } else {
+            // Quarter calculation
+            const quarter = Math.floor(now.getMonth() / 3);
+            startDate = new Date(now.getFullYear(), quarter * 3, 1);
+            endDate = new Date(now.getFullYear(), (quarter + 1) * 3, 0, 23, 59, 59);
+        }
+
+        const { data, error } = await supabase.rpc('get_tournament_leaderboard', {
+            p_start_date: startDate.toISOString(),
+            p_end_date: endDate.toISOString()
+        });
+
+        if (error) {
+            console.error("[RebirthService] getTournamentLeaderboard error:", error);
+            return [];
+        }
+        return data || [];
     }
 };
