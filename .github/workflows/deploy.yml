@@ -1,0 +1,44 @@
+name: CI/CD Build and Deploy to VPS
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: |
+          npm ci --legacy-peer-deps
+
+      - name: Build Web Application
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL || 'http://222.255.117.204' }}
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+          EXPO_PUBLIC_GEMINI_API_KEY: ${{ secrets.EXPO_PUBLIC_GEMINI_API_KEY }}
+        run: |
+          npx expo export --platform web
+
+      - name: Install SSHPass (for password auth deployment)
+        run: sudo apt-get install -y sshpass rsync
+
+      - name: Deploy static build to VPS via Rsync
+        env:
+          SSH_PASS: ${{ secrets.VPS_PASSWORD || 'Nobitaxu$1982' }}
+          SSH_USER: ${{ secrets.VPS_USER || 'root' }}
+          SSH_HOST: ${{ secrets.VPS_HOST || '222.255.117.204' }}
+        run: |
+          sshpass -p "$SSH_PASS" ssh -o StrictHostKeyChecking=no -p 22 $SSH_USER@$SSH_HOST "mkdir -p /var/www/atomic-practice/dist"
+          sshpass -p "$SSH_PASS" rsync -avz -e "ssh -o StrictHostKeyChecking=no -p 22" --delete dist/ $SSH_USER@$SSH_HOST:/var/www/atomic-practice/dist/

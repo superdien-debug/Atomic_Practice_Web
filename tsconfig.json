@@ -12,5 +12,15 @@
     "**/*.ts",
     "**/*.tsx",
     "nativewind-env.d.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    ".expo",
+    "web-build",
+    "dist",
+    "Game_Rebird",
+    "openclaw_repo",
+    ".snapshots",
+    "supabase"
   ]
 }

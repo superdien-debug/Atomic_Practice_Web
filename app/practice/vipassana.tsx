@@ -113,7 +113,7 @@ export default function VipassanaScreen() {
 
     // Timer Logic
     useEffect(() => {
-        let interval: NodeJS.Timeout;
+        let interval: NodeJS.Timeout | undefined = undefined;
         if (isPlaying && secondsLeft > 0) {
             interval = setInterval(() => {
                 setSecondsLeft(prev => {
@@ -124,10 +124,10 @@ export default function VipassanaScreen() {
                     return prev - 1;
                 });
             }, 1000);
-        } else {
-            clearInterval(interval);
         }
-        return () => clearInterval(interval);
+        return () => {
+            if (interval) clearInterval(interval);
+        };
     }, [isPlaying, secondsLeft]);
 
     // Animation Logic
