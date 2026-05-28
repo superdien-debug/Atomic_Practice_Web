@@ -48,7 +48,6 @@ DROP POLICY IF EXISTS "Users can insert blessings" ON public.game_rebirth_blessi
 CREATE POLICY "Users can insert blessings" ON public.game_rebirth_blessings 
     FOR INSERT WITH CHECK (auth.uid() = sender_id);
 
--- 5. Create Tournament Leaderboard Function
 CREATE OR REPLACE FUNCTION public.get_tournament_leaderboard(p_start_date TIMESTAMP WITH TIME ZONE, p_end_date TIMESTAMP WITH TIME ZONE)
 RETURNS TABLE (
     user_id UUID,
@@ -78,24 +77,24 @@ BEGIN
         )::BIGINT AS total_score
     FROM public.profiles p
     LEFT JOIN (
-        SELECT logs.user_id, COUNT(*) AS cnt 
+        SELECT logs.user_id, COUNT(*) AS cnt, MAX(logs.created_at) AS max_t
         FROM public.practice_logs logs
         WHERE logs.completed = true AND logs.created_at >= p_start_date AND logs.created_at <= p_end_date
         GROUP BY logs.user_id
     ) pr ON p.id = pr.user_id
     LEFT JOIN (
-        SELECT b.sender_id, COUNT(*) AS cnt 
+        SELECT b.sender_id, COUNT(*) AS cnt, MAX(b.created_at) AS max_t
         FROM public.game_rebirth_blessings b
         WHERE b.created_at >= p_start_date AND b.created_at <= p_end_date
         GROUP BY b.sender_id
     ) bl ON p.id = bl.sender_id
     LEFT JOIN (
-        SELECT h.user_id, COUNT(*) AS cnt 
+        SELECT h.user_id, COUNT(*) AS cnt, MAX(h.created_at) AS max_t
         FROM public.game_rebirth_history h
         WHERE h.to_realm_id > 24 AND h.to_realm_id != 20 AND h.created_at >= p_start_date AND h.created_at <= p_end_date
         GROUP BY h.user_id
     ) ma ON p.id = ma.user_id
-    ORDER BY total_score DESC;
+    ORDER BY total_score DESC, COALESCE(GREATEST(pr.max_t, bl.max_t, ma.max_t), NOW()) ASC;
 END;
 $$;
 

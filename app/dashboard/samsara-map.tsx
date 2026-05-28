@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Animated, TouchableOpacity, Image, ActivityIndicator, Modal } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Animated, TouchableOpacity, Image, ActivityIndicator, Modal, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Map, Gift, User, X, Eye, Square } from 'lucide-react-native';
@@ -23,14 +23,29 @@ export default function SamsaraMapScreen() {
     const insets = useSafeAreaInsets();
     const router = useRouter();
     const t = useT();
+    const { width: screenWidth } = useWindowDimensions();
+    
+    // Responsive chess grid cell sizing
+    const minCellSize = 54;
+    const padding = 4;
+    const borderWidth = 3;
+    const cellMargin = 1.5;
+    const containerSpacing = (padding + borderWidth) * 2; // 14px
+    const totalCellSpacing = cellMargin * 2 * 10; // 30px
+    
+    const idealBoardWidth = Math.min(screenWidth - 32, 580);
+    const idealCellSize = Math.floor((idealBoardWidth - containerSpacing - totalCellSpacing) / 10);
+    const cellSize = Math.max(minCellSize, idealCellSize);
+    const boardWidth = cellSize * 10 + totalCellSpacing + containerSpacing;
 
     const [realms, setRealms] = useState<Realm[]>([]);
     const [currentState, setCurrentState] = useState<any>(null);
     const [travelersMap, setTravelersMap] = useState<Record<number, Traveler[]>>({});
     const [treasureRealms, setTreasureRealms] = useState<Set<number>>(new Set());
     const [loading, setLoading] = useState(true);
-    const [viewMode, setViewMode] = useState<'detail' | 'mini'>('detail');
     const [selectedRealm, setSelectedRealm] = useState<Realm | null>(null);
+
+    const horizontalScrollRef = React.useRef<ScrollView>(null);
 
     const pulseAnim = React.useRef(new Animated.Value(1)).current;
 
@@ -46,6 +61,21 @@ export default function SamsaraMapScreen() {
     useEffect(() => {
         loadMapData();
     }, []);
+
+    // Focus scroll on load to user's current realm position
+    useEffect(() => {
+        if (!loading && currentState?.realm_id && realms.length > 0) {
+            const colIndex = (currentState.realm_id - 1) % 10;
+            const cellX = colIndex * (cellSize + cellMargin * 2) + padding + borderWidth;
+            // Center the cell inside the viewport
+            const scrollX = Math.max(0, cellX - screenWidth / 2 + cellSize / 2);
+            
+            const timer = setTimeout(() => {
+                horizontalScrollRef.current?.scrollTo({ x: scrollX, animated: true });
+            }, 300);
+            return () => clearTimeout(timer);
+        }
+    }, [loading, currentState, realms, screenWidth]);
 
     const loadMapData = async () => {
         setLoading(true);
@@ -63,6 +93,12 @@ export default function SamsaraMapScreen() {
                 return null;
             });
             setCurrentState(myState);
+            if (myState && allRealms) {
+                const myRealm = allRealms.find((x: any) => x.id === myState.realm_id);
+                if (myRealm) {
+                    setSelectedRealm(myRealm);
+                }
+            }
 
             // 3. Fetch all active travelers and their profiles
             const { data: travelerData, error: travelerError } = await supabase
@@ -121,7 +157,6 @@ export default function SamsaraMapScreen() {
     // Render Chessboard grid cells
     const renderBoard = () => {
         const boardRows = [];
-        const isMini = viewMode === 'mini';
         
         // Loop from row 10 (top) down to 0 (bottom)
         for (let r = 10; r >= 0; r--) {
@@ -133,13 +168,27 @@ export default function SamsaraMapScreen() {
                 if (realmId <= 104) {
                     const realm = realms.find(x => x.id === realmId);
                     if (realm) {
-                        rowCells.push(isMini ? renderMiniCell(realm) : renderCell(realm));
+                        rowCells.push(renderCell(realm));
                     }
                 } else {
                     // Empty decorative cells
                     rowCells.push(
-                        <View key={`empty-${realmId}`} style={[isMini ? styles.miniCell : styles.cell, styles.emptyCell]}>
-                            <Text style={isMini ? styles.miniLotusIcon : styles.lotusIcon}>☸️</Text>
+                        <View 
+                            key={`empty-${realmId}`} 
+                            style={[
+                                styles.cell, 
+                                { 
+                                    width: cellSize, 
+                                    height: cellSize, 
+                                    margin: cellMargin, 
+                                    borderRadius: 6,
+                                    justifyContent: 'center', 
+                                    alignItems: 'center' 
+                                }, 
+                                styles.emptyCell
+                            ]}
+                        >
+                            <Text style={[styles.lotusIcon, { fontSize: Math.floor(cellSize * 0.45) }]}>☸️</Text>
                         </View>
                     );
                 }
@@ -155,71 +204,35 @@ export default function SamsaraMapScreen() {
         return boardRows;
     };
 
-    const renderMiniCell = (r: Realm) => {
-        const travelers = travelersMap[r.id] || [];
-        const isMyCurrent = currentState && currentState.realm_id === r.id;
-        const hasTreasure = treasureRealms.has(r.id);
-
-        let cellBg = '#f1f5f9'; // cõi thường
-        let borderStyle: any = { borderColor: '#cbd5e1', borderWidth: 0.5 };
-        
-        if (r.id >= 1 && r.id <= 13) {
-            cellBg = '#fee2e2'; // cõi khổ
-            borderStyle = { borderColor: '#fca5a5', borderWidth: 0.5 };
-        } else if (r.id >= 70 && r.id <= 104) {
-            cellBg = '#fef3c7'; // cõi cao
-            borderStyle = { borderColor: '#fde68a', borderWidth: 0.5 };
-        }
-
-        if (isMyCurrent) {
-            cellBg = '#fef08a'; // vị trí của mình
-            borderStyle = { borderColor: GOLD, borderWidth: 1.5 };
-        }
-
-        return (
-            <TouchableOpacity 
-                key={r.id} 
-                style={[
-                    styles.miniCell, 
-                    { backgroundColor: cellBg },
-                    borderStyle,
-                    isMyCurrent && styles.miniMyCurrentCell
-                ]}
-                onPress={() => setSelectedRealm(r)}
-                activeOpacity={0.7}
-            >
-                {/* Tiny content inside mini cell */}
-                {isMyCurrent ? (
-                    <Animated.View style={{ transform: [{ scale: pulseAnim }], width: 12, height: 12, borderRadius: 6, backgroundColor: MAROON, borderWidth: 1, borderColor: '#fff' }} />
-                ) : travelers.length > 0 ? (
-                    // Render a tiny blue dot representing travelers
-                    <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#3b82f6' }} />
-                ) : hasTreasure ? (
-                    <Gift size={10} color={GOLD} />
-                ) : (
-                    <Text style={{ fontSize: 8, color: '#64748b', fontWeight: 'bold' }}>{r.id}</Text>
-                )}
-            </TouchableOpacity>
-        );
-    };
-
     const renderCell = (r: Realm) => {
         const travelers = travelersMap[r.id] || [];
         const isMyCurrent = currentState && currentState.realm_id === r.id;
         const hasTreasure = treasureRealms.has(r.id);
+        const isSelected = selectedRealm && selectedRealm.id === r.id;
 
         // Determine background and borders based on cõi giới clusters
-        let cellTypeStyle = styles.humanCell;
-        let idBadgeColor = MAROON;
+        let cellBg = '#ffffff'; // cõi người
+        let borderStyle: any = { borderColor: '#e2e8f0', borderWidth: 1 };
+        let textColor = '#475569';
         
         if (r.id >= 1 && r.id <= 13) {
-            // Cõi khổ (Hell/Pretas/Animal)
-            cellTypeStyle = styles.lowerCell;
-            idBadgeColor = '#ef4444';
+            cellBg = '#1e293b'; // cõi khổ
+            borderStyle = { borderColor: '#334155', borderWidth: 1 };
+            textColor = '#94a3b8';
         } else if (r.id >= 70 && r.id <= 104) {
-            // Cõi Trời/Tịnh độ (Deva/Pure Land)
-            cellTypeStyle = styles.higherCell;
-            idBadgeColor = GOLD;
+            cellBg = '#fffdf5'; // cõi cao
+            borderStyle = { borderColor: '#fde68a', borderWidth: 1 };
+            textColor = '#b45309';
+        }
+
+        // Highlight selected cell
+        if (isSelected) {
+            borderStyle = { borderColor: MAROON, borderWidth: 2 };
+        }
+
+        // Highlight self position
+        if (isMyCurrent) {
+            borderStyle = { borderColor: GOLD, borderWidth: 2 };
         }
 
         return (
@@ -227,54 +240,54 @@ export default function SamsaraMapScreen() {
                 key={r.id} 
                 style={[
                     styles.cell, 
-                    cellTypeStyle,
-                    hasTreasure && styles.treasureCell,
-                    isMyCurrent && styles.myCurrentCell
+                    { 
+                        width: cellSize, 
+                        height: cellSize, 
+                        backgroundColor: cellBg,
+                        margin: cellMargin,
+                        borderRadius: 6,
+                        padding: 1,
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        position: 'relative'
+                    },
+                    borderStyle,
                 ]}
                 onPress={() => setSelectedRealm(r)}
-                activeOpacity={0.8}
+                activeOpacity={0.7}
             >
-                {/* ID and Treasure Header */}
-                <View style={styles.cellHeader}>
-                    <Text style={[styles.cellId, { color: idBadgeColor }]}>#{r.id}</Text>
-                    {hasTreasure && (
-                        <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
-                            <Gift size={11} color={GOLD} />
-                        </Animated.View>
-                    )}
-                </View>
-
-                {/* Realm Name */}
-                <Text numberOfLines={2} style={styles.cellName}>
-                    {r.name}
-                </Text>
-
-                {/* Avatars of active players */}
-                <View style={styles.avatarsRow}>
-                    {travelers.slice(0, 3).map((player, idx) => (
-                        <View key={player.id} style={[styles.avatarWrapper, { marginLeft: idx > 0 ? -6 : 0 }]}>
-                            {player.avatar ? (
-                                <Image source={{ uri: player.avatar }} style={styles.avatarImg} />
-                            ) : (
-                                <View style={styles.avatarPlaceholder}>
-                                    <User size={8} color="#999" />
-                                </View>
-                            )}
-                            {player.id === currentState?.user_id && (
-                                <View style={styles.myIndicator} />
-                            )}
-                        </View>
-                    ))}
-                    {travelers.length > 3 && (
-                        <View style={styles.countBadge}>
-                            <Text style={styles.countText}>+{travelers.length - 3}</Text>
-                        </View>
-                    )}
-                </View>
-
-                {/* Self visual indicator ring */}
+                {/* Visual indicator for self position */}
                 {isMyCurrent && (
-                    <View style={styles.selfPulseRing} />
+                    <Animated.View style={[styles.selfPulseRing, { transform: [{ scale: pulseAnim }], borderRadius: 6, top: -1.5, left: -1.5, right: -1.5, bottom: -1.5 }]} />
+                )}
+
+                {/* If there is a traveler, display the first traveler's avatar */}
+                {travelers.length > 0 ? (
+                    <View style={styles.cellAvatarContainer}>
+                        {travelers[0].avatar ? (
+                            <Image source={{ uri: travelers[0].avatar }} style={styles.cellAvatarImg} />
+                        ) : (
+                            <View style={styles.cellAvatarPlaceholder}>
+                                <User size={Math.floor(cellSize * 0.45)} color="#64748b" />
+                            </View>
+                        )}
+                        {/* If there are more than 1 traveler, show a count badge */}
+                        {travelers.length > 1 && (
+                            <View style={styles.cellCountBadge}>
+                                <Text style={styles.cellCountText}>+{travelers.length}</Text>
+                            </View>
+                        )}
+                        {/* Self marker indicator on the avatar */}
+                        {travelers.some(p => p.id === currentState?.user_id) && (
+                            <View style={styles.myIndicator} />
+                        )}
+                    </View>
+                ) : hasTreasure ? (
+                    <Gift size={Math.floor(cellSize * 0.45)} color={GOLD} />
+                ) : (
+                    <Text style={{ fontSize: Math.max(8, Math.min(11, Math.floor(cellSize * 0.35))), color: textColor, fontWeight: 'bold' }}>
+                        {r.id}
+                    </Text>
                 )}
             </TouchableOpacity>
         );
@@ -300,170 +313,128 @@ export default function SamsaraMapScreen() {
                     <Text style={styles.loaderText}>Đang lập bản đồ lục đạo...</Text>
                 </View>
             ) : (
-                <View style={{ flex: 1 }}>
+                <ScrollView 
+                    contentContainerStyle={styles.scrollContainer}
+                    showsVerticalScrollIndicator={false}
+                >
+                    <Text style={styles.subtitle}>
+                        Nhấp vào bất kỳ ô nào trên bàn cờ để xem chi tiết cảnh giới và danh sách các đồng tu đang thực hành tại đó thời gian thực!
+                    </Text>
+
+                    {/* Responsive scrollable Chessboard - automatically fits 100% screen width! */}
                     <ScrollView 
-                        contentContainerStyle={styles.scrollContainer}
-                        showsVerticalScrollIndicator={false}
+                        horizontal
+                        ref={horizontalScrollRef}
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={{
+                            paddingHorizontal: 16,
+                            paddingVertical: 8,
+                            alignItems: 'center',
+                        }}
+                        style={{ width: '100%', marginBottom: 16 }}
                     >
-                        <Text style={styles.subtitle}>
-                            Toàn cảnh 104 cõi giới luân hồi. Nhấp vào bất kỳ ô nào để xem chi tiết cảnh giới và danh sách các đồng tu đang thực hành tại đó!
-                        </Text>
-
-                        {/* Responsive Segmented Toggle Button */}
-                        <View style={styles.toggleContainer}>
-                            <TouchableOpacity 
-                                style={[styles.toggleBtn, viewMode === 'detail' && styles.activeToggleBtn]}
-                                onPress={() => setViewMode('detail')}
-                                activeOpacity={0.7}
-                            >
-                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                                    <Eye size={14} color={viewMode === 'detail' ? MAROON : '#64748b'} />
-                                    <Text style={[styles.toggleText, viewMode === 'detail' && styles.activeToggleText]}>
-                                        Cận Cảnh (Cuộn)
-                                    </Text>
-                                </View>
-                            </TouchableOpacity>
-                            <TouchableOpacity 
-                                style={[styles.toggleBtn, viewMode === 'mini' && styles.activeToggleBtn]}
-                                onPress={() => setViewMode('mini')}
-                                activeOpacity={0.7}
-                            >
-                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                                    <Square size={12} color={viewMode === 'mini' ? MAROON : '#64748b'} />
-                                    <Text style={[styles.toggleText, viewMode === 'mini' && styles.activeToggleText]}>
-                                        Toàn Cảnh (Gọn)
-                                    </Text>
-                                </View>
-                            </TouchableOpacity>
+                        <View style={[
+                            styles.boardContainer, 
+                            { 
+                                width: boardWidth,
+                                padding: padding, 
+                                borderWidth: borderWidth, 
+                                borderRadius: 12,
+                                alignSelf: 'center',
+                            }
+                        ]}>
+                            {renderBoard()}
                         </View>
-
-                        {viewMode === 'detail' ? (
-                            /* Horizontal scroll support for detailed cells */
-                            <ScrollView 
-                                horizontal
-                                showsHorizontalScrollIndicator={true}
-                                contentContainerStyle={styles.horizontalScrollContent}
-                            >
-                                <View style={styles.boardContainer}>
-                                    {renderBoard()}
-                                </View>
-                            </ScrollView>
-                        ) : (
-                            /* Directly fits on phone screen in mini mode! */
-                            <View style={[styles.boardContainer, { padding: 4, borderWidth: 3, borderRadius: 12 }]}>
-                                {renderBoard()}
-                            </View>
-                        )}
                     </ScrollView>
-                </View>
-            )}
 
-            {/* Gorgeous Realm Details Modal Popup */}
-            <Modal
-                visible={selectedRealm !== null}
-                transparent={true}
-                animationType="fade"
-                onRequestClose={() => setSelectedRealm(null)}
-            >
-                {selectedRealm && (
-                    <TouchableOpacity 
-                        style={styles.modalOverlay} 
-                        activeOpacity={1} 
-                        onPress={() => setSelectedRealm(null)}
-                    >
-                        <TouchableOpacity 
-                            style={styles.modalContent} 
-                            activeOpacity={1}
-                        >
-                            {/* Modal Header */}
-                            <View style={styles.modalHeader}>
-                                <Text style={styles.modalTitle}>
+                    {/* Gorgeous Inline Realm Details Card (Tự động hiển thị cõi của mình khi mới vào) */}
+                    {selectedRealm && (
+                        <View style={[
+                            styles.detailCard, 
+                            selectedRealm.id <= 13 && styles.darkDetailCard,
+                            selectedRealm.id >= 70 && styles.goldenDetailCard
+                        ]}>
+                            {/* Card Header */}
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                                <Text style={[
+                                    styles.detailCardTitle,
+                                    selectedRealm.id <= 13 && { color: '#ef4444' },
+                                    selectedRealm.id >= 70 && { color: GOLD }
+                                ]}>
                                     Cảnh giới #{selectedRealm.id}: {selectedRealm.name}
                                 </Text>
-                                <TouchableOpacity 
-                                    onPress={() => setSelectedRealm(null)}
-                                    style={styles.modalCloseBtn}
-                                >
-                                    <X size={20} color="#94a3b8" />
-                                </TouchableOpacity>
+                                <Text style={[
+                                    styles.detailClusterText,
+                                    selectedRealm.id <= 13 && { color: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.1)' },
+                                    selectedRealm.id >= 70 && { color: GOLD, backgroundColor: 'rgba(212, 175, 55, 0.1)' }
+                                ]}>
+                                    {selectedRealm.id <= 13 ? '🔴 CÕI KHỔ' : (selectedRealm.id >= 70 ? '🟡 CÕI CAO' : '🟢 CÕI THƯỜNG')}
+                                </Text>
                             </View>
 
-                            {/* Realm Type Badge */}
-                            <Text style={[
-                                styles.modalSectionTitle, 
-                                { 
-                                    color: selectedRealm.id <= 13 ? '#ef4444' : (selectedRealm.id >= 70 ? GOLD : MAROON),
-                                    marginBottom: 10
-                                }
-                            ]}>
-                                {selectedRealm.id <= 13 ? '🔴 Cõi Khổ (Địa ngục / Ngạ quỷ / Súc sinh)' : (selectedRealm.id >= 70 ? '🟡 Cõi Cao (Trời / Tịnh độ / Bồ tát)' : '🟢 Cõi Thường (Người / A-tu-la)')}
-                            </Text>
-
                             {/* Realm Description */}
-                            <ScrollView style={{ maxHeight: 160 }} showsVerticalScrollIndicator={true}>
-                                <Text style={styles.modalDesc}>
-                                    {selectedRealm.short_desc || 'Không có mô tả ngắn gọn.'}
-                                </Text>
-                            </ScrollView>
-
-                            <View style={{ height: 1, backgroundColor: '#f1f5f9', marginVertical: 12 }} />
-
-                            {/* Travelers Title */}
-                            <Text style={styles.modalSectionTitle}>
-                                Đồng tu đang ở cõi này ({travelersMap[selectedRealm.id]?.length || 0})
+                            <Text style={[
+                                styles.detailDescText,
+                                selectedRealm.id <= 13 && { color: '#94a3b8' }
+                            ]}>
+                                {selectedRealm.short_desc || 'Không có mô tả cảnh giới.'}
                             </Text>
 
-                            {/* Travelers list */}
-                            <ScrollView 
-                                style={styles.modalTravelersList}
-                                showsVerticalScrollIndicator={true}
-                                nestedScrollEnabled
-                            >
-                                {!travelersMap[selectedRealm.id] || travelersMap[selectedRealm.id].length === 0 ? (
-                                    <Text style={{ fontSize: 13, color: '#94a3b8', fontStyle: 'italic', marginVertical: 8 }}>
-                                        Chưa có đồng tu nào ở cõi này.
-                                    </Text>
-                                ) : (
-                                    travelersMap[selectedRealm.id].map((player) => (
-                                        <View key={player.id} style={styles.modalTravelerRow}>
-                                            {player.avatar ? (
-                                                <Image source={{ uri: player.avatar }} style={styles.modalAvatar} />
-                                            ) : (
-                                                <View style={styles.modalAvatarPlaceholder}>
-                                                    <User size={12} color="#94a3b8" />
-                                                </View>
-                                            )}
-                                            <Text style={styles.modalPlayerName}>{player.name}</Text>
-                                            {player.id === currentState?.user_id && (
-                                                <View style={styles.modalSelfBadge}>
-                                                    <Text style={styles.modalSelfText}>Bạn</Text>
-                                                </View>
-                                            )}
-                                        </View>
-                                    ))
-                                )}
-                            </ScrollView>
+                            <View style={{ height: 1, backgroundColor: selectedRealm.id <= 13 ? '#334155' : '#f1f5f9', marginVertical: 12 }} />
 
-                            {/* Action Button */}
-                            <TouchableOpacity 
-                                style={[
-                                    styles.backBtn, 
-                                    { 
-                                        width: '100%', 
-                                        height: 44, 
-                                        backgroundColor: selectedRealm.id <= 13 ? '#ef4444' : MAROON, 
-                                        borderRadius: 12, 
-                                        marginTop: 8 
-                                    }
-                                ]}
-                                onPress={() => setSelectedRealm(null)}
-                            >
-                                <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 14 }}>Đóng chi tiết</Text>
-                            </TouchableOpacity>
-                        </TouchableOpacity>
-                    </TouchableOpacity>
-                )}
-            </Modal>
+                            {/* Travelers list at this cell */}
+                            <View>
+                                <Text style={[
+                                    styles.detailSectionTitle,
+                                    selectedRealm.id <= 13 && { color: '#94a3b8' }
+                                ]}>
+                                    Đồng tu ở đây ({travelersMap[selectedRealm.id]?.length || 0})
+                                </Text>
+                                <ScrollView 
+                                    horizontal 
+                                    showsHorizontalScrollIndicator={false} 
+                                    contentContainerStyle={{ gap: 8, paddingVertical: 4 }}
+                                >
+                                    {!travelersMap[selectedRealm.id] || travelersMap[selectedRealm.id].length === 0 ? (
+                                        <Text style={{ fontSize: 13, color: '#94a3b8', fontStyle: 'italic', paddingVertical: 4 }}>
+                                            Chưa có đồng tu nào ở cõi này.
+                                        </Text>
+                                    ) : (
+                                        travelersMap[selectedRealm.id].map((player) => (
+                                            <View 
+                                                key={player.id} 
+                                                style={[
+                                                    styles.travelerTag,
+                                                    selectedRealm.id <= 13 && styles.darkTravelerTag
+                                                ]}
+                                            >
+                                                {player.avatar ? (
+                                                    <Image source={{ uri: player.avatar }} style={styles.travelerTagAvatar} />
+                                                ) : (
+                                                    <View style={styles.travelerTagPlaceholder}>
+                                                        <User size={10} color="#94a3b8" />
+                                                    </View>
+                                                )}
+                                                <Text style={[
+                                                    styles.travelerTagName,
+                                                    selectedRealm.id <= 13 && { color: '#cbd5e1' }
+                                                ]}>
+                                                    {player.name}
+                                                </Text>
+                                                {player.id === currentState?.user_id && (
+                                                    <View style={styles.travelerSelfBadge}>
+                                                        <Text style={styles.travelerSelfText}>Bạn</Text>
+                                                    </View>
+                                                )}
+                                            </View>
+                                        ))
+                                    )}
+                                </ScrollView>
+                            </View>
+                        </View>
+                    )}
+                </ScrollView>
+            )}
         </View>
     );
 }
@@ -675,151 +646,141 @@ const styles = StyleSheet.create({
         borderColor: GOLD,
         opacity: 0.4,
     },
-    // Mini map view styles
-    miniCell: {
-        width: 28,
-        height: 28,
-        margin: 1.5,
+    // Responsive Cell Avatar styles
+    cellAvatarContainer: {
+        width: '90%',
+        height: '90%',
         borderRadius: 6,
-        justifyContent: 'center',
-        alignItems: 'center',
+        overflow: 'hidden',
         position: 'relative',
     },
-    miniMyCurrentCell: {
-        borderColor: GOLD,
-        borderWidth: 1.5,
-        shadowColor: GOLD,
-        shadowOpacity: 0.8,
-        shadowRadius: 4,
-        elevation: 3,
+    cellAvatarImg: {
+        width: '100%',
+        height: '100%',
+        resizeMode: 'cover',
     },
-    miniLotusIcon: {
-        fontSize: 12,
-    },
-    // View mode segmented toggle styles
-    toggleContainer: {
-        flexDirection: 'row',
-        backgroundColor: '#e2e8f0',
-        borderRadius: 12,
-        padding: 4,
-        marginBottom: 16,
-        alignSelf: 'center',
-    },
-    toggleBtn: {
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-        borderRadius: 8,
-    },
-    activeToggleBtn: {
-        backgroundColor: '#fff',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 4,
-        elevation: 2,
-    },
-    toggleText: {
-        fontSize: 13,
-        fontWeight: '600',
-        color: '#64748b',
-    },
-    activeToggleText: {
-        color: MAROON,
-        fontWeight: 'bold',
-    },
-    // Realm details modal styles
-    modalOverlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.5)',
+    cellAvatarPlaceholder: {
+        width: '100%',
+        height: '100%',
         justifyContent: 'center',
         alignItems: 'center',
+        backgroundColor: '#e2e8f0',
+    },
+    cellCountBadge: {
+        position: 'absolute',
+        bottom: 0,
+        right: 0,
+        backgroundColor: 'rgba(0,0,0,0.6)',
+        paddingHorizontal: 2,
+        paddingVertical: 0.5,
+        borderRadius: 4,
+    },
+    cellCountText: {
+        color: '#fff',
+        fontSize: 7,
+        fontWeight: 'bold',
+    },
+    // Inline detail card styles
+    detailCard: {
+        backgroundColor: '#FFF',
+        borderRadius: 20,
         padding: 20,
-    },
-    modalContent: {
-        backgroundColor: '#fff',
-        borderRadius: 24,
-        padding: 24,
         width: '100%',
-        maxWidth: 340,
+        maxWidth: 600,
+        alignSelf: 'center',
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.15,
-        shadowRadius: 20,
-        elevation: 10,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.05,
+        shadowRadius: 10,
+        elevation: 3,
+        borderWidth: 1,
+        borderColor: '#f1f5f9',
+        marginBottom: 40,
     },
-    modalHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 12,
-        borderBottomWidth: 1,
-        borderBottomColor: '#f1f5f9',
-        paddingBottom: 8,
+    darkDetailCard: {
+        backgroundColor: '#1E293B',
+        borderColor: '#334155',
     },
-    modalTitle: {
+    goldenDetailCard: {
+        backgroundColor: '#FFFDF9',
+        borderColor: '#FEF3C7',
+        borderWidth: 1.5,
+    },
+    detailCardTitle: {
         fontSize: 16,
         fontWeight: '900',
         color: MAROON,
         flex: 1,
         lineHeight: 22,
     },
-    modalCloseBtn: {
-        padding: 4,
+    detailClusterText: {
+        fontSize: 10,
+        fontWeight: 'bold',
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: 6,
+        color: MAROON,
+        backgroundColor: 'rgba(128, 0, 0, 0.05)',
+        overflow: 'hidden',
     },
-    modalDesc: {
+    detailDescText: {
         fontSize: 13,
         color: '#475569',
-        lineHeight: 18,
-        marginBottom: 16,
+        lineHeight: 19,
+        marginBottom: 8,
     },
-    modalSectionTitle: {
-        fontSize: 12,
+    detailSectionTitle: {
+        fontSize: 11,
         fontWeight: 'bold',
         color: '#64748b',
         textTransform: 'uppercase',
         letterSpacing: 1,
-        marginBottom: 8,
+        marginBottom: 6,
     },
-    modalTravelersList: {
-        maxHeight: 120,
-        marginBottom: 16,
-    },
-    modalTravelerRow: {
+    // Horizontal Traveler tags in detail card
+    travelerTag: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingVertical: 6,
-        borderBottomWidth: 0.5,
-        borderBottomColor: '#f1f5f9',
-    },
-    modalAvatar: {
-        width: 24,
-        height: 24,
+        backgroundColor: '#f8fafc',
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
         borderRadius: 12,
-        marginRight: 8,
+        paddingHorizontal: 8,
+        paddingVertical: 5,
     },
-    modalAvatarPlaceholder: {
-        width: 24,
-        height: 24,
-        borderRadius: 12,
+    darkTravelerTag: {
+        backgroundColor: '#334155',
+        borderColor: '#475569',
+    },
+    travelerTagAvatar: {
+        width: 20,
+        height: 20,
+        borderRadius: 10,
+        marginRight: 6,
+    },
+    travelerTagPlaceholder: {
+        width: 20,
+        height: 20,
+        borderRadius: 10,
         backgroundColor: '#e2e8f0',
         justifyContent: 'center',
         alignItems: 'center',
-        marginRight: 8,
+        marginRight: 6,
     },
-    modalPlayerName: {
-        fontSize: 13,
+    travelerTagName: {
+        fontSize: 12,
         fontWeight: '600',
         color: '#1e293b',
-        flex: 1,
     },
-    modalSelfBadge: {
+    travelerSelfBadge: {
+        marginLeft: 4,
         backgroundColor: '#fef08a',
-        paddingHorizontal: 6,
-        paddingVertical: 2,
+        paddingHorizontal: 4,
+        paddingVertical: 1,
         borderRadius: 4,
     },
-    modalSelfText: {
-        fontSize: 9,
+    travelerSelfText: {
+        fontSize: 8,
         fontWeight: 'bold',
         color: MAROON,
     },

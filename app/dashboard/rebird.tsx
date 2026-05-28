@@ -896,16 +896,6 @@ export default function RebirdScreen() {
                             </TouchableOpacity>
                         </View>
 
-                        {/* Event Prizes Display */}
-                        <View style={styles.prizeCard}>
-                            <Text style={styles.prizeHeader}>🎁 PHẦN THƯỞNG TOP 10 {periodTab === 'month' ? 'THÁNG' : 'QUÝ'}:</Text>
-                            <ScrollView style={{ maxHeight: 110 }} nestedScrollEnabled>
-                                {(periodTab === 'month' ? monthlyPrizes : quarterlyPrizes).map((p, i) => (
-                                    <Text key={i} style={styles.prizeItemText}>{p}</Text>
-                                ))}
-                            </ScrollView>
-                        </View>
-
                         <Text style={styles.formulaText}>
                             * Điểm xếp hạng = (Số bài tập x 10) + (Hồi hướng x 15) + (Vượt Ma Vương x 10) + (Streak ngày x 10)
                         </Text>
@@ -920,26 +910,36 @@ export default function RebirdScreen() {
                                         Chưa có bảng xếp hạng trong kỳ này.
                                     </Text>
                                 ) : (
-                                    leaderboard.map((item, idx) => (
-                                        <View key={item.user_id} style={[styles.leaderboardItem, idx === 0 && styles.firstPlace, idx === 1 && styles.secondPlace, idx === 2 && styles.thirdPlace]}>
-                                            <View style={styles.leaderboardRankBox}>
-                                                {idx < 3 ? (
-                                                    <Award size={20} color={idx === 0 ? GOLD : (idx === 1 ? '#C0C0C0' : BRONZE)} />
-                                                ) : (
-                                                    <Text style={styles.rankNumText}>{idx + 1}</Text>
-                                                )}
-                                            </View>
-                                            
-                                            <View style={{ flex: 1, marginLeft: 12 }}>
-                                                <Text style={styles.rankNameText}>{item.display_name}</Text>
-                                                <Text style={styles.rankDetailsText}>
-                                                    Thiền: {item.practices_count} | Hộ trì: {item.blessings_count} | Thắng Mara: {item.mara_wins_count} | Chuỗi: {item.streak_score / 10}
-                                                </Text>
-                                            </View>
+                                    leaderboard.map((item, idx) => {
+                                        const reward = idx < 10 ? (periodTab === 'month' ? monthlyPrizes : quarterlyPrizes)[idx < 5 ? idx : 5].replace(/^\d+\.\s*/, '') : null;
+                                        return (
+                                            <View key={item.user_id} style={[styles.leaderboardItem, idx === 0 && styles.firstPlace, idx === 1 && styles.secondPlace, idx === 2 && styles.thirdPlace]}>
+                                                <View style={styles.leaderboardRankBox}>
+                                                    {idx < 3 ? (
+                                                        <Award size={20} color={idx === 0 ? GOLD : (idx === 1 ? '#C0C0C0' : BRONZE)} />
+                                                    ) : (
+                                                        <Text style={styles.rankNumText}>{idx + 1}</Text>
+                                                    )}
+                                                </View>
+                                                
+                                                <View style={{ flex: 1, marginLeft: 12 }}>
+                                                    <Text style={styles.rankNameText}>
+                                                        {item.display_name}
+                                                        {reward && (
+                                                            <Text style={{ color: '#10b981', fontSize: 11, fontWeight: 'bold' }}>
+                                                                {" "}(🎁 {reward})
+                                                            </Text>
+                                                        )}
+                                                    </Text>
+                                                    <Text style={styles.rankDetailsText}>
+                                                        Thiền: {item.practices_count} | Hộ trì: {item.blessings_count} | Thắng Mara: {item.mara_wins_count} | Chuỗi: {item.streak_score / 10}
+                                                    </Text>
+                                                </View>
 
-                                            <Text style={styles.rankScoreText}>{item.total_score} pts</Text>
-                                        </View>
-                                    ))
+                                                <Text style={styles.rankScoreText}>{item.total_score} pts</Text>
+                                            </View>
+                                        );
+                                    })
                                 )}
                             </ScrollView>
                         )}
