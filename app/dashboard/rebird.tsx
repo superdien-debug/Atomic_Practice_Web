@@ -515,7 +515,10 @@ export default function RebirdScreen() {
                 <View style={styles.imageContainer}>
                     <View style={styles.imagePlaceholder}>
                         {realm.image_url ? (
-                            <Image source={{ uri: realm.image_url }} style={styles.realmImage} />
+                            <Image 
+                                source={{ uri: realm.image_url.startsWith('http') || realm.image_url.startsWith('/') ? realm.image_url : `/${realm.image_url}` }} 
+                                style={styles.realmImage} 
+                            />
                         ) : (
                             <Text style={styles.imageText}>CÕI GIỚI SỐ {realm.id}</Text>
                         )}
