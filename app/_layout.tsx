@@ -18,6 +18,11 @@ export default function RootLayout() {
     const router = useRouter();
     const [isReady, setIsReady] = useState(false);
     const [isFailsafeTriggered, setIsFailsafeTriggered] = useState(false);
+    const [isHydrated, setIsHydrated] = useState(false);
+
+    useEffect(() => {
+        setIsHydrated(true);
+    }, []);
 
     const [fontsLoaded] = useFonts({
         'Montserrat': require('../assets/Montserrat/static/Montserrat-Regular.ttf'),
@@ -148,7 +153,7 @@ export default function RootLayout() {
             </Stack>
 
             {/* Splash Overlay — only shows while initialization is pending */}
-            {(!isFailsafeTriggered && (!isReady || isLoading || !navigationState?.key || !fontsLoaded)) && (
+            {isHydrated && (!isFailsafeTriggered && (!isReady || isLoading || !navigationState?.key || !fontsLoaded)) && (
                 <View
                     pointerEvents="none"
                     style={[StyleSheet.absoluteFill, { backgroundColor: '#1A0008', justifyContent: 'center', alignItems: 'center', zIndex: 999 }]}
@@ -158,7 +163,7 @@ export default function RootLayout() {
             )}
 
             {/* Holy Day Checks */}
-            {isReady && session && <HolyDayPopup />}
+            {isHydrated && isReady && session && <HolyDayPopup />}
             <Analytics />
         </View>
     );
