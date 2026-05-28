@@ -45,6 +45,26 @@ interface LeaderboardUser {
     total_score: number;
 }
 
+const getMonthlyRewardName = (rankIdx: number): string | null => {
+    if (rankIdx === 0) return "Torma 3kaya";
+    if (rankIdx === 1) return "Chuỗi San Hô Đỏ";
+    if (rankIdx === 2) return "Bình Tẩy Tịnh Bumpa";
+    if (rankIdx === 3 || rankIdx === 4) return "Hương Maratika";
+    if (rankIdx === 5 || rankIdx === 6) return "Mặt phật trường thọ nhựa";
+    if (rankIdx === 7 || rankIdx === 8 || rankIdx === 9) return "Áo đồng phục Maratika";
+    return null;
+};
+
+const getQuarterlyRewardName = (rankIdx: number): string | null => {
+    if (rankIdx === 0) return "Bình tài bảo Maratika";
+    if (rankIdx === 1) return "Dakar (Mũi tên trường thọ)";
+    if (rankIdx === 2) return "Thangkar";
+    if (rankIdx === 3 || rankIdx === 4) return "Cốc sọ bằng nhựa";
+    if (rankIdx === 5 || rankIdx === 6) return "Túi bọc nghi quỹ";
+    if (rankIdx === 7 || rankIdx === 8 || rankIdx === 9) return "Bài cúng trên bàn ăn";
+    return null;
+};
+
 export default function RebirdScreen() {
     const insets = useSafeAreaInsets();
     const router = useRouter();
@@ -88,6 +108,39 @@ export default function RebirdScreen() {
     // Treasure state
     const [treasures, setTreasures] = useState<GameTreasure[]>([]);
     const [digging, setDigging] = useState(false);
+
+    // Event countdown state
+    const eventStartDate = React.useMemo(() => new Date('2026-05-31T12:00:00+07:00'), []);
+    const [eventTimeLeft, setEventTimeLeft] = useState<number>(0);
+
+    useEffect(() => {
+        const updateEventTimer = () => {
+            const now = new Date();
+            const diff = eventStartDate.getTime() - now.getTime();
+            setEventTimeLeft(Math.max(0, diff));
+        };
+
+        updateEventTimer();
+        const interval = setInterval(updateEventTimer, 1000);
+        return () => clearInterval(interval);
+    }, [eventStartDate]);
+
+    const formatEventCountdown = (ms: number) => {
+        if (ms <= 0) return 'Đang diễn ra!';
+        const totalSecs = Math.floor(ms / 1000);
+        const days = Math.floor(totalSecs / (24 * 3600));
+        const hours = Math.floor((totalSecs % (24 * 3600)) / 3600);
+        const minutes = Math.floor((totalSecs % 3600) / 60);
+        const seconds = totalSecs % 60;
+
+        const parts = [];
+        if (days > 0) parts.push(`${days}d`);
+        parts.push(`${hours.toString().padStart(2, '0')}h`);
+        parts.push(`${minutes.toString().padStart(2, '0')}m`);
+        parts.push(`${seconds.toString().padStart(2, '0')}s`);
+
+        return parts.join(' ');
+    };
 
     const shakeAnim = React.useRef(new Animated.Value(0)).current;
 
@@ -511,6 +564,20 @@ export default function RebirdScreen() {
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
+                {/* Glowing Event Announcement & Countdown Bar */}
+                <TouchableOpacity 
+                    onPress={() => setShowLeaderboardModal(true)} 
+                    style={styles.eventCountdownBar}
+                    activeOpacity={0.9}
+                >
+                    <Sparkles size={16} color={GOLD} style={{ marginRight: 8 }} />
+                    <View style={{ flex: 1 }}>
+                        <Text style={styles.eventBarTitle}>ĐẠI HỘI TÁI SINH - SEASON 1</Text>
+                        <Text style={styles.eventBarCountdown}>Khởi chạy sau: {formatEventCountdown(eventTimeLeft)}</Text>
+                    </View>
+                    <Trophy size={18} color={GOLD} />
+                </TouchableOpacity>
+
                 {/* Realm Banner Image */}
                 <View style={styles.imageContainer}>
                     <View style={styles.imagePlaceholder}>
@@ -911,7 +978,7 @@ export default function RebirdScreen() {
                                     </Text>
                                 ) : (
                                     leaderboard.map((item, idx) => {
-                                        const reward = idx < 10 ? (periodTab === 'month' ? monthlyPrizes : quarterlyPrizes)[idx < 5 ? idx : 5].replace(/^\d+\.\s*/, '') : null;
+                                        const reward = idx < 10 ? (periodTab === 'month' ? getMonthlyRewardName(idx) : getQuarterlyRewardName(idx)) : null;
                                         return (
                                             <View key={item.user_id} style={[styles.leaderboardItem, idx === 0 && styles.firstPlace, idx === 1 && styles.secondPlace, idx === 2 && styles.thirdPlace]}>
                                                 <View style={styles.leaderboardRankBox}>
@@ -1699,5 +1766,33 @@ const styles = StyleSheet.create({
         fontSize: 11,
         fontWeight: 'bold',
         color: MAROON,
+    },
+    eventCountdownBar: {
+        backgroundColor: '#FFFBEB',
+        borderColor: GOLD,
+        borderWidth: 1.5,
+        borderRadius: 14,
+        paddingVertical: 10,
+        paddingHorizontal: 16,
+        margin: 16,
+        marginBottom: 8,
+        flexDirection: 'row',
+        alignItems: 'center',
+        shadowColor: GOLD,
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 2,
+    },
+    eventBarTitle: {
+        fontSize: 11,
+        fontWeight: '900',
+        color: MAROON,
+        letterSpacing: 1,
+    },
+    eventBarCountdown: {
+        fontSize: 12,
+        fontWeight: 'bold',
+        color: GOLD,
+        marginTop: 2,
     }
 });
