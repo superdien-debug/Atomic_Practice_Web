@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-nati
 import { useRouter, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { HelpCircle, ChevronRight, ArrowLeft } from 'lucide-react-native';
+import { HelpCircle, ChevronRight, ArrowLeft, Calendar } from 'lucide-react-native';
 
 const DEEP_MAROON = '#4a0404';
 const GOLD_ACCENT = '#c5a059';
@@ -26,6 +26,22 @@ export default function AdminPortal() {
             </View>
 
             <ScrollView contentContainerStyle={s.scroll}>
+                <Text style={s.sectionTitle}>Giải Đấu Tái Sinh</Text>
+
+                <TouchableOpacity
+                    style={[s.menuItem, { marginBottom: 24 }]}
+                    onPress={() => router.push('/admin/sunday-checkin')}
+                >
+                    <View style={s.menuIcon}>
+                        <Calendar size={22} color={GOLD_ACCENT} />
+                    </View>
+                    <View style={s.menuContent}>
+                        <Text style={s.menuLabel}>Điểm danh Chủ Nhật</Text>
+                        <Text style={s.menuSub}>Cộng +100 điểm thưởng cho thành viên tham gia tu tập tại trung tâm.</Text>
+                    </View>
+                    <ChevronRight size={20} color="rgba(255,255,255,0.3)" />
+                </TouchableOpacity>
+
                 <Text style={s.sectionTitle}>Cấu hình Khảo sát</Text>
 
                 <TouchableOpacity
@@ -41,11 +57,6 @@ export default function AdminPortal() {
                     </View>
                     <ChevronRight size={20} color="rgba(255,255,255,0.3)" />
                 </TouchableOpacity>
-
-                {/* Future placeholders */}
-                <View style={s.placeholder}>
-                    <Text style={s.placeholderText}>Cấu hình khác sẽ được thêm tại đây...</Text>
-                </View>
             </ScrollView>
         </View>
     );
@@ -68,7 +79,5 @@ const s = StyleSheet.create({
     menuIcon: { width: 44, height: 44, borderRadius: 12, backgroundColor: 'rgba(197,160,89,0.1)', alignItems: 'center', justifyContent: 'center', marginRight: 16 },
     menuContent: { flex: 1 },
     menuLabel: { color: '#fff', fontSize: 16, fontWeight: '700' },
-    menuSub: { color: 'rgba(255,255,255,0.5)', fontSize: 12, marginTop: 4 },
-    placeholder: { marginTop: 40, alignItems: 'center', opacity: 0.3 },
-    placeholderText: { color: '#fff', fontSize: 13, fontStyle: 'italic' }
+    menuSub: { color: 'rgba(255,255,255,0.5)', fontSize: 12, marginTop: 4 }
 });

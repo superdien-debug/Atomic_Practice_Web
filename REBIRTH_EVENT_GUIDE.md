@@ -9,7 +9,7 @@ Chào mừng chư vị đồng tu đến với **Giải Đấu Tái Sinh - Bàn 
 
 * **Thời gian bắt đầu:** `12h00 ngày 31/05/2026`
 * **Thời gian kết thúc & Trao giải:** `12h00 ngày 30/06/2026` *(Tròn đúng 1 tháng)*
-* **Đồng hồ đếm ngược:** Hệ thống có tích hợp đồng hồ đếm ngược trực tiếp hiển thị thời gian còn lại đến sự kiện ngay tại Banner giới thiệu sự kiện và trên đầu giao diện Game Tái Sinh của đạo hữu.
+* **Đồng hồ đếm ngược:** Giao diện tích hợp đồng hồ đếm ngược trực tiếp hiển thị thời gian còn lại đến sự kiện ngay tại Banner giới thiệu sự kiện và trên đầu Game Tái Sinh của đạo hữu.
 
 ---
 
@@ -27,27 +27,37 @@ Chào mừng chư vị đồng tu đến với **Giải Đấu Tái Sinh - Bàn 
 
 ## 📊 3. Quy Tắc Tính Điểm & Trọng Số (Scoring Rules)
 
-Tổng điểm tích lũy của mỗi hành giả trên Bảng xếp hạng được tính toán chặt chẽ và cân bằng theo hai phần trọng số bằng nhau (50/50) để phản ánh trọn vẹn cả sự tinh tấn tu tập cá nhân lẫn tinh thần phụng sự cộng đồng:
+Hệ thống tính điểm của giải đấu được thiết kế chặt chẽ và cân bằng bằng việc sử dụng trực tiếp các tính năng thực tế có sẵn trong game, chia thành các trọng số rõ rệt:
 
-### 🌟 A. Trọng Số Di Chuyển Cõi Giới (Chiếm 50% tổng số điểm)
-* **Điểm Tái Sinh:** Mỗi lần đạo hữu gieo xúc xắc và di chuyển tới các cảnh giới mới trên Bàn cờ Luân hồi sẽ nhận được điểm số.
-* **Điểm Phước Đức Cảnh Giới:** Hạ cánh tại các cõi lành (cõi Trời, Tịnh Độ, cung điện Phật) sẽ nhận được lượng điểm phước đức lớn hơn nhiều so với các cõi đọa xứ. Việc di chuyển liên tục qua nhiều cõi giới khác nhau giúp tích lũy trọn vẹn 50% trọng số điểm giải đấu.
+### 🌟 A. Trọng Số Di Chuyển Cõi Giới (Chiếm 40% tổng số điểm)
+* **Điểm Tái Sinh:** Mỗi lần đạo hữu di chuyển tới các cảnh giới khác nhau trên Bàn cờ Luân hồi sẽ nhận được hoặc bị trừ điểm dựa trên tính chất thăng tiến của linh hồn:
+  * **Thăng lên cảnh giới cao hơn (Ascent):** Nhận ngay **`+15 điểm`** (khi `to_realm_id > from_realm_id`).
+  * **Rơi xuống cảnh giới thấp hơn (Descent):** Bị **`khấu trừ -15 điểm`** (khi `to_realm_id < from_realm_id`). Đây là quy luật nghiệp lực nhân quả chân thực trong luân hồi sa đọa.
+  * *Lưu ý:* Tổng số điểm di chuyển cõi giới tối thiểu luôn được giới hạn lớn hơn hoặc bằng 0, không âm.
 
-### 🧘‍♂️ B. Trọng Số Tu Tập & Tương Tác Xã Hội (Chiếm 50% tổng số điểm còn lại)
-* **1. Thực Hành Hoàn Thành Card Tu Tập Daily:** 
-  * Trong giao diện tu tập, mỗi ngày đạo hữu **hoàn thành ít nhất 1 Card thực hành** (học tập, quán chiếu, hoặc rèn luyện chánh niệm) sẽ được hệ thống tính điểm tinh tấn đặc biệt của ngày đó. Việc duy trì đều đặn hàng ngày là chìa khóa tối thượng.
-* **2. Thực Hành Thiền Định Vipassana sâu:**
-  * Mỗi phút ngồi thiền thực chất trong mục *Thiền Vipassana* mang lại điểm tích lũy và MP để tăng tốc vòng quay tái sinh.
-* **3. Tương Tác Giữa Các Thành Viên (Social Interaction):**
-  * Game Luân hồi đề cao tinh thần đại đồng, tương thân tương ái giữa các hành giả. **Các hành động tương tác trực tiếp sẽ tác động lớn đến điểm số và kết quả của game**:
-    * **Gieo Blessings (Hồi Hướng Phước Báu):** Đạo hữu có thể gửi lời chúc, năng lượng lành hoặc hồi hướng công đức của mình cho các đồng tu khác. Mỗi lượt gửi/nhận lời chúc sẽ giúp tăng điểm tương tác và có cơ hội rút ngắn thời gian cooldown hồi xúc xắc cho cả hai bên!
-    * **Đồng hành Mara Battle (Hộ Pháp Đồng Hành):** Tham gia hỗ trợ các đồng tu khác vượt qua các thử thách chướng ngại tâm lý (Mara) trên bàn cờ để cùng nhau thăng tiến.
+### 🧘‍♂️ B. Trọng Số Thực Hành Tu Tập (Chiếm 40% tổng số điểm)
+* **1. Hoàn Thành Card Tu Tập Daily (+15 điểm/ngày):** 
+  * Mỗi ngày đạo hữu **hoàn thành ít nhất 1 Card thực hành** (học tập, quán chiếu, hoặc rèn luyện chánh niệm) trong mục Tu tập sẽ được tính điểm tinh tấn của ngày đó. Chỉ cần hoàn thành 1 card bất kỳ trong ngày là nhận trọn vẹn điểm tinh tấn ngày.
+* **2. Thực Hành Thiền Định Vipassana (+10 điểm/buổi):**
+  * Mỗi buổi ngồi thiền thực chất trong mục *Thiền Vipassana* mang lại điểm tích lũy và MP để sử dụng trong game.
+* **3. Điểm Chuỗi Tinh Tấn (Streak Bonus):**
+  * Duy trì chuỗi thiền tập và hoàn thành card liên tục sẽ nhân thêm điểm thưởng trực tiếp vào hệ thống.
+
+### 🤝 C. Trọng Số Tương Tác Thành Viên (Chiếm 10% tổng số điểm)
+* **1. Gieo Blessings (Hồi Hướng Phước Báu):** Đạo hữu có thể gửi lời chúc thỉnh cầu, năng lượng lành hoặc hồi hướng công đức cho đồng tu khác qua bảng chúc nguyện.
+  * **Người gửi chúc (Sender):** Nhận **`+15 điểm`** tương tác.
+  * **Người nhận chúc (Receiver):** Nhận **`+10 điểm`** tương tác và nhận cơ hội rút ngắn thời gian hồi chiêu từ 24h - 48h.
+* **2. Đồng Hành Mara Battle (Hộ Pháp):** Tham gia hỗ trợ các đồng tu khác đánh bại chướng ngại tâm lý Ma Vương trên bàn cờ để cùng thăng tiến và nhận điểm vinh danh.
+
+### 🏛️ D. Bonus Điểm Danh Lên Trung Tâm Chủ Nhật (Chiếm 10% tổng số điểm)
+* **Điểm danh Cát Tường:** Nhằm khuyến khích việc gắn kết tăng đoàn ngoài đời thực, trong suốt 1 tháng diễn ra sự kiện sẽ có 4-5 ngày Chủ nhật sinh hoạt trực tiếp.
+* **Quy tắc cộng điểm:** Mỗi buổi Chủ Nhật đạo hữu có mặt tu tập trực tiếp tại trung tâm thực hành sẽ được Admin kiểm tra và điểm danh trên cổng quản trị Admin để nhận ngay **`+100 điểm thưởng/buổi`** (tối đa `+500 điểm` cho cả sự kiện). Đây là phần thưởng khuyến khích vô cùng công bằng giúp củng cố tinh thần đại đồng tinh tấn.
 
 ---
 
 ## 🏆 4. Bảng Xếp Hạng & Luật Phân Định Thắng Thua (Tie-Breaker)
 
-Bảng xếp hạng giải đấu hiển thị minh bạch vị trí của tất cả các hành giả dựa trên **Tổng điểm tích lũy** (kết hợp từ 2 trọng số trên).
+Bảng xếp hạng giải đấu hiển thị minh bạch vị trí của tất cả các hành giả dựa trên **Tổng điểm tích lũy** tự động tổng hợp từ tất cả các hoạt động trên.
 
 > [!IMPORTANT]
 > ### ⚖️ Luật Phân Định Thứ Hạng Khi Bằng Điểm (Tie-Breaker)
@@ -59,7 +69,7 @@ Bảng xếp hạng giải đấu hiển thị minh bạch vị trí của tất
 
 ## 🎁 5. Cơ Cấu Giải Thưởng Sự Kiện (Top 10)
 
-Giải thưởng vinh danh sẽ được trao trực tiếp cho **10 hành giả xuất sắc nhất** dẫn đầu Bảng xếp hạng vào đúng 12h00 ngày 30/06/2026. Giải thưởng tập trung vào các **Danh hiệu hệ thống độc quyền** cùng **Hiện vật cát tường**, hoàn toàn lược bỏ phần thưởng điểm số để giữ tâm tu tập thuần khiết:
+Giải thưởng vinh danh được trao trực tiếp cho **10 hành giả xuất sắc nhất** dẫn đầu Bảng xếp hạng vào đúng 12h00 ngày 30/06/2026. Giải thưởng tập trung hoàn toàn vào **Danh hiệu hệ thống độc quyền** cùng **Hiện vật cát tường**, không có phần thưởng MP để bảo vệ tâm tu tập thuần khiết:
 
 | Thứ Hạng | 🏆 Cúp Danh Dự | 🏷️ Danh Hiệu Hệ Thống Độc Quyền | 🎁 Hiện Vật Cát Tường Trao Tay |
 | :---: | :--- | :--- | :--- |
