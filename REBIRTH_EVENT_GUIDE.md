@@ -36,12 +36,18 @@ Hệ thống tính điểm của giải đấu được thiết kế chặt ch�
   * *Lưu ý:* Tổng số điểm di chuyển cõi giới tối thiểu luôn được giới hạn lớn hơn hoặc bằng 0, không âm.
 
 ### 🧘‍♂️ B. Trọng Số Thực Hành Tu Tập (Chiếm 40% tổng số điểm)
-* **1. Hoàn Thành Card Tu Tập Daily (+15 điểm/ngày):** 
-  * Mỗi ngày đạo hữu **hoàn thành ít nhất 1 Card thực hành** (học tập, quán chiếu, hoặc rèn luyện chánh niệm) trong mục Tu tập sẽ được tính điểm tinh tấn của ngày đó. Chỉ cần hoàn thành 1 card bất kỳ trong ngày là nhận trọn vẹn điểm tinh tấn ngày.
-* **2. Thực Hành Thiền Định Vipassana (+10 điểm/buổi):**
-  * Mỗi buổi ngồi thiền thực chất trong mục *Thiền Vipassana* mang lại điểm tích lũy và MP để sử dụng trong game.
-* **3. Điểm Chuỗi Tinh Tấn (Streak Bonus):**
-  * Duy trì chuỗi thiền tập và hoàn thành card liên tục sẽ nhân thêm điểm thưởng trực tiếp vào hệ thống.
+* **1. Thực Hành Thiền Định Vipassana Sâu (+15 điểm/buổi):**
+  * Mỗi buổi ngồi thiền thực chất trong mục *Thiền Vipassana* mang lại điểm tích lũy và MP để sử dụng trong game. Mỗi buổi thiền sâu của đạo hữu sẽ nhận trọn vẹn **`+15 điểm`**.
+* **2. Hoàn Thành Card Tu Tập Daily (+10 điểm/ngày):** 
+  * Mỗi ngày đạo hữu **hoàn thành ít nhất 1 Card thực hành** (học tập, quán chiếu, hoặc rèn luyện chánh niệm) trong mục Tu tập sẽ được tính điểm tinh tấn của ngày đó. Chỉ cần hoàn thành 1 card bất kỳ trong ngày là nhận ngay **`+10 điểm`**.
+* **3. Chuỗi Tinh Tấn (Streak & Milestone Bonus - Thúc đẩy mạnh mẽ):**
+  * Để tạo động lực to lớn cho việc thực hành liên tục mỗi ngày không đứt quãng, hệ thống tích hợp điểm chuỗi lũy tiến kết hợp cột mốc vinh danh cực kỳ hấp dẫn:
+    * **Điểm tích lũy theo ngày:** Mỗi ngày trong chuỗi tinh tấn liên tục mang lại **`+5 điểm/ngày`** (Ví dụ: Chuỗi 10 ngày liên tục mang lại `50 điểm`).
+    * **Cột mốc bứt phá (Milestone Bonus):** Đạt các mốc chuỗi liên tục trong tháng sẽ được thưởng thêm điểm phước đức cực lớn:
+      * Chuỗi liên tục **7 ngày:** Thưởng thêm **`+30 điểm`**
+      * Chuỗi liên tục **14 ngày:** Thưởng thêm **`+70 điểm`**
+      * Chuỗi liên tục **21 ngày:** Thưởng thêm **`+120 điểm`**
+      * Chuỗi liên tục **30 ngày (Chuỗi Hoàn Mỹ):** Thưởng thêm **`+200 điểm`** đặc biệt!
 
 ### 🤝 C. Trọng Số Tương Tác Thành Viên (Chiếm 10% tổng số điểm)
 * **1. Gieo Blessings (Hồi Hướng Phước Báu):** Đạo hữu có thể gửi lời chúc thỉnh cầu, năng lượng lành hoặc hồi hướng công đức cho đồng tu khác qua bảng chúc nguyện.
