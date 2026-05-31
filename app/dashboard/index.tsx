@@ -12,10 +12,12 @@ import { practiceService, Practice } from '../../services/practiceService';
 import { challengeService, Challenge } from '../../services/challengeService';
 import { useT } from '../../i18n/useT';
 import { userService, Profile, LeaderboardEntry } from '../../services/userService';
+import { rebirthService } from '../../services/rebirthService';
 import { microLearningService, type MicroLearningPost } from '../../services/microLearningService';
 import { getRank, MIN_CREATION_SCORE } from '../../utils/rankUtils';
 import { yangtiService } from '../../services/yangtiService';
 import { Animated, Easing as RNEasing, Alert, Platform } from 'react-native';
+import { getLocalISODate } from '../../utils/dateUtils';
 
 // ─── Colors (Consistent with Theme) ─────────────────────────────────────────
 const GOLD = '#D4AF37';
@@ -84,7 +86,7 @@ export default function DashboardScreen() {
         score: 0,
         practices: [] as Practice[],
         joinedChallengesList: [] as Challenge[],
-        leaderboard: [] as LeaderboardEntry[],
+        leaderboard: [] as any[],
         mpoints: 0,
         yangtiStage: 1,
     });
@@ -109,7 +111,7 @@ export default function DashboardScreen() {
             const userProfile = await userService.getProfile();
             setProfile(userProfile);
 
-            const today = new Date().toISOString().split('T')[0];
+            const today = getLocalISODate();
             const practices = await practiceService.fetchPracticesForDate(today);
             const completed = practices.filter(p => p.completed).length;
 
@@ -119,7 +121,7 @@ export default function DashboardScreen() {
             const challenges = await challengeService.fetchChallenges('ongoing');
             const joinedList = challenges.filter(c => c.is_joined);
 
-            const leaderboard = await userService.fetchLeaderboard();
+            const leaderboard = await rebirthService.getTournamentLeaderboard('month');
 
             const mpoints = await userService.getMPointsBalance();
             const yangtiStage = await yangtiService.getUserProgress();
@@ -352,15 +354,15 @@ export default function DashboardScreen() {
                 <View style={styles.section}>
                     <View style={styles.sectionHeader}>
                         <Text style={styles.sectionTitle}>{t('hallOfFame')}</Text>
-                        <TouchableOpacity onPress={() => router.push('/leaderboard')}>
+                        <TouchableOpacity onPress={() => router.push('/dashboard/rebird')}>
                             <Text style={styles.sectionLink}>{t('viewAll')}</Text>
                         </TouchableOpacity>
                     </View>
                     <LeaderboardPodium entries={
-                        stats.leaderboard.map((e, i) => ({
+                        stats.leaderboard.slice(0, 3).map((e, i) => ({
                             name: e.display_name || t('anonymousPractitioner'),
                             avatar_url: e.avatar_url,
-                            score: e.score,
+                            score: parseInt(e.total_score || e.score || 0),
                             rank: i + 1
                         }))
                     } />
