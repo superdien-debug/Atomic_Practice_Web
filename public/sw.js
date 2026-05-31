@@ -13,6 +13,12 @@ self.addEventListener('fetch', (event) => {
   // We only want to handle GET requests
   if (event.request.method !== 'GET') return;
 
+  // EXCLUDE EXTERNAL APIs: Do not intercept Supabase or any external API/database calls
+  const url = new URL(event.request.url);
+  if (url.origin !== self.location.origin || url.pathname.includes('/rest/v1/') || url.pathname.includes('/auth/v1/')) {
+    return;
+  }
+
   event.respondWith(
     fetch(event.request)
       .then((response) => {

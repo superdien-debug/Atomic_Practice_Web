@@ -59,6 +59,23 @@ export default function RootLayout() {
                 if (error) {
                     console.error("Supabase getSession error:", error);
                 }
+                
+                // PROACTIVE CHECK: If session is expired or expiring within 60s, force refresh it on startup
+                if (currentSession) {
+                    const expiresAt = currentSession.expires_at ? currentSession.expires_at * 1000 : 0;
+                    if (expiresAt === 0 || Date.now() > expiresAt - 60000) {
+                        console.log("[RootLayout] App boot: session expired/expiring. Forcing refresh...");
+                        try {
+                            const { data: { session: refreshedSession } } = await supabase.auth.refreshSession();
+                            await setSession(refreshedSession);
+                            setIsReady(true);
+                            return;
+                        } catch (refreshErr) {
+                            console.error("[RootLayout] Failed to refresh session on boot:", refreshErr);
+                        }
+                    }
+                }
+                
                 await setSession(currentSession);
             } catch (err) {
                 console.error("Error during app initialization:", err);

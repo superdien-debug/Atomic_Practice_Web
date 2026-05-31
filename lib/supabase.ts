@@ -61,6 +61,18 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 AppState.addEventListener('change', (state) => {
     if (state === 'active') {
         supabase.auth.startAutoRefresh();
+        // PROACTIVE RECOVERY: Force refresh session on resume if expired/expiring to prevent silent RLS database blocks
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            if (session) {
+                const expiresAt = session.expires_at ? session.expires_at * 1000 : 0;
+                if (expiresAt === 0 || Date.now() > expiresAt - 60000) {
+                    console.log("[Supabase] Session expired or near expiry on app resume. Forcing refresh...");
+                    supabase.auth.refreshSession().catch(err => {
+                        console.error("[Supabase] Failed to refresh session on app resume:", err);
+                    });
+                }
+            }
+        });
     } else {
         supabase.auth.stopAutoRefresh();
     }
