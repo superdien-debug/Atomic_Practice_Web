@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TextInput, TouchableOpacity, ActivityIndicator,
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Send, ShieldAlert, Zap, Skull, Shield } from 'lucide-react-native';
+import { Send, ShieldAlert, Zap, Skull, Shield, Dices } from 'lucide-react-native';
 import { maraService } from '../../services/maraService';
 import { rebirthService } from '../../services/rebirthService';
 import { useAuthStore } from '../../store/authStore';
@@ -28,9 +28,15 @@ export default function MaraBattleScreen() {
     const diceResult = parseInt(params.dice as string);
 
     const [userInput, setUserInput] = useState('');
-    const [status, setStatus] = useState<'taunt' | 'evaluating' | 'result'>('taunt');
+    const [status, setStatus] = useState<'taunt' | 'evaluating' | 'dice_duel' | 'result'>('taunt');
     const [timeLeft, setTimeLeft] = useState(60);
     const [result, setResult] = useState<{ win: boolean, score: number, feedback: string, finalRealmName?: string, meritChange?: number } | null>(null);
+
+    // Dice Duel states
+    const [questionScore, setQuestionScore] = useState(0);
+    const [playerDice, setPlayerDice] = useState(1);
+    const [maraDice, setMaraDice] = useState(1);
+    const [isRolling, setIsRolling] = useState(false);
 
     // Animations
     const pulseAnim = React.useRef(new Animated.Value(1)).current;
@@ -63,7 +69,7 @@ export default function MaraBattleScreen() {
 
     const handleTimeOut = async () => {
         setStatus('evaluating');
-        await processBattleResult(0, "Ngươi đã im lặng vì sợ hãi. Định lực quá yếu kém!");
+        await processBattleResult(false, 0, "Ngươi đã im lặng vì sợ hãi. Định lực quá yếu kém!", 1, 6);
     };
 
     const handleSubmit = async () => {
@@ -72,17 +78,55 @@ export default function MaraBattleScreen() {
 
         try {
             const evalResult = await maraService.evaluateResponse(userInput.trim(), targetRealmName);
-            await processBattleResult(evalResult.score, evalResult.feedback);
+            setQuestionScore(evalResult.score);
+            setResult({
+                win: false,
+                score: evalResult.score,
+                feedback: evalResult.feedback
+            });
+            // Transition to Dice Duel
+            setStatus('dice_duel');
         } catch (error) {
             console.error(error);
-            // Fallback on error
-            await processBattleResult(0, "Tâm trí ngươi đang rối loạn, không vượt qua được ảo ảnh!");
+            setQuestionScore(0);
+            setResult({
+                win: false,
+                score: 0,
+                feedback: "Tâm trí ngươi đang rối loạn, không vượt qua được ảo ảnh!"
+            });
+            setStatus('dice_duel');
         }
     };
 
-    const processBattleResult = async (score: number, feedback: string) => {
-        const isWin = score >= 7; // Require 7/10 or higher to pass
+    const startDiceRolling = () => {
+        setIsRolling(true);
+        let rollCount = 0;
+        const interval = setInterval(() => {
+            setPlayerDice(Math.floor(Math.random() * 6) + 1);
+            setMaraDice(Math.floor(Math.random() * 6) + 1);
+            rollCount++;
+            if (rollCount >= 10) {
+                clearInterval(interval);
+                finalizeDiceDuel();
+            }
+        }, 120);
+    };
 
+    const finalizeDiceDuel = async () => {
+        const pDice = Math.floor(Math.random() * 6) + 1;
+        const mDice = Math.floor(Math.random() * 6) + 1;
+        setPlayerDice(pDice);
+        setMaraDice(mDice);
+
+        const modifier = questionScore >= 7 ? 2 : 0;
+        const playerTotal = pDice + modifier;
+        const isWin = playerTotal > mDice;
+
+        setIsRolling(false);
+        await processBattleResult(isWin, questionScore, result?.feedback || "", pDice, mDice);
+    };
+
+    const processBattleResult = async (isWin: boolean, score: number, feedback: string, pDice: number, mDice: number) => {
         try {
             if (user?.id) {
                 const finishResult = await rebirthService.processMaraBattleResult(
@@ -93,10 +137,12 @@ export default function MaraBattleScreen() {
                     diceResult
                 );
 
+                const finalFeedback = feedback + `\n\n[Quyết đấu Xúc xắc: Bạn đổ ⚂ ${pDice}${score >= 7 ? ' (+2)' : ''} vs Mara đổ ⚁ ${mDice}. Kết quả: ${isWin ? 'THẮNG' : 'THUA'}]`;
+
                 setResult({
                     win: isWin,
                     score,
-                    feedback,
+                    feedback: finalFeedback,
                     finalRealmName: finishResult.finalRealm.name || (isWin ? targetRealmName : 'Cõi Bắc Câu Lư Châu (Thiên Giới)'),
                     meritChange: finishResult.meritChange
                 });
@@ -107,12 +153,24 @@ export default function MaraBattleScreen() {
                 win: isWin,
                 score,
                 feedback: feedback + " (Lỗi lưu kết quả, nhưng ngươi đã nhận hình phạt!)",
-                finalRealmName: "Cõi Trần", // Fallback
+                finalRealmName: "Cõi Trần", 
                 meritChange: 0
             });
         }
 
         setStatus('result');
+    };
+
+    const getDiceEmoji = (val: number) => {
+        switch (val) {
+            case 1: return '⚀';
+            case 2: return '⚁';
+            case 3: return '⚂';
+            case 4: return '⚃';
+            case 5: return '⚄';
+            case 6: return '⚅';
+            default: return '🎲';
+        }
     };
 
     const finishEncounter = () => {
@@ -163,10 +221,70 @@ export default function MaraBattleScreen() {
                             <Text style={styles.evalText}>Ma Vương đang soi xét tâm trí ngươi...</Text>
                         </View>
                     )}
+                    {status === 'dice_duel' && (
+                        <Text style={styles.maraMessage}>
+                            "Hahaha! Hãy xem vận mệnh có đứng về phía ngươi trước xúc xắc định mệnh của ta không!"
+                        </Text>
+                    )}
                     {status === 'result' && result && (
                         <Text style={styles.maraMessage}>{result.feedback}</Text>
                     )}
                 </View>
+
+                {/* Dice Duel Phase */}
+                {status === 'dice_duel' && (
+                    <View style={styles.diceCard}>
+                        <View style={styles.diceHeader}>
+                            <Dices size={28} color={WIN_GOLD} />
+                            <Text style={styles.diceTitle}>QUYẾT ĐẤU XÚC XẮC</Text>
+                        </View>
+                        
+                        <Text style={styles.diceDesc}>
+                            Điểm chánh kiến đạt <Text style={{fontWeight: 'bold', color: WIN_GOLD}}>{questionScore}/10</Text>. {'\n'}
+                            {questionScore >= 7 ? (
+                                <Text style={{color: '#10B981', fontWeight: 'bold'}}>Nhận được +2 Điểm Xúc Xắc (Định Lực) !</Text>
+                            ) : (
+                                <Text style={{color: '#94a3b8'}}>Định lực chưa đủ, gieo xúc xắc cơ bản.</Text>
+                            )}
+                        </Text>
+
+                        <View style={styles.duelContainer}>
+                            {/* Player Dice */}
+                            <View style={styles.diceBox}>
+                                <Text style={styles.diceBoxLabel}>Bạn</Text>
+                                <View style={[styles.diceGraphic, isRolling && styles.diceRolling]}>
+                                    <Text style={styles.diceEmoji}>{getDiceEmoji(playerDice)}</Text>
+                                    <Text style={styles.diceValText}>{playerDice}</Text>
+                                </View>
+                                {questionScore >= 7 && (
+                                    <Text style={styles.diceModifierText}>+2 Bonus</Text>
+                                )}
+                            </View>
+
+                            <Text style={styles.vsText}>VS</Text>
+
+                            {/* Mara Dice */}
+                            <View style={styles.diceBox}>
+                                <Text style={[styles.diceBoxLabel, {color: MARA_RED}]}>Mara</Text>
+                                <View style={[styles.diceGraphic, styles.maraDiceGraphic, isRolling && styles.diceRolling]}>
+                                    <Text style={styles.diceEmoji}>{getDiceEmoji(maraDice)}</Text>
+                                    <Text style={styles.diceValText}>{maraDice}</Text>
+                                </View>
+                            </View>
+                        </View>
+
+                        {/* Roll Action Button */}
+                        <TouchableOpacity 
+                            style={[styles.rollBtn, isRolling && styles.rollBtnDisabled]}
+                            onPress={startDiceRolling}
+                            disabled={isRolling}
+                        >
+                            <Text style={styles.rollBtnText}>
+                                {isRolling ? 'Đang gieo...' : 'Gieo Quyết Đấu!'}
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
+                )}
 
                 {/* Result Section */}
                 {status === 'result' && result && (
@@ -422,5 +540,114 @@ const styles = StyleSheet.create({
         color: '#000',
         fontWeight: 'bold',
         fontSize: 16
+    },
+    diceCard: {
+        padding: 20,
+        borderRadius: 16,
+        borderWidth: 2,
+        borderColor: '#475569',
+        backgroundColor: DARK_ACCENT,
+        alignItems: 'center',
+        marginTop: 10,
+        marginBottom: 20
+    },
+    diceHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+        marginBottom: 15
+    },
+    diceTitle: {
+        fontSize: 20,
+        fontWeight: '900',
+        color: '#fff',
+        letterSpacing: 1
+    },
+    diceDesc: {
+        color: '#cbd5e1',
+        fontSize: 14,
+        textAlign: 'center',
+        lineHeight: 20,
+        marginBottom: 20
+    },
+    duelContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 30,
+        marginBottom: 25
+    },
+    diceBox: {
+        alignItems: 'center',
+        gap: 5
+    },
+    diceBoxLabel: {
+        color: WIN_GOLD,
+        fontSize: 14,
+        fontWeight: 'bold',
+        textTransform: 'uppercase'
+    },
+    diceGraphic: {
+        width: 85,
+        height: 85,
+        backgroundColor: '#fff',
+        borderRadius: 16,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 2,
+        borderColor: '#e2e8f0',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 5,
+        elevation: 5
+    },
+    maraDiceGraphic: {
+        backgroundColor: '#fecaca',
+        borderColor: MARA_RED
+    },
+    diceEmoji: {
+        fontSize: 38,
+        color: '#000'
+    },
+    diceValText: {
+        fontSize: 14,
+        fontWeight: 'bold',
+        color: '#475569',
+        marginTop: 2
+    },
+    diceModifierText: {
+        color: '#10B981',
+        fontSize: 11,
+        fontWeight: 'bold',
+        textTransform: 'uppercase'
+    },
+    vsText: {
+        fontSize: 24,
+        fontWeight: '900',
+        color: '#64748b'
+    },
+    rollBtn: {
+        backgroundColor: WIN_GOLD,
+        paddingHorizontal: 40,
+        paddingVertical: 15,
+        borderRadius: 30,
+        shadowColor: WIN_GOLD,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 10,
+        elevation: 5
+    },
+    rollBtnDisabled: {
+        backgroundColor: '#475569',
+        opacity: 0.5
+    },
+    rollBtnText: {
+        color: '#000',
+        fontSize: 16,
+        fontWeight: 'bold'
+    },
+    diceRolling: {
+        transform: [{ rotate: '45deg' }]
     }
 });
