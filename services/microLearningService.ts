@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { userService } from './userService';
 
 export interface MicroLearningPost {
     id: string;
@@ -79,26 +80,10 @@ export const microLearningService = {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error('No user logged in');
 
-        // 1. Get current balance
-        const { data: profile, error: profileErr } = await supabase
-            .from('profiles')
-            .select('mpoints')
-            .eq('id', user.id)
-            .single();
+        // 1. Spend MPoints using userService
+        await userService.spendMPoints(price);
 
-        if (profileErr) throw profileErr;
-        if ((profile.mpoints || 0) < price) {
-            throw new Error(`Bạn không đủ M-points để mở khóa bài học này. Cần ${price} M-points, hiện có ${profile.mpoints || 0}.`);
-        }
-
-        // 2. Deduct points and insert unlock record (atomic-ish transaction)
-        const { error: deductErr } = await supabase
-            .from('profiles')
-            .update({ mpoints: (profile.mpoints || 0) - price })
-            .eq('id', user.id);
-
-        if (deductErr) throw deductErr;
-
+        // 2. Insert unlock record
         const { error: unlockErr } = await supabase
             .from('micro_learning_unlocks')
             .insert([{ user_id: user.id, lesson_id: lessonId }]);
