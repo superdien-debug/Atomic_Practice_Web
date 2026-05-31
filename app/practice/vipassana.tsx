@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
     View, Text, StyleSheet, TouchableOpacity,
-    Animated, Easing as RNEasing, Dimensions, Modal, ScrollView, ActivityIndicator
+    Animated, Easing as RNEasing, Dimensions, Modal, ScrollView, ActivityIndicator, Alert
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -74,16 +74,40 @@ export default function VipassanaScreen() {
                 );
                 if (isMounted) setSound(audioSound);
 
-                // 2. Find Practice ID for logging (optional, could be different for each track but we'll use same for now or search)
+                // 2. Find or Auto-Create Practice ID for logging
                 if (!practiceId) {
-                    const { data } = await supabase
-                        .from('practices')
-                        .select('id')
-                        .ilike('title', '%Vipassana%')
-                        .limit(1);
-                    
-                    if (data && data.length > 0) {
-                        setPracticeId(data[0].id);
+                    const { data: { user } } = await supabase.auth.getUser();
+                    if (user) {
+                        const { data } = await supabase
+                            .from('practices')
+                            .select('id')
+                            .ilike('title', '%Vipassana%')
+                            .eq('user_id', user.id)
+                            .limit(1);
+                        
+                        if (data && data.length > 0) {
+                            if (isMounted) setPracticeId(data[0].id);
+                        } else {
+                            // Automatically create the missing practice card for the user!
+                            const { data: created, error: createErr } = await supabase
+                                .from('practices')
+                                .insert([{
+                                    user_id: user.id,
+                                    title: 'Thiền Vipassana',
+                                    category: 'Thiền',
+                                    target_type: 'duration',
+                                    daily_target: 41,
+                                    is_active: true
+                                }])
+                                .select('id')
+                                .single();
+                            
+                            if (!createErr && created) {
+                                if (isMounted) setPracticeId(created.id);
+                            } else {
+                                console.error('Failed to auto-create Vipassana practice card:', createErr);
+                            }
+                        }
                     }
                 }
             } catch (err) {
@@ -150,9 +174,25 @@ export default function VipassanaScreen() {
             try {
                 await practiceService.toggleCompletion(practiceId, undefined, true);
                 console.log('Session logged');
+                Alert.alert("Chúc mừng", "Đạo hữu đã hoàn thành xuất sắc phiên thiền Vipassana! (+15 Công đức & +15 MPoints)");
             } catch (err) {
                 console.error('Failed to log session:', err);
             }
+        }
+    };
+
+    const handleCompleteManual = async () => {
+        if (!practiceId) {
+            Alert.alert("Lỗi", "Không tìm thấy thẻ thiền Vipassana. Vui lòng đợi trong giây lát.");
+            return;
+        }
+
+        try {
+            await practiceService.toggleCompletion(practiceId, undefined, true);
+            Alert.alert("Cát tường", "Đã ghi nhận thành công phiên thiền Vipassana hôm nay! (+15 Công đức & +15 MPoints)");
+        } catch (err: any) {
+            console.error(err);
+            Alert.alert("Lỗi", err.message || "Không thể ghi nhận. Vui lòng thử lại!");
         }
     };
 
@@ -275,10 +315,19 @@ export default function VipassanaScreen() {
                     </TouchableOpacity>
                 </View>
 
-                {/* History placeholder or small stats */}
+                {/* History card with Complete button */}
                 <View style={styles.historyCard}>
-                   <Text style={[styles.historyTitle, { color: selectedTrack.color }]}>Lịch sử hành thiền</Text>
-                   <Text style={styles.historySub}>Phiên gần nhất sẽ được ghi nhận khi bạn hoàn thành {formatTime(selectedTrack.duration)} phút.</Text>
+                   <Text style={[styles.historyTitle, { color: selectedTrack.color }]}>Ghi nhận thực hành</Text>
+                   <Text style={styles.historySub}>
+                       Hệ thống tự động ghi nhận khi đếm ngược kết thúc. Đạo hữu cũng có thể bấm nút bên dưới để ghi nhận thủ công sau khi hoàn thành phiên thiền.
+                   </Text>
+                   
+                   <TouchableOpacity
+                       style={[styles.completeBtn, { backgroundColor: selectedTrack.color, marginTop: 12 }]}
+                       onPress={handleCompleteManual}
+                   >
+                       <Text style={styles.completeBtnText}>✓ GHI NHẬN HOÀN THÀNH (+15đ)</Text>
+                   </TouchableOpacity>
                 </View>
 
             </ScrollView>
@@ -399,6 +448,11 @@ const styles = StyleSheet.create({
     },
     historyTitle: { fontSize: 16, fontWeight: '700', marginBottom: 8 },
     historySub: { fontSize: 13, color: MAROON, opacity: 0.7, lineHeight: 18 },
+    completeBtn: {
+        height: 48, borderRadius: 12, alignItems: 'center', justifyContent: 'center',
+        shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 4, elevation: 2
+    },
+    completeBtnText: { color: '#FFF', fontWeight: '800', fontSize: 14, letterSpacing: 1 },
     modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
     modalContent: {
         backgroundColor: '#FFF', borderTopLeftRadius: 24, borderTopRightRadius: 24,
