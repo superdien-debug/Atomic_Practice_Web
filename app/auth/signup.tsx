@@ -42,19 +42,25 @@ export default function SignupScreen() {
             return;
         }
         setLoading(true);
-        const { data, error } = await supabase.auth.signUp({
-            email, password,
-            options: { data: { display_name: email.split('@')[0] } },
-        });
-        if (error) {
-            Alert.alert(t('error'), error.message);
-        } else if (data.session) {
-            router.replace('/dashboard');
-        } else {
-            Alert.alert(t('checkEmail'), t('emailVerify'));
-            router.replace('/auth/login');
+        try {
+            const { data, error } = await supabase.auth.signUp({
+                email, password,
+                options: { data: { display_name: email.split('@')[0] } },
+            });
+            if (error) {
+                Alert.alert(t('error'), error.message);
+            } else if (data.session) {
+                router.replace('/dashboard');
+            } else {
+                Alert.alert(t('checkEmail'), t('emailVerify'));
+                router.replace('/auth/login');
+            }
+        } catch (err: any) {
+            console.error(err);
+            Alert.alert(t('error'), err.message || "Đăng ký thất bại. Vui lòng thử lại!");
+        } finally {
+            setLoading(false);
         }
-        setLoading(false);
     };
 
     return (
