@@ -964,7 +964,7 @@ export default function RebirdScreen() {
                         </View>
 
                         <Text style={styles.formulaText}>
-                            * Điểm xếp hạng = (Số bài tập x 10) + (Hồi hướng x 15) + (Vượt Ma Vương x 10) + (Streak ngày x 10)
+                            * Công thức: Điểm = Cõi giới + Hồi hướng (+15) + Nhận phước (+10) + Thắng Mara (+10) + Thiền Vipassana (+15) + Điểm danh Chủ Nhật (+100)
                         </Text>
 
                         {/* Leaderboard Users List */}
@@ -1711,24 +1711,25 @@ const styles = StyleSheet.create({
         marginBottom: 2,
     },
     formulaText: {
-        fontSize: 9,
+        fontSize: 11,
         color: '#64748B',
         fontStyle: 'italic',
         marginBottom: 12,
     },
     leaderboardScroll: {
         width: '100%',
-        maxHeight: 200,
+        maxHeight: 460,
         borderWidth: 1,
         borderColor: '#E2E8F0',
         borderRadius: 12,
         backgroundColor: '#FFF',
-        padding: 6,
+        padding: 8,
     },
     leaderboardItem: {
         flexDirection: 'row',
         alignItems: 'center',
-        padding: 8,
+        paddingVertical: 12,
+        paddingHorizontal: 8,
         borderBottomWidth: 1,
         borderBottomColor: '#F1F5F9',
     },
@@ -1742,28 +1743,28 @@ const styles = StyleSheet.create({
         backgroundColor: '#FFFDF9',
     },
     leaderboardRankBox: {
-        width: 24,
-        height: 24,
+        width: 28,
+        height: 28,
         alignItems: 'center',
         justifyContent: 'center',
     },
     rankNumText: {
-        fontSize: 11,
+        fontSize: 13,
         fontWeight: 'bold',
         color: '#64748B',
     },
     rankNameText: {
-        fontSize: 11,
+        fontSize: 14,
         fontWeight: 'bold',
         color: '#1E293B',
     },
     rankDetailsText: {
-        fontSize: 8.5,
+        fontSize: 11,
         color: '#64748B',
-        marginTop: 1,
+        marginTop: 3,
     },
     rankScoreText: {
-        fontSize: 11,
+        fontSize: 14,
         fontWeight: 'bold',
         color: MAROON,
     },
