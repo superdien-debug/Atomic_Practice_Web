@@ -1118,31 +1118,44 @@ export default function RebirdScreen() {
                                     ) : (
                                         <ScrollView style={{ maxHeight: 180, width: '100%', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 10, backgroundColor: '#FFF', padding: 8, marginBottom: 15 }} nestedScrollEnabled>
                                             {userHistory.map((h, idx) => {
-                                                // Calculate points for this move using tournament rules
+                                                // Calculate points for this move using tournament rules v6
                                                 let movePt = 0;
                                                 if (h.to_realm_id > h.from_realm_id) movePt = 15;
                                                 else if (h.to_realm_id < h.from_realm_id) movePt = -15;
 
+                                                // 1. Lower realms (1-13) & Indian/Bon religions (22, 23) -> -10 pts
                                                 let penaltyPt = 0;
-                                                if (h.to_realm_id >= 1 && h.to_realm_id <= 13) penaltyPt = -10;
-
-                                                let pureLandPt = 0;
-                                                if (h.to_realm_id >= 97 && h.to_realm_id <= 103) pureLandPt = 15;
-
-                                                let firstTimePt = 0;
-                                                const mahayanaGroups = [22, 23, 38, 39, 40, 47, 48, 25, 33, 42, 52, 54, 59, 60, 71, 77, 93, 104];
-                                                if (mahayanaGroups.includes(h.to_realm_id)) {
-                                                    const isFirstTime = !userHistory.slice(idx + 1).some(prev => prev.to_realm_id === h.to_realm_id);
-                                                    if (isFirstTime) firstTimePt = 5;
+                                                if ((h.to_realm_id >= 1 && h.to_realm_id <= 13) || h.to_realm_id === 22 || h.to_realm_id === 23) {
+                                                    penaltyPt = -10;
                                                 }
 
-                                                const totalPt = movePt + penaltyPt + pureLandPt + firstTimePt;
+                                                // 2. 4 Human realms (17, 18, 19, 20) -> +10 pts
+                                                let humanPt = 0;
+                                                if (h.to_realm_id === 17 || h.to_realm_id === 18 || h.to_realm_id === 19 || h.to_realm_id === 20) {
+                                                    humanPt = 10;
+                                                }
+
+                                                // 3. Pure Lands (97-103) & Buddhist tinh tan realms -> +15 pts
+                                                let pureLandPt = 0;
+                                                const buddhaRealms = [38, 39, 40, 47, 48, 25, 33, 42, 52, 54, 59, 60, 71, 77, 93, 104];
+                                                if ((h.to_realm_id >= 97 && h.to_realm_id <= 103) || buddhaRealms.includes(h.to_realm_id)) {
+                                                    pureLandPt = 15;
+                                                }
+
+                                                const totalPt = movePt + penaltyPt + humanPt + pureLandPt;
 
                                                 const detailsParts = [];
                                                 if (movePt !== 0) detailsParts.push(movePt > 0 ? `Lên cõi: +${movePt}` : `Xuống cõi: ${movePt}`);
-                                                if (penaltyPt !== 0) detailsParts.push(`Đọa xứ: ${penaltyPt}`);
-                                                if (pureLandPt !== 0) detailsParts.push(`Tịnh độ: +${pureLandPt}`);
-                                                if (firstTimePt !== 0) detailsParts.push(`Cõi mới: +${firstTimePt}`);
+                                                if (penaltyPt !== 0) {
+                                                    if (h.to_realm_id === 22) detailsParts.push(`Ấn Độ Giáo: ${penaltyPt}`);
+                                                    else if (h.to_realm_id === 23) detailsParts.push(`Bôn Giáo: ${penaltyPt}`);
+                                                    else detailsParts.push(`Đọa xứ: ${penaltyPt}`);
+                                                }
+                                                if (humanPt !== 0) detailsParts.push(`Cõi Người: +${humanPt}`);
+                                                if (pureLandPt !== 0) {
+                                                    if (h.to_realm_id >= 97 && h.to_realm_id <= 103) detailsParts.push(`Tịnh độ: +${pureLandPt}`);
+                                                    else detailsParts.push(`Cõi Phật: +${pureLandPt}`);
+                                                }
                                                 const detailsStr = detailsParts.join(' | ');
 
                                                 return (
