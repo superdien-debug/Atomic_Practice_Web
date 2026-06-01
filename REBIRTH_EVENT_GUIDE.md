@@ -30,10 +30,11 @@ Chào mừng chư vị đồng tu đến với **Giải Đấu Tái Sinh - Bàn 
 Hệ thống tính điểm của giải đấu được thiết kế chặt chẽ và cân bằng bằng việc sử dụng trực tiếp các tính năng thực tế có sẵn trong game, chia thành các trọng số rõ rệt:
 
 ### 🌟 A. Trọng Số Di Chuyển Cõi Giới (Chiếm 40% tổng số điểm)
-* **Điểm Tái Sinh:** Mỗi lần đạo hữu di chuyển tới các cảnh giới khác nhau trên Bàn cờ Luân hồi sẽ nhận được hoặc bị trừ điểm dựa trên tính chất thăng tiến của linh hồn:
-  * **Thăng lên cảnh giới cao hơn (Ascent):** Nhận ngay **`+15 điểm`** (khi `to_realm_id > from_realm_id`).
-  * **Rơi xuống cảnh giới thấp hơn (Descent):** Bị **`khấu trừ -15 điểm`** (khi `to_realm_id < from_realm_id`). Đây là quy luật nghiệp lực nhân quả chân thực trong luân hồi sa đọa.
-  * *Lưu ý:* Tổng số điểm di chuyển cõi giới tối thiểu luôn được giới hạn lớn hơn hoặc bằng 0, không âm.
+* **Điểm Tái Sinh:** Mỗi lần đạo hữu di chuyển tới các cảnh giới khác nhau trên Bàn cờ Luân hồi sẽ nhận được hoặc bị trừ điểm dựa trên tính chất lành/dữ của cảnh giới đích đến:
+  * **Cõi Người Cát Tường (4 cõi người: 17, 18, 19, 20):** Nhận ngay **`+10 điểm`** mỗi lần di chuyển đến để khuyến khích sinh thân người quý giá để tu tập.
+  * **Cõi Phật & Tịnh Độ tinh tấn (Tịnh Độ 97-103 và các cõi Phật tinh tấn):** Nhận ngay **`+15 điểm`** mỗi lần đáp để tán thán công đức của cảnh giới giác ngộ.
+  * **Các cõi đọa xứ ác đạo (1-13) & Ấn Độ giáo, Bôn giáo (22, 23):** Bị **`khấu trừ -10 điểm`** mỗi lần rơi vào để thể hiện sự sa đọa nghiệp lực trong luân hồi.
+  * *Lưu ý:* Tổng số điểm di chuyển cõi giới có thể nhận giá trị âm nếu đạo hữu rơi vào đọa xứ nhiều lần liên tục. Không áp dụng logic so sánh ID lớn/nhỏ của cõi đi và cõi đến, giúp phản ánh chân thực giá trị tâm linh của mỗi cảnh giới (ví dụ: tái sinh từ cõi trung ấm Bardo về cõi người Nam Thiện Bộ Châu là một sự thăng tiến vô cùng lành tốt).
 
 ### 🧘‍♂️ B. Trọng Số Thực Hành Tu Tập Vipassana (Chiếm 40% tổng số điểm)
 * **Thực Hành Thiền Định Vipassana Sâu (+15 điểm/buổi):**

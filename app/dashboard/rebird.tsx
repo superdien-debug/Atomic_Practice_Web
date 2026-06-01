@@ -1118,10 +1118,8 @@ export default function RebirdScreen() {
                                     ) : (
                                         <ScrollView style={{ maxHeight: 180, width: '100%', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 10, backgroundColor: '#FFF', padding: 8, marginBottom: 15 }} nestedScrollEnabled>
                                             {userHistory.map((h, idx) => {
-                                                // Calculate points for this move using tournament rules v6
+                                                // Calculate points for this move using tournament rules v7 (0 base points)
                                                 let movePt = 0;
-                                                if (h.to_realm_id > h.from_realm_id) movePt = 15;
-                                                else if (h.to_realm_id < h.from_realm_id) movePt = -15;
 
                                                 // 1. Lower realms (1-13) & Indian/Bon religions (22, 23) -> -10 pts
                                                 let penaltyPt = 0;
