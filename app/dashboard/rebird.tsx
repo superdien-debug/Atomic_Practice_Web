@@ -1018,7 +1018,7 @@ export default function RebirdScreen() {
                                                     </Text>
                                                     {reward && (
                                                         <Text style={styles.rankRewardText}>
-                                                            🎁 Phần thưởng: {reward}
+                                                            🎁 {reward}
                                                         </Text>
                                                     )}
                                                 </View>
