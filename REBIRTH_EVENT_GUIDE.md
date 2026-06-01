@@ -21,7 +21,7 @@ Chào mừng chư vị đồng tu đến với **Giải Đấu Tái Sinh - Bàn 
 ### ⏳ Cơ Chế Đếm Ngược Cảnh Giới (Cooldown System)
 * **Thời gian hồi chiêu theo nghiệp lực:** Mỗi cảnh giới sẽ áp đặt một thời gian đếm ngược (cooldown) khác nhau trước khi bạn được phép gieo xúc xắc lượt tiếp theo. Các cõi đọa xứ nặng nề (Địa ngục, Ngạ quỷ, Súc sinh) sẽ có thời gian chờ lâu hơn để mô phỏng sự trì trệ của nghiệp lực.
 * **Tiêu hao MP để giảm thời gian:** Đạo hữu có thể tiêu hao điểm **MP (Mana Points)** tích lũy từ việc thực hành thiền tập để rút ngắn thời gian đếm ngược này.
-* **Giới hạn Tối thiểu Cứng (24h):** Để đảm bảo tính tinh tấn đều đặn và tránh việc lạm dụng chơi liên tục, **thời gian chờ tối thiểu bắt buộc vẫn là 1 ngày (24 giờ)** cho mỗi lượt gieo xúc xắc, bất kể bạn tiêu bao nhiêu MP.
+* **Giới hạn Tối thiểu Cứng (6h):** Để đảm bảo tính tinh tấn đều đặn và tránh việc lạm dụng chơi liên tục, **thời gian chờ tối thiểu bắt buộc vẫn là 6 giờ** cho mỗi lượt gieo xúc xắc, bất kể bạn tiêu bao nhiêu MP.
 
 ---
 

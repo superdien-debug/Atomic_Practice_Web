@@ -448,8 +448,15 @@ export const rebirthService = {
             // If already expired, don't need to reduce
             if (currentExpires <= now) return;
 
-            // Reduce by 24 hours (1 day)
-            const newExpires = new Date(currentExpires.getTime() - (24 * 60 * 60 * 1000));
+            // Reduce by 24 hours (1 day), obeying the 6-hour minimum limit
+            const startTurnDate = state.updated_at ? new Date(state.updated_at) : new Date(state.created_at || new Date());
+            const minExpiresMs = startTurnDate.getTime() + (6 * 60 * 60 * 1000); // 6-hour min wait
+
+            let newExpiresMs = currentExpires.getTime() - (24 * 60 * 60 * 1000);
+            if (newExpiresMs < minExpiresMs) {
+                newExpiresMs = minExpiresMs;
+            }
+            const newExpires = new Date(newExpiresMs);
 
             await supabase.from('user_rebirth_state').update({
                 expires_at: newExpires.toISOString(),
@@ -553,7 +560,7 @@ export const rebirthService = {
         const startTurnDate = state.updated_at ? new Date(state.updated_at) : new Date(state.created_at || new Date());
         
         let newExpiresMs = currentExpires.getTime() - (daysToReduce * 24 * 60 * 60 * 1000);
-        const minExpiresMs = startTurnDate.getTime() + (24 * 60 * 60 * 1000); // Tối thiểu 1 ngày (24h)
+        const minExpiresMs = startTurnDate.getTime() + (6 * 60 * 60 * 1000); // Tối thiểu 6 giờ (6h)
 
         if (newExpiresMs < minExpiresMs) {
             newExpiresMs = minExpiresMs;
@@ -665,7 +672,7 @@ export const rebirthService = {
             // Randomly reduce 24 to 48 hours
             const reduceHours = Math.floor(Math.random() * 25) + 24; // 24 to 48
             let newExpiresMs = currentExpires.getTime() - (reduceHours * 60 * 60 * 1000);
-            const minExpiresMs = startTurnDate.getTime() + (24 * 60 * 60 * 1000); // 1-day min limit
+            const minExpiresMs = startTurnDate.getTime() + (6 * 60 * 60 * 1000); // 6-hour min limit
 
             if (newExpiresMs < minExpiresMs) {
                 newExpiresMs = minExpiresMs;

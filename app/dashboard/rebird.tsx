@@ -243,21 +243,21 @@ export default function RebirdScreen() {
         if (!state) return;
         const currentExpires = new Date(state.expires_at).getTime();
         const startTurn = state.updated_at ? new Date(state.updated_at).getTime() : new Date(state.created_at || new Date()).getTime();
-        const minExpires = startTurn + (24 * 60 * 60 * 1000); // 1-day min wait
+        const minExpires = startTurn + (6 * 60 * 60 * 1000); // 6-hour min wait
 
         if (currentExpires <= minExpires) {
-            Alert.alert("Chưa đủ điều kiện", "Cảnh giới này đã chạm thời hạn tối thiểu 1 ngày (24 giờ). Bạn cần trải nghiệm nốt thời gian còn lại trước khi gieo xúc xắc.");
+            Alert.alert("Chưa đủ điều kiện", "Cảnh giới này đã chạm thời hạn tối thiểu 6 giờ. Bạn cần trải nghiệm nốt thời gian còn lại trước khi gieo xúc xắc.");
             return;
         }
 
-        const maxDaysToReduce = Math.floor((currentExpires - minExpires) / (24 * 60 * 60 * 1000));
+        const maxDaysToReduce = Math.ceil((currentExpires - minExpires) / (24 * 60 * 60 * 1000));
         if (maxDaysToReduce <= 0) {
-            Alert.alert("Chưa đủ điều kiện", "Thời gian chờ còn lại của bạn chưa đầy 1 ngày bổ sung để có thể rút ngắn.");
+            Alert.alert("Chưa đủ điều kiện", "Thời gian chờ còn lại của bạn đã chạm thời hạn tối thiểu hoặc không thể rút ngắn thêm.");
             return;
         }
 
         if (reduceDays > maxDaysToReduce) {
-            Alert.alert("Lượt giảm vượt giới hạn", `Ở lượt này, bạn chỉ có thể giảm tối đa thêm ${maxDaysToReduce} ngày để đảm bảo thọ mạng tối thiểu 1 ngày.`);
+            Alert.alert("Lượt giảm vượt giới hạn", `Ở lượt này, bạn chỉ có thể giảm tối đa thêm ${maxDaysToReduce} ngày để đảm bảo thời gian chờ tối thiểu 6 giờ.`);
             return;
         }
 
@@ -882,7 +882,7 @@ export default function RebirdScreen() {
                         </View>
 
                         <Text style={styles.minWaitHint}>
-                            * Lưu ý: Ràng buộc thọ mạng tối thiểu 1 ngày (24 giờ) bắt buộc luôn được giữ lại để đảm bảo sự tĩnh lặng chiêm nghiệm cõi giới.
+                            * Lưu ý: Ràng buộc thọ mạng tối thiểu 6 giờ bắt buộc luôn được giữ lại để đảm bảo sự tĩnh lặng chiêm nghiệm cõi giới.
                         </Text>
 
                         <View style={styles.modalActions}>
