@@ -36,9 +36,11 @@ Hệ thống tính điểm của giải đấu được thiết kế chặt ch�
   * **Các cõi đọa xứ ác đạo (1-13) & Ấn Độ giáo, Bôn giáo (22, 23):** Bị **`khấu trừ -10 điểm`** mỗi lần rơi vào để thể hiện sự sa đọa nghiệp lực trong luân hồi.
   * *Lưu ý:* Tổng số điểm di chuyển cõi giới có thể nhận giá trị âm nếu đạo hữu rơi vào đọa xứ nhiều lần liên tục. Không áp dụng logic so sánh ID lớn/nhỏ của cõi đi và cõi đến, giúp phản ánh chân thực giá trị tâm linh của mỗi cảnh giới (ví dụ: tái sinh từ cõi trung ấm Bardo về cõi người Nam Thiện Bộ Châu là một sự thăng tiến vô cùng lành tốt).
 
-### 🧘‍♂️ B. Trọng Số Thực Hành Tu Tập Vipassana (Chiếm 40% tổng số điểm)
+### 🧘‍♂️ B. Trọng Số Thực Hành Tu Tập (Chiếm 40% tổng số điểm)
 * **Thực Hành Thiền Định Vipassana Sâu (+15 điểm/buổi):**
   * Mỗi buổi thực hành thiền thực chất trong mục *Thiền Vipassana* mang lại điểm tích lũy và MP để sử dụng trong game. Mỗi buổi thiền sâu của đạo hữu sẽ nhận trọn vẹn **`+15 điểm`** vào điểm tổng giải đấu.
+* **Thực Hành Mantra Guru 3Kaya (+10 điểm/buổi):**
+  * Mỗi ngày thực hành tu tập trì tụng **Mantra Guru 3Kaya - 10 tràng** (ghi nhận hoàn thành) sẽ được cộng ngay **`+10 điểm`** xếp hạng để khuyến khích trì tụng mật chú linh thiêng của Bổn tôn.
 
 ### 🤝 C. Trọng Số Tương Tác Thành Viên (Chiếm 10% tổng số điểm)
 * **1. Gieo Blessings (Hồi Hướng Phước Báu):** Đạo hữu có thể gửi lời chúc thỉnh cầu, năng lượng lành hoặc hồi hướng công đức cho đồng tu khác qua bảng chúc nguyện.

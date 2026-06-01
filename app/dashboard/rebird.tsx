@@ -44,6 +44,7 @@ interface LeaderboardUser {
     streak_score: number;
     attendance_count: number;
     realm_score: number;
+    guru_3kaya_count?: number;
     total_score: number;
 }
 
@@ -1055,7 +1056,8 @@ export default function RebirdScreen() {
                                 selectedUserForDetails.blessings_count * 15 +
                                 selectedUserForDetails.mara_wins_count * 10 +
                                 (selectedUserForDetails.attendance_count || 0) * 100 +
-                                selectedUserForDetails.realm_score
+                                selectedUserForDetails.realm_score +
+                                (selectedUserForDetails.guru_3kaya_count || 0) * 10
                             ));
 
                             return (
@@ -1068,6 +1070,11 @@ export default function RebirdScreen() {
                                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#E2E8F0' }}>
                                             <Text style={{ fontSize: 13, color: '#475569' }}>🧘‍♂️ Thiền Vipassana sâu ({selectedUserForDetails.practices_count} buổi)</Text>
                                             <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#0F172A' }}>+{selectedUserForDetails.practices_count * 15} pts</Text>
+                                        </View>
+
+                                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#E2E8F0' }}>
+                                            <Text style={{ fontSize: 13, color: '#475569' }}>📿 Mantra Guru 3Kaya ({selectedUserForDetails.guru_3kaya_count || 0} lần)</Text>
+                                            <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#0F172A' }}>+{(selectedUserForDetails.guru_3kaya_count || 0) * 10} pts</Text>
                                         </View>
 
                                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#E2E8F0' }}>
