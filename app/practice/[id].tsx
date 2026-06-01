@@ -131,7 +131,7 @@ export default function PracticeDetailScreen() {
             }
 
             // Fetch today's log status
-            const today = new Date().toISOString().split('T')[0];
+            const today = getLocalISODate();
             const { data: logs } = await supabase
                 .from('practice_logs')
                 .select('*')

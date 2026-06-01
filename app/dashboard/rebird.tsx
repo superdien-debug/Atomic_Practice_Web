@@ -42,6 +42,8 @@ interface LeaderboardUser {
     blessings_count: number;
     mara_wins_count: number;
     streak_score: number;
+    attendance_count: number;
+    realm_score: number;
     total_score: number;
 }
 
@@ -100,6 +102,8 @@ export default function RebirdScreen() {
     const [leaderboard, setLeaderboard] = useState<LeaderboardUser[]>([]);
     const [loadingLeaderboard, setLoadingLeaderboard] = useState(false);
     const [selectedUserForDetails, setSelectedUserForDetails] = useState<LeaderboardUser | null>(null);
+    const [userHistory, setUserHistory] = useState<any[]>([]);
+    const [loadingUserHistory, setLoadingUserHistory] = useState(false);
 
     // Comments state
     const [comments, setComments] = useState<RebirthComment[]>([]);
@@ -346,6 +350,20 @@ export default function RebirdScreen() {
             console.error('Failed to load tournament leaderboard:', err);
         } finally {
             setLoadingLeaderboard(false);
+        }
+    };
+
+    const handleSelectUserForDetails = async (item: LeaderboardUser) => {
+        setSelectedUserForDetails(item);
+        setLoadingUserHistory(true);
+        setUserHistory([]);
+        try {
+            const hist = await rebirthService.getUserHistory(item.user_id);
+            setUserHistory(hist);
+        } catch (err) {
+            console.error("Failed to load user history:", err);
+        } finally {
+            setLoadingUserHistory(false);
         }
     };
 
@@ -984,7 +1002,7 @@ export default function RebirdScreen() {
                                             <TouchableOpacity 
                                                 key={item.user_id} 
                                                 style={[styles.leaderboardItem, idx === 0 && styles.firstPlace, idx === 1 && styles.secondPlace, idx === 2 && styles.thirdPlace]}
-                                                onPress={() => setSelectedUserForDetails(item)}
+                                                onPress={() => handleSelectUserForDetails(item)}
                                             >
                                                 <View style={styles.leaderboardRankBox}>
                                                     {idx < 3 ? (
@@ -1031,42 +1049,156 @@ export default function RebirdScreen() {
                             📊 BẢNG TÍNH ĐIỂM CHI TIẾT
                         </Text>
 
-                        {selectedUserForDetails && (
-                            <View style={{ width: '100%' }}>
-                                <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#1E293B', textAlign: 'center', marginBottom: 10 }}>
-                                    Hành Giả: {selectedUserForDetails.display_name}
-                                </Text>
+                        {selectedUserForDetails && (() => {
+                            const blessingsReceivedPts = Math.max(0, selectedUserForDetails.total_score - (
+                                selectedUserForDetails.practices_count * 15 +
+                                selectedUserForDetails.blessings_count * 15 +
+                                selectedUserForDetails.mara_wins_count * 10 +
+                                (selectedUserForDetails.attendance_count || 0) * 100 +
+                                selectedUserForDetails.realm_score
+                            ));
 
-                                <View style={{ backgroundColor: '#F8FAFC', borderRadius: 12, padding: 16, borderWidth: 1, borderColor: '#E2E8F0', marginBottom: 20 }}>
-                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#E2E8F0' }}>
-                                        <Text style={{ fontSize: 13, color: '#475569' }}>🧘‍♂️ Thiền Vipassana sâu ({selectedUserForDetails.practices_count} buổi)</Text>
-                                        <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#0F172A' }}>+{selectedUserForDetails.practices_count * 15} pts</Text>
+                            return (
+                                <View style={{ width: '100%' }}>
+                                    <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#1E293B', textAlign: 'center', marginBottom: 10 }}>
+                                        Hành Giả: {selectedUserForDetails.display_name}
+                                    </Text>
+
+                                    <View style={{ backgroundColor: '#F8FAFC', borderRadius: 12, padding: 16, borderWidth: 1, borderColor: '#E2E8F0', marginBottom: 15 }}>
+                                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#E2E8F0' }}>
+                                            <Text style={{ fontSize: 13, color: '#475569' }}>🧘‍♂️ Thiền Vipassana sâu ({selectedUserForDetails.practices_count} buổi)</Text>
+                                            <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#0F172A' }}>+{selectedUserForDetails.practices_count * 15} pts</Text>
+                                        </View>
+
+                                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#E2E8F0' }}>
+                                            <Text style={{ fontSize: 13, color: '#475569' }}>🤝 Hồi hướng phước lành ({selectedUserForDetails.blessings_count} lần)</Text>
+                                            <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#0F172A' }}>+{selectedUserForDetails.blessings_count * 15} pts</Text>
+                                        </View>
+
+                                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#E2E8F0' }}>
+                                            <Text style={{ fontSize: 13, color: '#475569' }}>⚔️ Chiến thắng Ma Vương ({selectedUserForDetails.mara_wins_count} trận)</Text>
+                                            <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#0F172A' }}>+{selectedUserForDetails.mara_wins_count * 10} pts</Text>
+                                        </View>
+
+                                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#E2E8F0' }}>
+                                            <Text style={{ fontSize: 13, color: '#475569' }}>☸️ Điểm danh Chủ Nhật ({selectedUserForDetails.attendance_count || 0} buổi)</Text>
+                                            <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#10B981' }}>+{(selectedUserForDetails.attendance_count || 0) * 100} pts</Text>
+                                        </View>
+
+                                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: blessingsReceivedPts > 0 ? 1 : 0, borderBottomColor: '#E2E8F0' }}>
+                                            <Text style={{ fontSize: 13, color: '#475569' }}>🌍 Điểm di chuyển cõi giới</Text>
+                                            <Text style={{ fontSize: 13, fontWeight: 'bold', color: selectedUserForDetails.realm_score < 0 ? '#EF4444' : '#10B981' }}>
+                                                {selectedUserForDetails.realm_score > 0 ? `+${selectedUserForDetails.realm_score}` : selectedUserForDetails.realm_score} pts
+                                            </Text>
+                                        </View>
+
+                                        {blessingsReceivedPts > 0 && (
+                                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8 }}>
+                                                <Text style={{ fontSize: 13, color: '#475569' }}>💖 Phước lành nhận được</Text>
+                                                <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#10B981' }}>+{blessingsReceivedPts} pts</Text>
+                                            </View>
+                                        )}
                                     </View>
 
-                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#E2E8F0' }}>
-                                        <Text style={{ fontSize: 13, color: '#475569' }}>🤝 Hồi hướng phước lành ({selectedUserForDetails.blessings_count} lần)</Text>
-                                        <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#0F172A' }}>+{selectedUserForDetails.blessings_count * 15} pts</Text>
+                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#FFFBEB', borderRadius: 8, padding: 12, borderWidth: 1, borderColor: GOLD, marginBottom: 15 }}>
+                                        <Text style={{ fontSize: 14, fontWeight: 'bold', color: MAROON }}>TỔNG ĐIỂM PHƯỚC ĐỨC</Text>
+                                        <Text style={{ fontSize: 16, fontWeight: '900', color: MAROON }}>{selectedUserForDetails.total_score} PTS</Text>
                                     </View>
 
-                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#E2E8F0' }}>
-                                        <Text style={{ fontSize: 13, color: '#475569' }}>⚔️ Chiến thắng Ma Vương ({selectedUserForDetails.mara_wins_count} trận)</Text>
-                                        <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#0F172A' }}>+{selectedUserForDetails.mara_wins_count * 10} pts</Text>
-                                    </View>
+                                    <Text style={{ fontSize: 13, fontWeight: 'bold', color: MAROON, marginBottom: 8, alignSelf: 'flex-start' }}>
+                                        📜 LỊCH SỬ CẢNH GIỚI ({selectedUserForDetails.realm_score > 0 ? '+' : ''}{selectedUserForDetails.realm_score} PTS)
+                                    </Text>
 
-                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8 }}>
-                                        <Text style={{ fontSize: 13, color: '#475569' }}>☸️ Điểm Cõi giới & Điểm danh</Text>
-                                        <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#0F172A' }}>
-                                            +{Math.max(0, selectedUserForDetails.total_score - (selectedUserForDetails.practices_count * 15 + selectedUserForDetails.blessings_count * 15 + selectedUserForDetails.mara_wins_count * 10))} pts
+                                    {loadingUserHistory ? (
+                                        <ActivityIndicator size="small" color={MAROON} style={{ marginVertical: 20 }} />
+                                    ) : userHistory.length === 0 ? (
+                                        <Text style={{ fontSize: 12, color: '#64748B', fontStyle: 'italic', textAlign: 'center', marginVertical: 15 }}>
+                                            Chưa ghi nhận lịch sử dịch chuyển cõi giới trong sự kiện.
                                         </Text>
-                                    </View>
-                                </View>
+                                    ) : (
+                                        <ScrollView style={{ maxHeight: 180, width: '100%', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 10, backgroundColor: '#FFF', padding: 8, marginBottom: 15 }} nestedScrollEnabled>
+                                            {userHistory.map((h, idx) => {
+                                                // Calculate points for this move using tournament rules
+                                                let movePt = 0;
+                                                if (h.to_realm_id > h.from_realm_id) movePt = 15;
+                                                else if (h.to_realm_id < h.from_realm_id) movePt = -15;
 
-                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#FFFBEB', borderRadius: 8, padding: 12, borderWidth: 1, borderColor: GOLD, marginBottom: 20 }}>
-                                    <Text style={{ fontSize: 14, fontWeight: 'bold', color: MAROON }}>TỔNG ĐIỂM PHƯỚC ĐỨC</Text>
-                                    <Text style={{ fontSize: 16, fontWeight: '900', color: MAROON }}>{selectedUserForDetails.total_score} PTS</Text>
+                                                let penaltyPt = 0;
+                                                if (h.to_realm_id >= 1 && h.to_realm_id <= 13) penaltyPt = -10;
+
+                                                let pureLandPt = 0;
+                                                if (h.to_realm_id >= 97 && h.to_realm_id <= 103) pureLandPt = 15;
+
+                                                let firstTimePt = 0;
+                                                const mahayanaGroups = [22, 23, 38, 39, 40, 47, 48, 25, 33, 42, 52, 54, 59, 60, 71, 77, 93, 104];
+                                                if (mahayanaGroups.includes(h.to_realm_id)) {
+                                                    const isFirstTime = !userHistory.slice(idx + 1).some(prev => prev.to_realm_id === h.to_realm_id);
+                                                    if (isFirstTime) firstTimePt = 5;
+                                                }
+
+                                                const totalPt = movePt + penaltyPt + pureLandPt + firstTimePt;
+
+                                                const detailsParts = [];
+                                                if (movePt !== 0) detailsParts.push(movePt > 0 ? `Lên cõi: +${movePt}` : `Xuống cõi: ${movePt}`);
+                                                if (penaltyPt !== 0) detailsParts.push(`Đọa xứ: ${penaltyPt}`);
+                                                if (pureLandPt !== 0) detailsParts.push(`Tịnh độ: +${pureLandPt}`);
+                                                if (firstTimePt !== 0) detailsParts.push(`Cõi mới: +${firstTimePt}`);
+                                                const detailsStr = detailsParts.join(' | ');
+
+                                                return (
+                                                    <View 
+                                                        key={h.id} 
+                                                        style={{ 
+                                                            flexDirection: 'row', 
+                                                            justifyContent: 'space-between', 
+                                                            alignItems: 'center', 
+                                                            paddingVertical: 10, 
+                                                            paddingHorizontal: 8, 
+                                                            borderBottomWidth: idx < userHistory.length - 1 ? 1 : 0, 
+                                                            borderBottomColor: '#F1F5F9',
+                                                            borderLeftWidth: 4,
+                                                            borderLeftColor: totalPt > 0 ? '#10B981' : (totalPt < 0 ? '#EF4444' : '#94A3B8'),
+                                                            paddingLeft: 8,
+                                                            marginBottom: 4,
+                                                            backgroundColor: '#F8FAFC',
+                                                            borderRadius: 4
+                                                        }}
+                                                    >
+                                                        <View style={{ flex: 1, marginRight: 8 }}>
+                                                            <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#1E293B' }}>
+                                                                Cõi {h.from_realm?.name || h.from_realm_id} ➔ {h.to_realm?.name || h.to_realm_id}
+                                                            </Text>
+                                                            {detailsStr ? (
+                                                                <Text style={{ fontSize: 10, color: '#64748B', marginTop: 2 }}>
+                                                                    {detailsStr}
+                                                                </Text>
+                                                            ) : null}
+                                                            <Text style={{ fontSize: 9, color: '#94A3B8', marginTop: 1 }}>
+                                                                {format(new Date(h.created_at), 'dd/MM/yyyy HH:mm')}
+                                                            </Text>
+                                                        </View>
+                                                        <View 
+                                                            style={{ 
+                                                                backgroundColor: totalPt > 0 ? '#E6F4EA' : (totalPt < 0 ? '#FCE8E6' : '#F1F5F9'), 
+                                                                paddingHorizontal: 8, 
+                                                                paddingVertical: 4, 
+                                                                borderRadius: 12, 
+                                                                borderWidth: 1, 
+                                                                borderColor: totalPt > 0 ? '#34A853' : (totalPt < 0 ? '#EA4335' : '#CBD5E1') 
+                                                            }}
+                                                        >
+                                                            <Text style={{ fontSize: 11, fontWeight: 'bold', color: totalPt > 0 ? '#137333' : (totalPt < 0 ? '#C5221F' : '#5F6368') }}>
+                                                                {totalPt > 0 ? `+${totalPt}` : totalPt} pts
+                                                            </Text>
+                                                        </View>
+                                                    </View>
+                                                );
+                                            })}
+                                        </ScrollView>
+                                    )}
                                 </View>
-                            </View>
-                        )}
+                            );
+                        })()}
 
                         <TouchableOpacity 
                             style={[styles.modalBtn, { width: '100%', backgroundColor: MAROON }]}

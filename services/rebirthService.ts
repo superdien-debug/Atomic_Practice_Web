@@ -739,5 +739,20 @@ export const rebirthService = {
             return [];
         }
         return data || [];
+    },
+
+    // 14. Fetch specific user's rebirth history
+    async getUserHistory(userId: string): Promise<any[]> {
+        const { data, error } = await supabase
+            .from('game_rebirth_history')
+            .select(`*, from_realm:game_rebirth_realms!from_realm_id(*), to_realm:game_rebirth_realms!to_realm_id(*)`)
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false });
+            
+        if (error) {
+            console.error("[RebirthService] getUserHistory error:", error);
+            return [];
+        }
+        return data || [];
     }
 };

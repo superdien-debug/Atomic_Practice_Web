@@ -10,6 +10,7 @@ import { notificationService } from '../../services/notificationService';
 import { MIN_CREATION_SCORE } from '../../utils/rankUtils';
 import { useT } from '../../i18n/useT';
 import { aiMemoryService, AIProfile } from '../../services/aiMemoryService';
+import { getLocalISODate } from '../../utils/dateUtils';
 
 type TopStripDate = {
     day: string;
@@ -28,7 +29,7 @@ const getDates = () => {
         dates.push({
             day: days[d.getDay()],
             date: d.getDate(),
-            fullDate: d.toISOString().split('T')[0],
+            fullDate: getLocalISODate(d),
             isToday: i === 0,
         });
     }
@@ -42,7 +43,7 @@ export default function MyPracticeScreen() {
     const t = useT();
     const insets = useSafeAreaInsets();
     const [activeTab, setActiveTab] = useState<TabType>('today');
-    const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
+    const [selectedDate, setSelectedDate] = useState<string>(getLocalISODate());
     const [dates] = useState(getDates());
     const [practices, setPractices] = useState<Practice[]>([]);
     const [communityPractices, setCommunityPractices] = useState<Practice[]>([]);
@@ -51,7 +52,7 @@ export default function MyPracticeScreen() {
     const [totalScore, setTotalScore] = useState(0);
     const [aiProfile, setAiProfile] = useState<AIProfile | null>(null);
 
-    const isTodaySelected = selectedDate === new Date().toISOString().split('T')[0];
+    const isTodaySelected = selectedDate === getLocalISODate();
     const isLibrary = activeTab.startsWith('library');
 
     // Navigation callbacks
@@ -113,8 +114,8 @@ export default function MyPracticeScreen() {
     }, [selectedDate, activeTab]);
 
     const toggleComplete = async (practice: Practice) => {
-        const today = new Date().toISOString().split('T')[0];
-        if (selectedDate > today) return;
+        const today = getLocalISODate();
+        if (selectedDate !== today) return;
 
         const originalPractices = [...practices];
         setPractices(prev => prev.map(p =>
@@ -338,6 +339,7 @@ export default function MyPracticeScreen() {
                                     onPress={() => goToDetail(practice.id)}
                                     onToggle={() => toggleComplete(practice)}
                                     onDelete={() => handleDelete(practice.id, practice.title)}
+                                    disabled={selectedDate !== getLocalISODate()}
                                 />
                             ))
                         ) : (
@@ -448,7 +450,7 @@ function TabItem({ active, label, onPress }: { active: boolean, label: string, o
     );
 }
 
-function CompactPracticeCard({ practice, onPress, onToggle, onDelete }: { practice: Practice, onPress: () => void, onToggle: () => void, onDelete: () => void }) {
+function CompactPracticeCard({ practice, onPress, onToggle, onDelete, disabled }: { practice: Practice, onPress: () => void, onToggle: () => void, onDelete: () => void, disabled?: boolean }) {
     return (
         <TouchableOpacity
             onPress={onPress}
@@ -498,10 +500,25 @@ function CompactPracticeCard({ practice, onPress, onToggle, onDelete }: { practi
             </View>
 
             <TouchableOpacity
-                onPress={(e) => { e.stopPropagation(); onToggle(); }}
-                className={`w-10 h-10 rounded-full items-center justify-center border-2 ${practice.completed ? 'bg-green-500 border-green-500' : 'bg-white border-gray-200'}`}
+                onPress={(e) => { e.stopPropagation(); if (!disabled) onToggle(); }}
+                disabled={disabled}
+                className={`w-10 h-10 rounded-full items-center justify-center border-2 ${
+                    practice.completed
+                        ? disabled
+                            ? 'bg-green-500/40 border-green-500/20'
+                            : 'bg-green-500 border-green-500'
+                        : disabled
+                            ? 'bg-gray-100 border-gray-200'
+                            : 'bg-white border-gray-200'
+                }`}
             >
-                {practice.completed ? <Check size={20} color="#FFF" /> : <Plus size={20} color="#CCC" />}
+                {practice.completed ? (
+                    <Check size={20} color="#FFF" />
+                ) : disabled ? (
+                    <Lock size={16} color="#94A3B8" />
+                ) : (
+                    <Plus size={20} color="#CCC" />
+                )}
             </TouchableOpacity>
         </TouchableOpacity>
     );
