@@ -44,6 +44,19 @@ export const useAuthStore = create<AuthState>((set) => ({
                 set({ role: 'user', isOnboardingComplete: false });
             } else if (error) {
                 console.error('Network or server error fetching profile. Keeping existing onboarding state.', error);
+                const isAuthError = 
+                    error.code === '401' || 
+                    (error.message && (
+                        error.message.toLowerCase().includes('jwt') || 
+                        error.message.toLowerCase().includes('token') || 
+                        error.message.toLowerCase().includes('unauthorized') ||
+                        error.message.toLowerCase().includes('expired')
+                    ));
+                if (isAuthError) {
+                    console.warn('Session is invalid, unauthorized, or expired. Signing out user...');
+                    await supabase.auth.signOut();
+                    set({ session: null, user: null, role: null, isOnboardingComplete: true });
+                }
             } else {
                 set({ role: 'user', isOnboardingComplete: false });
             }

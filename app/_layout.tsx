@@ -58,6 +58,10 @@ export default function RootLayout() {
                 const { data: { session: currentSession }, error } = await supabase.auth.getSession();
                 if (error) {
                     console.error("Supabase getSession error:", error);
+                    await supabase.auth.signOut();
+                    await setSession(null);
+                    setIsReady(true);
+                    return;
                 }
                 
                 // PROACTIVE CHECK: If session is expired or expiring within 60s, force refresh it on startup
@@ -66,12 +70,22 @@ export default function RootLayout() {
                     if (expiresAt === 0 || Date.now() > expiresAt - 60000) {
                         console.log("[RootLayout] App boot: session expired/expiring. Forcing refresh...");
                         try {
-                            const { data: { session: refreshedSession } } = await supabase.auth.refreshSession();
-                            await setSession(refreshedSession);
+                            const { data: { session: refreshedSession }, error: refreshErr } = await supabase.auth.refreshSession();
+                            if (refreshErr || !refreshedSession) {
+                                console.warn("[RootLayout] Session refresh failed on boot, signing out:", refreshErr);
+                                await supabase.auth.signOut();
+                                await setSession(null);
+                            } else {
+                                await setSession(refreshedSession);
+                            }
                             setIsReady(true);
                             return;
                         } catch (refreshErr) {
                             console.error("[RootLayout] Failed to refresh session on boot:", refreshErr);
+                            await supabase.auth.signOut();
+                            await setSession(null);
+                            setIsReady(true);
+                            return;
                         }
                     }
                 }
@@ -79,6 +93,8 @@ export default function RootLayout() {
                 await setSession(currentSession);
             } catch (err) {
                 console.error("Error during app initialization:", err);
+                await supabase.auth.signOut();
+                await setSession(null);
             } finally {
                 setIsReady(true);
             }
