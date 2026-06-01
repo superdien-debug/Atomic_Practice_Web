@@ -1125,52 +1125,40 @@ export default function RebirdScreen() {
                                     ) : (
                                         <ScrollView style={{ maxHeight: 180, width: '100%', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 10, backgroundColor: '#FFF', padding: 8, marginBottom: 15 }} nestedScrollEnabled>
                                             {userHistory.map((h, idx) => {
-                                                // Calculate points for this move using tournament rules v9 (base ascent/descent with Bardo exception)
-                                                let movePt = 0;
-                                                if (h.from_realm_id === 24) {
-                                                    if (h.to_realm_id === 15 || h.to_realm_id === 17 || h.to_realm_id === 18 || h.to_realm_id === 19 || h.to_realm_id === 20 || h.to_realm_id >= 25) {
-                                                        movePt = 15;
-                                                    } else {
-                                                        movePt = -15;
-                                                    }
-                                                } else if (h.to_realm_id > h.from_realm_id) {
-                                                    movePt = 15;
-                                                } else if (h.to_realm_id < h.from_realm_id) {
-                                                    movePt = -15;
+                                                // Calculate points for this move using tournament rules v10 (pure target realm points)
+                                                let targetPt = 0;
+                                                let cõiType = "";
+
+                                                if ([1,2,3,4,5,6,7,8,9,10,11,12,13,14,16,21,22,23].includes(h.to_realm_id)) {
+                                                    targetPt = -10;
+                                                    if (h.to_realm_id === 22) cõiType = "Ấn Độ Giáo";
+                                                    else if (h.to_realm_id === 23) cõiType = "Bôn Giáo";
+                                                    else cõiType = "Đọa xứ";
+                                                } else if (h.to_realm_id === 15) {
+                                                    targetPt = 5;
+                                                    cõiType = "Cõi Atula";
+                                                } else if (h.to_realm_id === 24) {
+                                                    targetPt = 0;
+                                                    cõiType = "Bardo";
+                                                } else if ([27, 28, 29, 30, 31, 32, 35, 36, 37].includes(h.to_realm_id)) {
+                                                    targetPt = 10;
+                                                    cõiType = "Cõi Trời";
+                                                } else if ([17, 18, 19, 20, 25, 26].includes(h.to_realm_id)) {
+                                                    targetPt = 10;
+                                                    if (h.to_realm_id === 26) cõiType = "Chuyển Luân Thánh Vương";
+                                                    else if (h.to_realm_id === 25) cõiType = "Vào Mật Thừa";
+                                                    else cõiType = "Cõi Người";
+                                                } else if (h.to_realm_id >= 33) {
+                                                    targetPt = 15;
+                                                    if (h.to_realm_id >= 97 && h.to_realm_id <= 103) cõiType = "Tịnh độ";
+                                                    else cõiType = "Cõi Phật";
                                                 }
 
-                                                // 1. Lower realms (1-13) & Indian/Bon religions (22, 23) -> -10 pts
-                                                let penaltyPt = 0;
-                                                if ((h.to_realm_id >= 1 && h.to_realm_id <= 13) || h.to_realm_id === 22 || h.to_realm_id === 23) {
-                                                    penaltyPt = -10;
-                                                }
-
-                                                // 2. 4 Human realms (17, 18, 19, 20) -> +10 pts
-                                                let humanPt = 0;
-                                                if (h.to_realm_id === 17 || h.to_realm_id === 18 || h.to_realm_id === 19 || h.to_realm_id === 20) {
-                                                    humanPt = 10;
-                                                }
-
-                                                // 3. Pure Lands (97-103) & Buddhist tinh tan realms -> +15 pts
-                                                let pureLandPt = 0;
-                                                const buddhaRealms = [38, 39, 40, 47, 48, 25, 33, 42, 52, 54, 59, 60, 71, 77, 93, 104];
-                                                if ((h.to_realm_id >= 97 && h.to_realm_id <= 103) || buddhaRealms.includes(h.to_realm_id)) {
-                                                    pureLandPt = 15;
-                                                }
-
-                                                const totalPt = movePt + penaltyPt + humanPt + pureLandPt;
+                                                const totalPt = targetPt;
 
                                                 const detailsParts = [];
-                                                if (movePt !== 0) detailsParts.push(movePt > 0 ? `Lên cõi: +${movePt}` : `Xuống cõi: ${movePt}`);
-                                                if (penaltyPt !== 0) {
-                                                    if (h.to_realm_id === 22) detailsParts.push(`Ấn Độ Giáo: ${penaltyPt}`);
-                                                    else if (h.to_realm_id === 23) detailsParts.push(`Bôn Giáo: ${penaltyPt}`);
-                                                    else detailsParts.push(`Đọa xứ: ${penaltyPt}`);
-                                                }
-                                                if (humanPt !== 0) detailsParts.push(`Cõi Người: +${humanPt}`);
-                                                if (pureLandPt !== 0) {
-                                                    if (h.to_realm_id >= 97 && h.to_realm_id <= 103) detailsParts.push(`Tịnh độ: +${pureLandPt}`);
-                                                    else detailsParts.push(`Cõi Phật: +${pureLandPt}`);
+                                                if (targetPt !== 0 || h.to_realm_id === 24) {
+                                                    detailsParts.push(`${cõiType}: ${targetPt > 0 ? '+' : ''}${targetPt}`);
                                                 }
                                                 const detailsStr = detailsParts.join(' | ');
 

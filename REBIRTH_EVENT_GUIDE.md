@@ -30,14 +30,13 @@ Chào mừng chư vị đồng tu đến với **Giải Đấu Tái Sinh - Bàn 
 Hệ thống tính điểm của giải đấu được thiết kế chặt chẽ và cân bằng bằng việc sử dụng trực tiếp các tính năng thực tế có sẵn trong game, chia thành các trọng số rõ rệt:
 
 ### 🌟 A. Trọng Số Di Chuyển Cõi Giới (Chiếm 40% tổng số điểm)
-* **Điểm Tái Sinh:** Mỗi lần đạo hữu di chuyển tới các cảnh giới khác nhau trên Bàn cờ Luân hồi sẽ nhận được hoặc bị trừ điểm dựa trên quy luật thăng tiến nghiệp lực của linh hồn:
-  * **Thăng lên cảnh giới cao hơn (Ascent):** Nhận ngay **`+15 điểm`** (khi `to_realm_id > from_realm_id`).
-  * **Rơi xuống cảnh giới thấp hơn (Descent):** Bị **`khấu trừ -15 điểm`** (khi `to_realm_id < from_realm_id`).
-  * **Ngoại lệ cõi Trung Ấm Bardo (ID 24):** Tái sinh từ cõi Bardo đến các cõi tốt lành (như cõi A-tu-la `15`, 4 cõi Người `17-20`, các cõi Trời và cõi Phật `>= 25`) được xem là **Thăng Cõi** và nhận trọn vẹn **`+15 điểm`** (thay vì bị tính là hạ cõi dựa trên so sánh chỉ số ID thông thường).
-  * **Thưởng/Phạt Cảnh Giới Đặc Biệt:**
-    * **Cõi Người Cát Tường (17, 18, 19, 20):** Nhận thêm **`+10 điểm`** mỗi lần di chuyển đến để khuyến khích sinh thân người.
-    * **Cõi Phật & Tịnh Độ (Tịnh Độ 97-103 và các cõi Phật tinh tấn):** Nhận thêm **`+15 điểm`** mỗi lần đáp.
-    * **Các cõi đọa xứ (1-13) & Ấn Độ giáo, Bôn giáo (22, 23):** Bị phạt trừ thêm **`-10 điểm`** mỗi lần rơi vào.
+* **Điểm Tái Sinh:** Mỗi lần đạo hữu di chuyển tới một cảnh giới trên Bàn cờ Luân hồi, điểm số nhận được hoặc bị khấu trừ sẽ dựa **hoàn toàn và trực tiếp** vào thuộc tính lành/dữ được cấu hình sẵn của cảnh giới đích đến đó (không quan tâm cõi trước đó là gì, hoàn toàn loại bỏ so sánh "Lên cõi/Xuống cõi" mang tính cơ học):
+  * **Cõi Phật & Tịnh Độ tinh tấn (Cõi 33, 34, 38-108):** Nhận ngay **`+15 điểm`** mỗi lần đáp để tán thán công đức của cảnh giới giác ngộ.
+  * **Cõi Trời Dục Giới & Sắc Giới (Cõi 27-32, 35-37):** Nhận ngay **`+10 điểm`** mỗi lần đáp.
+  * **Cõi Người Quý Báu (4 cõi người: 17, 18, 19, 20) & Chuyển Luân Thánh Vương (26) & Vào Mật Thừa (25):** Nhận ngay **`+10 điểm`** mỗi lần đáp để khuyến khích sinh thân người cát tường để tu tập.
+  * **Cõi A-tu-la (Cõi 15):** Nhận ngay **`+5 điểm`** mỗi lần đáp.
+  * **Cõi Trung Ấm Bardo (Cõi 24):** Nhận **`0 điểm`** (cõi chuyển tiếp trung tính).
+  * **Cõi Ác Đạo Đọa Xứ (Địa ngục, Ngạ quỷ, Súc sinh từ cõi 1-14, Rudra 16, Man rợ 21) & Ấn Độ giáo, Bôn giáo (22, 23):** Bị **`khấu trừ -10 điểm`** mỗi lần rơi vào để thể hiện sự sa đọa nghiệp lực trong luân hồi.
   * *Lưu ý:* Tổng số điểm di chuyển cõi giới có thể nhận giá trị âm nếu đạo hữu rơi vào đọa xứ nhiều lần liên tục.
 
 ### 🧘‍♂️ B. Trọng Số Thực Hành Tu Tập (Chiếm 40% tổng số điểm)
