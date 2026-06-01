@@ -99,6 +99,7 @@ export default function RebirdScreen() {
     const [periodTab, setPeriodTab] = useState<'month' | 'quarter'>('month');
     const [leaderboard, setLeaderboard] = useState<LeaderboardUser[]>([]);
     const [loadingLeaderboard, setLoadingLeaderboard] = useState(false);
+    const [selectedUserForDetails, setSelectedUserForDetails] = useState<LeaderboardUser | null>(null);
 
     // Comments state
     const [comments, setComments] = useState<RebirthComment[]>([]);
@@ -980,7 +981,11 @@ export default function RebirdScreen() {
                                     leaderboard.map((item, idx) => {
                                         const reward = idx < 10 ? (periodTab === 'month' ? getMonthlyRewardName(idx) : getQuarterlyRewardName(idx)) : null;
                                         return (
-                                            <View key={item.user_id} style={[styles.leaderboardItem, idx === 0 && styles.firstPlace, idx === 1 && styles.secondPlace, idx === 2 && styles.thirdPlace]}>
+                                            <TouchableOpacity 
+                                                key={item.user_id} 
+                                                style={[styles.leaderboardItem, idx === 0 && styles.firstPlace, idx === 1 && styles.secondPlace, idx === 2 && styles.thirdPlace]}
+                                                onPress={() => setSelectedUserForDetails(item)}
+                                            >
                                                 <View style={styles.leaderboardRankBox}>
                                                     {idx < 3 ? (
                                                         <Award size={20} color={idx === 0 ? GOLD : (idx === 1 ? '#C0C0C0' : BRONZE)} />
@@ -989,22 +994,19 @@ export default function RebirdScreen() {
                                                     )}
                                                 </View>
                                                 
-                                                <View style={{ flex: 1, marginLeft: 12 }}>
+                                                <View style={{ flex: 1, marginLeft: 12, justifyContent: 'center' }}>
                                                     <Text style={styles.rankNameText}>
                                                         {item.display_name}
-                                                        {reward && (
-                                                            <Text style={{ color: '#10b981', fontSize: 11, fontWeight: 'bold' }}>
-                                                                {" "}(🎁 {reward})
-                                                            </Text>
-                                                        )}
                                                     </Text>
-                                                    <Text style={styles.rankDetailsText}>
-                                                        Thiền: {item.practices_count} | Hộ trì: {item.blessings_count} | Thắng Mara: {item.mara_wins_count} | Chuỗi: {item.streak_score / 10}
-                                                    </Text>
+                                                    {reward && (
+                                                        <Text style={styles.rankRewardText}>
+                                                            🎁 Phần thưởng: {reward}
+                                                        </Text>
+                                                    )}
                                                 </View>
 
                                                 <Text style={styles.rankScoreText}>{item.total_score} pts</Text>
-                                            </View>
+                                            </TouchableOpacity>
                                         );
                                     })
                                 )}
@@ -1014,6 +1016,61 @@ export default function RebirdScreen() {
                         <TouchableOpacity 
                             style={[styles.modalBtn, { marginTop: 16 }]}
                             onPress={() => setShowLeaderboardModal(false)}
+                        >
+                            <Text style={styles.modalBtnText}>ĐÓNG</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* User Leaderboard Details Modal */}
+            <Modal visible={!!selectedUserForDetails} transparent animationType="fade">
+                <View style={styles.modalBg}>
+                    <View style={[styles.resultCard, { width: '90%', padding: 20 }]}>
+                        <Text style={[styles.resultTitle, { fontSize: 16, marginBottom: 15 }]}>
+                            📊 BẢNG TÍNH ĐIỂM CHI TIẾT
+                        </Text>
+
+                        {selectedUserForDetails && (
+                            <View style={{ width: '100%' }}>
+                                <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#1E293B', textAlign: 'center', marginBottom: 10 }}>
+                                    Hành Giả: {selectedUserForDetails.display_name}
+                                </Text>
+
+                                <View style={{ backgroundColor: '#F8FAFC', borderRadius: 12, padding: 16, borderWidth: 1, borderColor: '#E2E8F0', marginBottom: 20 }}>
+                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#E2E8F0' }}>
+                                        <Text style={{ fontSize: 13, color: '#475569' }}>🧘‍♂️ Thiền Vipassana sâu ({selectedUserForDetails.practices_count} buổi)</Text>
+                                        <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#0F172A' }}>+{selectedUserForDetails.practices_count * 15} pts</Text>
+                                    </View>
+
+                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#E2E8F0' }}>
+                                        <Text style={{ fontSize: 13, color: '#475569' }}>🤝 Hồi hướng phước lành ({selectedUserForDetails.blessings_count} lần)</Text>
+                                        <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#0F172A' }}>+{selectedUserForDetails.blessings_count * 15} pts</Text>
+                                    </View>
+
+                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#E2E8F0' }}>
+                                        <Text style={{ fontSize: 13, color: '#475569' }}>⚔️ Chiến thắng Ma Vương ({selectedUserForDetails.mara_wins_count} trận)</Text>
+                                        <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#0F172A' }}>+{selectedUserForDetails.mara_wins_count * 10} pts</Text>
+                                    </View>
+
+                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8 }}>
+                                        <Text style={{ fontSize: 13, color: '#475569' }}>☸️ Điểm Cõi giới & Điểm danh</Text>
+                                        <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#0F172A' }}>
+                                            +{Math.max(0, selectedUserForDetails.total_score - (selectedUserForDetails.practices_count * 15 + selectedUserForDetails.blessings_count * 15 + selectedUserForDetails.mara_wins_count * 10))} pts
+                                        </Text>
+                                    </View>
+                                </View>
+
+                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#FFFBEB', borderRadius: 8, padding: 12, borderWidth: 1, borderColor: GOLD, marginBottom: 20 }}>
+                                    <Text style={{ fontSize: 14, fontWeight: 'bold', color: MAROON }}>TỔNG ĐIỂM PHƯỚC ĐỨC</Text>
+                                    <Text style={{ fontSize: 16, fontWeight: '900', color: MAROON }}>{selectedUserForDetails.total_score} PTS</Text>
+                                </View>
+                            </View>
+                        )}
+
+                        <TouchableOpacity 
+                            style={[styles.modalBtn, { width: '100%', backgroundColor: MAROON }]}
+                            onPress={() => setSelectedUserForDetails(null)}
                         >
                             <Text style={styles.modalBtnText}>ĐÓNG</Text>
                         </TouchableOpacity>
@@ -1757,6 +1814,12 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: 'bold',
         color: '#1E293B',
+    },
+    rankRewardText: {
+        fontSize: 11,
+        fontWeight: 'bold',
+        color: '#10b981',
+        marginTop: 3,
     },
     rankDetailsText: {
         fontSize: 11,
