@@ -710,18 +710,16 @@ export const rebirthService = {
 
     // 13. Fetch Tournament Leaderboard
     async getTournamentLeaderboard(period: 'month' | 'quarter'): Promise<any[]> {
-        const now = new Date();
-        let startDate: Date;
+        // Season 1 starts on May 31st, 2026 at 12:00:00 Indochina Time (05:00:00 UTC)
+        const startDate = new Date('2026-05-31T05:00:00Z');
         let endDate: Date;
 
         if (period === 'month') {
-            startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-            endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+            // 30 round days for Season Month
+            endDate = new Date(startDate.getTime() + 30 * 24 * 60 * 60 * 1000);
         } else {
-            // Quarter calculation
-            const quarter = Math.floor(now.getMonth() / 3);
-            startDate = new Date(now.getFullYear(), quarter * 3, 1);
-            endDate = new Date(now.getFullYear(), (quarter + 1) * 3, 0, 23, 59, 59);
+            // 90 round days for Season Quarter
+            endDate = new Date(startDate.getTime() + 90 * 24 * 60 * 60 * 1000);
         }
 
         const { data, error } = await supabase.rpc('get_tournament_leaderboard', {
