@@ -984,7 +984,7 @@ export default function RebirdScreen() {
                         </View>
 
                         <Text style={styles.formulaText}>
-                            * Công thức: Điểm = Cõi giới + Hồi hướng (+15) + Nhận phước (+10) + Thắng Mara (+10) + Thiền Vipassana (+15) + Điểm danh Chủ Nhật (+100)
+                            * Công thức: Điểm = Cõi giới + Hồi hướng (+15) + Nhận phước (+10) + Thắng Mara (+10) + Thiền Vipassana (+15) + Điểm danh Chủ Nhật (+100) + Trì chú Mantra Guru 3Kaya (+10)
                         </Text>
 
                         {/* Leaderboard Users List */}
