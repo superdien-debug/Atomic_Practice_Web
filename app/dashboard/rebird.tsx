@@ -191,7 +191,10 @@ export default function RebirdScreen() {
 
             if (currentState?.realm_id) {
                 const isLower = currentState.realm_id >= 1 && currentState.realm_id <= 13;
-                const isHigher = currentState.realm_id >= 70 && currentState.realm_id <= 104;
+                const isHigher = 
+                    (currentState.realm_id >= 27 && currentState.realm_id <= 32) || 
+                    (currentState.realm_id >= 35 && currentState.realm_id <= 37) || 
+                    (currentState.realm_id >= 70 && currentState.realm_id <= 104);
 
                 // Load travelers in same realm
                 try {
@@ -519,7 +522,10 @@ export default function RebirdScreen() {
 
     const { realm } = state;
     const isLowerRealm = realm.id >= 1 && realm.id <= 13;
-    const isHigherRealm = realm.id >= 70 && realm.id <= 104;
+    const isHigherRealm = 
+        (realm.id >= 27 && realm.id <= 32) || 
+        (realm.id >= 35 && realm.id <= 37) || 
+        (realm.id >= 70 && realm.id <= 104);
 
     // Countdown configuration
     const totalLifeMs = (realm.life_days || 1) * 24 * 60 * 60 * 1000;
@@ -712,7 +718,7 @@ export default function RebirdScreen() {
                         </View>
                         
                         <Text style={styles.progressHint}>
-                            Với tư cách đồng tu cõi Trời, bạn có thể hồi hướng phước đức của mình cho các hương linh cõi thấp (trừ 50 Mpoints) để trợ duyên giảm thọ mạng khổ cực cho họ, bạn nhận ngay +15 Công đức.
+                            Với tư cách đồng tu cõi Trời / cõi Thánh, bạn có thể hồi hướng phước đức của mình cho các hương linh cõi thấp (trừ 50 Mpoints) để trợ duyên giảm thọ mạng khổ cực cho họ, bạn nhận ngay +15 Công đức.
                         </Text>
 
                         <View style={{ marginTop: 12 }}>
