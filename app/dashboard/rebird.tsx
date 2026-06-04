@@ -248,7 +248,9 @@ export default function RebirdScreen() {
     const handleReduceCooldown = async () => {
         if (!state) return;
         const currentExpires = new Date(state.expires_at).getTime();
-        const startTurn = state.updated_at ? new Date(state.updated_at).getTime() : new Date(state.created_at || new Date()).getTime();
+        const startTurn = state.turn_started_at 
+            ? new Date(state.turn_started_at).getTime() 
+            : (state.updated_at ? new Date(state.updated_at).getTime() : new Date(state.created_at || new Date()).getTime());
         const minExpires = startTurn + (6 * 60 * 60 * 1000); // 6-hour min wait
 
         if (currentExpires <= minExpires) {

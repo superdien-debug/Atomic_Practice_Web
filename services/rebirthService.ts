@@ -20,6 +20,7 @@ export interface RebirthState {
     user_id: string;
     realm_id: number;
     expires_at: string;
+    turn_started_at?: string;
     created_at?: string;
     updated_at?: string;
     realm?: Realm;
@@ -82,7 +83,8 @@ export const rebirthService = {
             const initialState = {
                 user_id: userId,
                 realm_id: 24,
-                expires_at: expiresAt.toISOString()
+                expires_at: expiresAt.toISOString(),
+                turn_started_at: new Date().toISOString()
             };
             const { data: created, error: createError } = await supabase
                 .from('user_rebirth_state')
@@ -362,6 +364,7 @@ export const rebirthService = {
         const { error: updateError } = await supabase.from('user_rebirth_state').update({
             realm_id: targetRealm.id,
             expires_at: nextExpiresAt.toISOString(),
+            turn_started_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
         }).eq('user_id', user.id);
 
@@ -419,6 +422,7 @@ export const rebirthService = {
         const { error: updateError } = await supabase.from('user_rebirth_state').update({
             realm_id: finalRealmId,
             expires_at: nextExpiresAt.toISOString(),
+            turn_started_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
         }).eq('user_id', userId);
 
@@ -449,7 +453,9 @@ export const rebirthService = {
             if (currentExpires <= now) return;
 
             // Reduce by 24 hours (1 day), obeying the 6-hour minimum limit
-            const startTurnDate = state.updated_at ? new Date(state.updated_at) : new Date(state.created_at || new Date());
+            const startTurnDate = state.turn_started_at 
+                ? new Date(state.turn_started_at) 
+                : (state.updated_at ? new Date(state.updated_at) : new Date(state.created_at || new Date()));
             const minExpiresMs = startTurnDate.getTime() + (6 * 60 * 60 * 1000); // 6-hour min wait
 
             let newExpiresMs = currentExpires.getTime() - (24 * 60 * 60 * 1000);
@@ -557,7 +563,9 @@ export const rebirthService = {
 
         // Calculate new expires_at
         const currentExpires = this.parseExpiresAt(state.expires_at);
-        const startTurnDate = state.updated_at ? new Date(state.updated_at) : new Date(state.created_at || new Date());
+        const startTurnDate = state.turn_started_at 
+            ? new Date(state.turn_started_at) 
+            : (state.updated_at ? new Date(state.updated_at) : new Date(state.created_at || new Date()));
         
         let newExpiresMs = currentExpires.getTime() - (daysToReduce * 24 * 60 * 60 * 1000);
         const minExpiresMs = startTurnDate.getTime() + (6 * 60 * 60 * 1000); // Tối thiểu 6 giờ (6h)
@@ -667,7 +675,9 @@ export const rebirthService = {
         const recipientState = await this.getState(request.user_id);
         if (recipientState) {
             const currentExpires = this.parseExpiresAt(recipientState.expires_at);
-            const startTurnDate = recipientState.updated_at ? new Date(recipientState.updated_at) : new Date(recipientState.created_at || new Date());
+            const startTurnDate = recipientState.turn_started_at 
+                ? new Date(recipientState.turn_started_at) 
+                : (recipientState.updated_at ? new Date(recipientState.updated_at) : new Date(recipientState.created_at || new Date()));
             
             // Randomly reduce 24 to 48 hours
             const reduceHours = Math.floor(Math.random() * 25) + 24; // 24 to 48
