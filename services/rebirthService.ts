@@ -293,10 +293,12 @@ export const rebirthService = {
         // Check if first time to Mahayana/Vajrayana (Groups III, V)
         const mahayanaGroups = [22, 23, 38, 39, 40, 47, 48, 25, 33, 42, 52, 54, 59, 60, 71, 77, 93, 104];
 
-        // Mara Encounter Check (25% chance for high realms)
+        // 1. Mara Encounter Check (25% chance for high realms)
+        let isMaraEncountered = false;
         if (mahayanaGroups.includes(nextRealmId)) {
             const maraChance = Math.random();
             if (maraChance < 0.25) {
+                isMaraEncountered = true;
                 console.log("[RebirthService] Mara encountered!");
                 return {
                     success: true,
@@ -307,6 +309,32 @@ export const rebirthService = {
                     toName: targetRealm.name,
                     message: "Ma vương xuất hiện! Ngài muốn thử thách định lực của bạn."
                 };
+            }
+        }
+
+        // 2. Klesha Encounter Check (30% chance for all other rolls, if Mara is not triggered)
+        if (!isMaraEncountered) {
+            const kleshaChance = Math.random();
+            if (kleshaChance < 0.30) {
+                console.log("[RebirthService] Klesha encountered!");
+                const { data: questions, error: qError } = await supabase
+                    .from('game_rebirth_realm_questions')
+                    .select('*');
+
+                if (!qError && questions && questions.length >= 3) {
+                    const shuffled = [...questions].sort(() => 0.5 - Math.random());
+                    const selectedQuestions = shuffled.slice(0, 3);
+                    return {
+                        success: true,
+                        encounterKlesha: true,
+                        questions: selectedQuestions,
+                        dice,
+                        from: state.realm_id,
+                        to: targetRealm.id,
+                        toName: targetRealm.name,
+                        message: "Nghiệp chướng xuất hiện! Kiếp sống này hành giả đã vô tình phạm vào ác nghiệp, cuối đời xuất hiện phiền não ma."
+                    } as any;
+                }
             }
         }
 
@@ -432,6 +460,90 @@ export const rebirthService = {
             success: true,
             finalRealm: targetRealm,
             meritChange
+        };
+    },
+
+    // Process result of a Klesha-mara quiz encounter
+    async processKleshaResult(userId: string, isSuccess: boolean, fromRealmId: number, targetRealmId: number, diceResult: number) {
+        console.log(`[RebirthService] processKleshaResult - success: ${isSuccess}`);
+
+        const state = await this.getState(userId);
+        if (!state || !state.realm) throw new Error("Cannot fetch state");
+
+        let finalRealmId = targetRealmId;
+        let message = "";
+        let meritChange = 0;
+
+        if (isSuccess) {
+            // Answered all 3 questions correctly: Success!
+            // Check if first time to Mahayana/Vajrayana (Groups III, V)
+            const mahayanaGroups = [22, 23, 38, 39, 40, 47, 48, 25, 33, 42, 52, 54, 59, 60, 71, 77, 93, 104];
+            if (mahayanaGroups.includes(targetRealmId)) {
+                const { count } = await supabase
+                    .from('game_rebirth_history')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('user_id', userId)
+                    .eq('to_realm_id', targetRealmId);
+                if (count === 0) {
+                    meritChange = 5;
+                }
+            }
+
+            // Tịnh Độ (Group VI): 97-103
+            if (targetRealmId >= 97 && targetRealmId <= 103) {
+                meritChange = Math.floor(Math.random() * 11) + 10;
+            }
+
+            // Đọa xứ (Group I): 1-13
+            if (targetRealmId >= 1 && targetRealmId <= 13) {
+                meritChange = -10;
+            }
+        } else {
+            // Failed: Forced downfall to Hungry Ghost (10) or Animal (11)
+            const downfalls = [10, 11];
+            finalRealmId = downfalls[Math.floor(Math.random() * downfalls.length)];
+            meritChange = -10; // Penalty for landing in lower cõi
+            message = "Đọa lạc do chướng ngại phiền não vô minh.";
+        }
+
+        const { data: targetRealm, error: targetError } = await supabase
+            .from('game_rebirth_realms')
+            .select('*')
+            .eq('id', finalRealmId)
+            .single();
+
+        if (targetError || !targetRealm) throw new Error("Target realm not found");
+
+        // Log history
+        const { error: histError } = await supabase.from('game_rebirth_history').insert({
+            user_id: userId,
+            from_realm_id: fromRealmId,
+            to_realm_id: finalRealmId,
+            dice_result: diceResult,
+            days_spent: state.realm.life_days || 0
+        });
+
+        if (histError) throw new Error("Lỗi khi lưu lịch sử tái sinh.");
+
+        // Update State
+        const nextExpiresAt = new Date();
+        const lifeDays = parseInt(targetRealm.life_days as any) || 0;
+        nextExpiresAt.setDate(nextExpiresAt.getDate() + lifeDays);
+
+        const { error: updateError } = await supabase.from('user_rebirth_state').update({
+            realm_id: finalRealmId,
+            expires_at: nextExpiresAt.toISOString(),
+            turn_started_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+        }).eq('user_id', userId);
+
+        if (updateError) throw new Error("Lỗi khi cập nhật cảnh giới mới.");
+
+        return {
+            success: true,
+            finalRealm: targetRealm,
+            meritChange,
+            message: message || undefined
         };
     },
 

@@ -119,6 +119,14 @@ export default function RebirdScreen() {
     const eventStartDate = React.useMemo(() => new Date('2026-05-31T12:00:00+07:00'), []);
     const [eventTimeLeft, setEventTimeLeft] = useState<number>(0);
 
+    // Klesha-mara state variables
+    const [showKleshaModal, setShowKleshaModal] = useState(false);
+    const [kleshaQuestions, setKleshaQuestions] = useState<any[]>([]);
+    const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+    const [kleshaTimer, setKleshaTimer] = useState(20);
+    const [kleshaRollData, setKleshaRollData] = useState<any>(null);
+    const [processingKlesha, setProcessingKlesha] = useState(false);
+
     useEffect(() => {
         const updateEventTimer = () => {
             const now = new Date();
@@ -130,6 +138,79 @@ export default function RebirdScreen() {
         const interval = setInterval(updateEventTimer, 1000);
         return () => clearInterval(interval);
     }, [eventStartDate]);
+
+    // Klesha-mara Quiz Timer useEffect
+    useEffect(() => {
+        let interval: NodeJS.Timeout | undefined;
+        
+        if (showKleshaModal && kleshaTimer > 0 && !processingKlesha) {
+            interval = setInterval(() => {
+                setKleshaTimer(prev => prev - 1);
+            }, 1000);
+        } else if (showKleshaModal && kleshaTimer === 0 && !processingKlesha) {
+            // Timer expired! Trigger failure automatically (vô minh đọa lạc)
+            handleKleshaAnswer(-1);
+        }
+
+        return () => {
+            if (interval) clearInterval(interval);
+        };
+    }, [showKleshaModal, kleshaTimer, processingKlesha]);
+
+    const handleKleshaAnswer = async (selectedOptionIndex: number) => {
+        if (processingKlesha) return;
+
+        const currentQuestion = kleshaQuestions[currentQuestionIndex];
+        const isCorrect = selectedOptionIndex === currentQuestion.correct_option_index;
+
+        if (isCorrect && currentQuestionIndex < 2) {
+            // Correct answer, move to next question (need 3 correct answers)
+            setCurrentQuestionIndex(prev => prev + 1);
+            setKleshaTimer(20);
+            return;
+        }
+
+        // We either got a wrong answer/timeout, or successfully answered all 3 questions correctly!
+        const isAllCorrect = isCorrect && currentQuestionIndex === 2;
+        setProcessingKlesha(true);
+
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) throw new Error("Not authenticated");
+
+            const result = await rebirthService.processKleshaResult(
+                user.id,
+                isAllCorrect,
+                kleshaRollData.from,
+                kleshaRollData.to,
+                kleshaRollData.dice
+            );
+
+            setProcessingKlesha(false);
+            setShowKleshaModal(false);
+
+            if (isAllCorrect) {
+                // Success: proceed to target realm
+                setDiceResult(kleshaRollData.dice);
+                setRollMessage(`Chúc mừng đạo hữu đã vượt qua phiền não ma thành công! ${result.message || ''}`);
+                setTargetRealmName(result.finalRealm?.name || kleshaRollData.toName);
+                setShowResultModal(true);
+            } else {
+                // Failure: Desended to Súc sinh / Ngạ quỷ
+                Alert.alert(
+                    "Đọa Lạc Cõi Dữ",
+                    `Đạo hữu đã bị phiền não ma lôi kéo do vô minh chướng ngại! Đọa lạc vào: ${result.finalRealm?.name} (${result.meritChange !== 0 ? result.meritChange : ''} Công đức). Hãy nỗ lực tu tập thiền định để hóa giải tập khí!`
+                );
+            }
+
+            // Reload user state & details
+            await fetchState();
+            await fetchTravelers();
+        } catch (err: any) {
+            setProcessingKlesha(false);
+            Alert.alert("Lỗi", err.message || "Không thể xử lý kết quả thử thách.");
+        }
+    };
 
     const formatEventCountdown = (ms: number) => {
         if (ms <= 0) return 'Đang diễn ra!';
@@ -422,6 +503,21 @@ export default function RebirdScreen() {
                             dice: result.dice?.toString()
                         }
                     } as any);
+                    return;
+                }
+
+                if ((result as any).encounterKlesha) {
+                    setRolling(false);
+                    setKleshaQuestions((result as any).questions);
+                    setCurrentQuestionIndex(0);
+                    setKleshaTimer(20);
+                    setKleshaRollData({
+                        from: result.from,
+                        to: result.to,
+                        toName: result.toName,
+                        dice: result.dice
+                    });
+                    setShowKleshaModal(true);
                     return;
                 }
 
@@ -1245,6 +1341,62 @@ export default function RebirdScreen() {
                 </View>
             )}
 
+            {/* Klesha-mara Quiz Modal */}
+            <Modal visible={showKleshaModal} transparent animationType="slide">
+                <View style={styles.modalBg}>
+                    <View style={[styles.kleshaCard, { backgroundColor: '#1E293B', borderColor: GOLD, borderWidth: 1.5 }]}>
+                        {/* Title Bar */}
+                        <Text style={[styles.kleshaTitle, { color: '#F1F5F9' }]}>😈 PHIỀN NÃO MA THỬ THÁCH</Text>
+                        <Text style={styles.kleshaSubtitle}>
+                            Kiếp sống này hành giả đã phạm vào ác nghiệp, cuối đời xuất hiện phiền não chướng. Hãy trả lời đúng 3 câu hỏi liên tiếp để giải nghiệp, nếu không sẽ đọa vào cõi dữ!
+                        </Text>
+
+                        {/* Progress and Timer */}
+                        {kleshaQuestions.length > 0 && (
+                            <View style={styles.kleshaProgressRow}>
+                                <Text style={styles.kleshaProgressText}>
+                                    Tiến trình: <Text style={{ color: GOLD, fontWeight: 'bold' }}>{currentQuestionIndex + 1}/3</Text>
+                                </Text>
+                                <View style={[styles.kleshaTimerBadge, kleshaTimer <= 5 && { backgroundColor: '#991B1B' }]}>
+                                    <Text style={styles.kleshaTimerText}>⏳ {kleshaTimer}s</Text>
+                                </View>
+                            </View>
+                        )}
+
+                        {/* Question Text */}
+                        {kleshaQuestions.length > 0 && (
+                            <View style={styles.kleshaQuestionContainer}>
+                                <Text style={styles.kleshaQuestionText}>
+                                    {kleshaQuestions[currentQuestionIndex].question}
+                                </Text>
+                            </View>
+                        )}
+
+                        {/* Options List */}
+                        {kleshaQuestions.length > 0 && (
+                            <ScrollView style={{ maxHeight: 280, width: '100%' }} showsVerticalScrollIndicator={false}>
+                                {kleshaQuestions[currentQuestionIndex].options.map((option: string, idx: number) => (
+                                    <TouchableOpacity
+                                        key={idx}
+                                        style={styles.kleshaOptionBtn}
+                                        onPress={() => handleKleshaAnswer(idx)}
+                                        disabled={processingKlesha}
+                                    >
+                                        <Text style={styles.kleshaOptionText}>
+                                            {String.fromCharCode(65 + idx)}. {option}
+                                        </Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </ScrollView>
+                        )}
+
+                        {processingKlesha && (
+                            <ActivityIndicator size="small" color={GOLD} style={{ marginTop: 15 }} />
+                        )}
+                    </View>
+                </View>
+            </Modal>
+
             {/* Result Modal */}
             <Modal visible={showResultModal} transparent animationType="fade">
                 <View style={styles.modalBg}>
@@ -1735,6 +1887,86 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         borderWidth: 2,
         borderColor: GOLD
+    },
+    kleshaCard: {
+        width: '90%',
+        borderRadius: 24,
+        padding: 24,
+        alignItems: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.5,
+        shadowRadius: 20,
+        elevation: 10
+    },
+    kleshaTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        letterSpacing: 1,
+        marginBottom: 10,
+        textAlign: 'center'
+    },
+    kleshaSubtitle: {
+        fontSize: 12,
+        color: '#94A3B8',
+        textAlign: 'center',
+        lineHeight: 18,
+        marginBottom: 20
+    },
+    kleshaProgressRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        width: '100%',
+        marginBottom: 15,
+        paddingBottom: 10,
+        borderBottomWidth: 1,
+        borderBottomColor: '#334155'
+    },
+    kleshaProgressText: {
+        fontSize: 14,
+        color: '#E2E8F0'
+    },
+    kleshaTimerBadge: {
+        backgroundColor: '#D97706',
+        borderRadius: 12,
+        paddingHorizontal: 10,
+        paddingVertical: 4
+    },
+    kleshaTimerText: {
+        color: '#FFF',
+        fontSize: 13,
+        fontWeight: 'bold'
+    },
+    kleshaQuestionContainer: {
+        backgroundColor: '#334155',
+        borderRadius: 12,
+        padding: 16,
+        width: '100%',
+        marginBottom: 20
+    },
+    kleshaQuestionText: {
+        color: '#FFF',
+        fontSize: 15,
+        fontWeight: '600',
+        lineHeight: 22,
+        textAlign: 'center'
+    },
+    kleshaOptionBtn: {
+        backgroundColor: '#475569',
+        borderWidth: 1,
+        borderColor: '#64748B',
+        borderRadius: 12,
+        padding: 14,
+        width: '100%',
+        marginBottom: 10,
+        alignItems: 'flex-start'
+    },
+    kleshaOptionText: {
+        color: '#F1F5F9',
+        fontSize: 14,
+        lineHeight: 20,
+        fontWeight: '500'
     },
     resultTitle: {
         color: MAROON,
