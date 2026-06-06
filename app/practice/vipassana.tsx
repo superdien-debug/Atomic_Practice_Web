@@ -58,13 +58,12 @@ export default function VipassanaScreen() {
     // Animation values
     const circleAnim = useRef(new Animated.Value(0)).current;
 
-    // Load Audio and Practice ID
+    // 1. Load Audio for the selected track
     useEffect(() => {
         let isMounted = true;
 
-        async function init() {
+        async function initAudio() {
             try {
-                // 1. Load Audio for the selected track
                 if (sound) {
                     await sound.unloadAsync();
                 }
@@ -72,57 +71,77 @@ export default function VipassanaScreen() {
                     selectedTrack.audio,
                     { shouldPlay: false }
                 );
-                if (isMounted) setSound(audioSound);
-
-                // 2. Find or Auto-Create Practice ID for logging
-                if (!practiceId) {
-                    const { data: { user } } = await supabase.auth.getUser();
-                    if (user) {
-                        const { data } = await supabase
-                            .from('practices')
-                            .select('id')
-                            .ilike('title', '%Vipassana%')
-                            .eq('user_id', user.id)
-                            .limit(1);
-                        
-                        if (data && data.length > 0) {
-                            if (isMounted) setPracticeId(data[0].id);
-                        } else {
-                            // Automatically create the missing practice card for the user!
-                            const { data: created, error: createErr } = await supabase
-                                .from('practices')
-                                .insert([{
-                                    user_id: user.id,
-                                    title: 'Thiền Vipassana',
-                                    category: 'Thiền',
-                                    target_type: 'duration',
-                                    daily_target: 41,
-                                    is_active: true
-                                }])
-                                .select('id')
-                                .single();
-                            
-                            if (!createErr && created) {
-                                if (isMounted) setPracticeId(created.id);
-                            } else {
-                                console.error('Failed to auto-create Vipassana practice card:', createErr);
-                            }
-                        }
-                    }
+                if (isMounted) {
+                    setSound(audioSound);
+                    setLoading(false);
                 }
             } catch (err) {
-                console.error('Failed to init Meditation:', err);
-            } finally {
+                console.error('Failed to init Meditation Audio:', err);
                 if (isMounted) setLoading(false);
             }
         }
 
-        init();
+        initAudio();
 
         return () => {
             isMounted = false;
         };
     }, [selectedTrack]);
+
+    // 2. Find or Auto-Create Practice ID for logging (runs once on mount)
+    useEffect(() => {
+        let isMounted = true;
+        let isFetching = false;
+
+        async function initPracticeCard() {
+            if (isFetching || practiceId) return;
+            isFetching = true;
+
+            try {
+                const { data: { user } } = await supabase.auth.getUser();
+                if (user) {
+                    const { data } = await supabase
+                        .from('practices')
+                        .select('id')
+                        .ilike('title', '%Vipassana%')
+                        .eq('user_id', user.id)
+                        .limit(1);
+                    
+                    if (data && data.length > 0) {
+                        if (isMounted) setPracticeId(data[0].id);
+                    } else {
+                        // Automatically create the missing practice card for the user!
+                        const { data: created, error: createErr } = await supabase
+                            .from('practices')
+                            .insert([{
+                                user_id: user.id,
+                                title: 'Thiền Vipassana',
+                                category: 'Thiền',
+                                target_type: 'duration',
+                                daily_target: 41,
+                                is_active: true
+                            }])
+                            .select('id')
+                            .single();
+                        
+                        if (!createErr && created) {
+                            if (isMounted) setPracticeId(created.id);
+                        } else {
+                            console.error('Failed to auto-create Vipassana practice card:', createErr);
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error('Failed to find or create Vipassana practice:', err);
+            }
+        }
+
+        initPracticeCard();
+
+        return () => {
+            isMounted = false;
+        };
+    }, []);
 
     const changeTrack = async (track: typeof TRACKS[0]) => {
         setIsPlaying(false);

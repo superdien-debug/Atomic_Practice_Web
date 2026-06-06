@@ -82,6 +82,30 @@ export const practiceService = {
 
         const logDate = dateStr || getLocalISODate();
 
+        // Enforce 1-per-day completed log for Guru 3Kaya practices
+        if (isCompleted) {
+            const { data: practice } = await supabase
+                .from('practices')
+                .select('title')
+                .eq('id', practiceId)
+                .single();
+
+            if (practice && practice.title.toLowerCase().includes('3kaya')) {
+                const { data: dupLogs } = await supabase
+                    .from('practice_logs')
+                    .select('id, practices!inner(title)')
+                    .eq('user_id', user.id)
+                    .eq('log_date', logDate)
+                    .eq('completed', true)
+                    .neq('practice_id', practiceId)
+                    .ilike('practices.title', '%3kaya%');
+
+                if (dupLogs && dupLogs.length > 0) {
+                    throw new Error("Đạo hữu chỉ được phép ghi nhận thực hành Mantra Guru 3Kaya tối đa 1 lần mỗi ngày.");
+                }
+            }
+        }
+
         // Robust Workaround: Fetch first to handle missing UNIQUE constraints in DB
         const { data: existingRows } = await supabase
             .from('practice_logs')
