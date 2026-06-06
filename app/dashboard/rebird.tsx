@@ -12,6 +12,7 @@ import { practiceService, Practice } from '../../services/practiceService';
 import { userService } from '../../services/userService';
 import { useAuthStore } from '../../store/authStore';
 import { treasureService, GameTreasure } from '../../services/treasureService';
+import { supabase } from '../../lib/supabase';
 
 const GOLD = '#D4AF37';
 const BG_LIGHT = '#FEF9EF';
@@ -204,8 +205,7 @@ export default function RebirdScreen() {
             }
 
             // Reload user state & details
-            await fetchState();
-            await fetchTravelers();
+            await loadData();
         } catch (err: any) {
             setProcessingKlesha(false);
             Alert.alert("Lỗi", err.message || "Không thể xử lý kết quả thử thách.");

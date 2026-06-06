@@ -11,6 +11,10 @@ export default function Root({ children }: PropsWithChildren) {
       <head>
         <meta charSet="utf-8" />
         <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
+        <title>Atomic Practice - Nền tảng thực hành tâm linh</title>
+        <meta property="og:title" content="Atomic Practice" />
+        <meta property="og:description" content="Nền tảng thực hành tâm linh chuyên sâu." />
+        <meta property="og:type" content="website" />
         <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
 
         {/* PWA Specific Meta Tags */}
