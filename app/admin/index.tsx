@@ -26,22 +26,6 @@ export default function AdminPortal() {
             </View>
 
             <ScrollView contentContainerStyle={s.scroll}>
-                <Text style={s.sectionTitle}>Giải Đấu Tái Sinh</Text>
-
-                <TouchableOpacity
-                    style={[s.menuItem, { marginBottom: 24 }]}
-                    onPress={() => router.push('/admin/sunday-checkin')}
-                >
-                    <View style={s.menuIcon}>
-                        <Calendar size={22} color={GOLD_ACCENT} />
-                    </View>
-                    <View style={s.menuContent}>
-                        <Text style={s.menuLabel}>Điểm danh Chủ Nhật</Text>
-                        <Text style={s.menuSub}>Cộng +100 điểm thưởng cho thành viên tham gia tu tập tại trung tâm.</Text>
-                    </View>
-                    <ChevronRight size={20} color="rgba(255,255,255,0.3)" />
-                </TouchableOpacity>
-
                 <Text style={s.sectionTitle}>Cấu hình Khảo sát</Text>
 
                 <TouchableOpacity

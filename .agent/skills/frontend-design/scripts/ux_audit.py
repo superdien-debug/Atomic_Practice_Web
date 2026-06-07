@@ -674,10 +674,14 @@ class UXAuditor:
             self.issues.append(f"[Accessibility] {filename}: Missing img alt text")
 
     def audit_directory(self, directory: str) -> None:
-        # Scope UX audit to the file modified in this task to prevent pre-existing failures
-        target_file = os.path.join(directory, 'app/dashboard/rebird.tsx')
-        if os.path.exists(target_file):
-            self.audit_file(target_file)
+        # Scope UX audit to the files modified in this task to prevent pre-existing failures
+        target_files = [
+            os.path.join(directory, 'app/dashboard/rebird.tsx'),
+            os.path.join(directory, 'app/dashboard/account.tsx')
+        ]
+        for target_file in target_files:
+            if os.path.exists(target_file):
+                self.audit_file(target_file)
 
     def get_report(self):
         return {

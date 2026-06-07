@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import {
     Settings, LogOut, ChevronRight, Bell, Shield, Globe,
-    Check, Camera, Award, Flame, Zap, Trophy, BookOpen, Moon, Sparkles, Newspaper, Calculator
+    Check, Camera, Award, Flame, Zap, Trophy, BookOpen, Moon, Sparkles, Newspaper, Calculator, Calendar
 } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '../../store/authStore';
@@ -18,6 +18,8 @@ import { getRank } from '../../utils/rankUtils';
 import { useT } from '../../i18n/useT';
 import type { Lang } from '../../i18n/translations';
 import * as ImagePicker from 'expo-image-picker';
+import { supabase } from '../../lib/supabase';
+import { format } from 'date-fns';
 
 const GOLD = '#D4AF37';
 const MAROON = '#5e0b0b';
@@ -39,6 +41,9 @@ export default function AccountScreen() {
     const [loading, setLoading] = useState(true);
     const [langModal, setLangModal] = useState(false);
     const [scoreModal, setScoreModal] = useState(false);
+    const [hasCheckedInToday, setHasCheckedInToday] = useState(false);
+    const [checkInLoading, setCheckInLoading] = useState(false);
+    const [sundayAttendanceCount, setSundayAttendanceCount] = useState(0);
 
     React.useEffect(() => { if (user) loadProfile(); }, [user]);
 
@@ -57,6 +62,25 @@ export default function AccountScreen() {
             setDharmaName(userProfile.dharma_name || '');
             setStats({ ...userStats, streak });
             setScoreBreakdown(breakdown);
+
+            // Check Sunday check-in status
+            if (user) {
+                const todayStr = format(new Date(), 'yyyy-MM-dd');
+                const { data: attendanceToday } = await supabase
+                    .from('practice_center_attendance')
+                    .select('id')
+                    .eq('user_id', user.id)
+                    .eq('attended_date', todayStr)
+                    .maybeSingle();
+
+                const { count: attendanceCount } = await supabase
+                    .from('practice_center_attendance')
+                    .select('id', { count: 'exact', head: true })
+                    .eq('user_id', user.id);
+
+                setHasCheckedInToday(!!attendanceToday);
+                setSundayAttendanceCount(attendanceCount || 0);
+            }
         } catch (error) {
             console.error('Account load error:', error);
             Alert.alert(t('error'), t('failedLoadProfile'));
@@ -107,6 +131,39 @@ export default function AccountScreen() {
             setIsEditing(false);
             loadProfile();
         } catch { Alert.alert(t('error'), t('failedUpdateProfile')); }
+    };
+
+    const handleSelfCheckIn = async () => {
+        if (!user) return;
+        
+        const today = new Date();
+        const isSunday = today.getDay() === 0;
+        
+        if (!isSunday) {
+            Alert.alert("Chưa đến ngày", "Tính năng tự điểm danh tại trung tâm chỉ hoạt động vào ngày Chủ Nhật hàng tuần.");
+            return;
+        }
+
+        setCheckInLoading(true);
+        try {
+            const dateStr = format(today, 'yyyy-MM-dd');
+            const { error } = await supabase
+                .from('practice_center_attendance')
+                .insert({
+                    user_id: user.id,
+                    attended_date: dateStr
+                });
+
+            if (error) throw error;
+
+            Alert.alert("🎉 Điểm Danh Thành Công", "Bạn đã tự điểm danh thành công hôm nay tại trung tâm. Chúc đạo hữu tinh tấn tu tập và nhận thêm +100 điểm công đức!");
+            await loadProfile();
+        } catch (error: any) {
+            console.error('Self check-in error:', error);
+            Alert.alert("Thao tác thất bại", error.message || "Không thể thực hiện tự điểm danh.");
+        } finally {
+            setCheckInLoading(false);
+        }
     };
 
     const handleSetLang = (l: Lang) => {
@@ -275,6 +332,73 @@ export default function AccountScreen() {
                         <ChevronRight size={14} color="#D1D5DB" />
                     </View>
                 </TouchableOpacity>
+
+                {/* Sunday Center Self-Attendance Card */}
+                {(() => {
+                    const today = new Date();
+                    const isSunday = today.getDay() === 0;
+
+                    if (isSunday) {
+                        return (
+                            <View className="mx-5 mt-4 bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+                                <View className="flex-row items-center gap-3 mb-3">
+                                    <View className="w-10 h-10 rounded-full items-center justify-center bg-vajra-burgundy/10">
+                                        <Calendar size={20} color="#800000" />
+                                    </View>
+                                    <View className="flex-1">
+                                        <Text className="text-base font-black text-vajra-burgundy">Tự Điểm Danh Chủ Nhật</Text>
+                                        <Text className="text-xs text-gray-400 font-bold mt-0.5">Thực hành tập trung tại Trung tâm</Text>
+                                    </View>
+                                    <View className="bg-vajra-gold/10 px-2.5 py-1 rounded-lg border border-vajra-gold/30">
+                                        <Text className="text-[10px] font-black text-vajra-gold uppercase">{sundayAttendanceCount} buổi</Text>
+                                    </View>
+                                </View>
+
+                                <Text className="text-xs text-gray-600 mb-4 leading-5">
+                                    {hasCheckedInToday
+                                        ? "Bạn đã tự giác điểm danh thực hành tại trung tâm hôm nay. Cảm ơn sự hiện diện và công đức đồng tu!"
+                                        : "Hôm nay là Chủ Nhật! Hãy tự giác điểm danh nếu bạn đang tham gia thực hành cùng đại chúng tại trung tâm để nhận +100 công đức lành."}
+                                </Text>
+
+                                {hasCheckedInToday ? (
+                                    <View className="bg-emerald-50 border border-emerald-200 p-3.5 rounded-2xl flex-row items-center justify-center gap-2">
+                                        <Check size={16} color="#059669" strokeWidth={3} />
+                                        <Text className="text-emerald-700 font-bold text-xs uppercase tracking-wider">Đã Điểm Danh Hôm Nay</Text>
+                                    </View>
+                                ) : (
+                                    <TouchableOpacity
+                                        onPress={handleSelfCheckIn}
+                                        disabled={checkInLoading}
+                                        className="bg-vajra-gold p-4 rounded-2xl items-center flex-row justify-center gap-2 active:bg-vajra-gold/90"
+                                    >
+                                        <Sparkles size={16} color="#FFF" />
+                                        <Text className="text-white font-black uppercase tracking-widest text-xs">
+                                            {checkInLoading ? "Đang xử lý..." : "Tự Điểm Danh (+100 Điểm)"}
+                                        </Text>
+                                    </TouchableOpacity>
+                                )}
+                            </View>
+                        );
+                    } else {
+                        // Weekdays Card (displays status and progress)
+                        return (
+                            <View className="mx-5 mt-4 bg-white p-6 rounded-3xl shadow-sm border border-gray-100 opacity-80">
+                                <View className="flex-row items-center gap-3">
+                                    <View className="w-10 h-10 rounded-full items-center justify-center bg-gray-100">
+                                        <Calendar size={20} color="#717171" />
+                                    </View>
+                                    <View className="flex-1">
+                                        <Text className="text-base font-black text-gray-700">Điểm Danh Tại Trung Tâm</Text>
+                                        <Text className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">Chỉ mở vào ngày Chủ Nhật</Text>
+                                    </View>
+                                    <View className="bg-gray-100 px-2.5 py-1 rounded-lg border border-gray-200">
+                                        <Text className="text-[10px] font-black text-gray-500 uppercase">Đã có {sundayAttendanceCount} buổi</Text>
+                                    </View>
+                                </View>
+                            </View>
+                        );
+                    }
+                })()}
 
                 <View className="bg-white mx-5 rounded-[28px] shadow-sm overflow-hidden mb-8 border border-gray-50 mt-6">
                     <MenuItem
