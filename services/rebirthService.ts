@@ -696,10 +696,7 @@ export const rebirthService = {
                 user_id: user.id,
                 content: content
             })
-            .select(`
-                *,
-                profiles:user_id(display_name, avatar_url)
-            `)
+            .select()
             .single();
 
         if (error) throw error;
