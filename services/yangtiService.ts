@@ -139,9 +139,9 @@ export const yangtiService = {
         if (!user) return {};
 
         const stageMapping: Record<string, number> = {
-            'Quy y và lễ lạy': 3,
-            'Cúng dường Mandala': 4,
-            'Sám hối Kim Cương Tát Đỏa': 5,
+            'Quy y và lễ lậy 108 lễ': 3,
+            'Cúng dường Mandala 108 lễ': 4,
+            'Sám hối KCTĐ 108 biến 100 âm': 5,
             'Guru Yoga': 6,
             'Tích lũy túc số 3Kaya': 7,
         };

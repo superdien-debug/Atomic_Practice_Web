@@ -3,9 +3,9 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIn
 import RenderHTML from 'react-native-render-html';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { Dices, History, Users, ShieldAlert, Check, ChevronDown, ChevronUp, MessageSquare, Send, Gift, Map, Flame, HeartHandshake, Trophy, Award, Lock, Sparkles } from 'lucide-react-native';
+import { Dices, History, Users, ShieldAlert, Check, ChevronDown, ChevronUp, MessageSquare, Send, Gift, Map, Flame, HeartHandshake, Trophy, Award, Lock, Sparkles, X } from 'lucide-react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { rebirthService, RebirthState, Realm, RebirthComment } from '../../services/rebirthService';
+import { rebirthService, RebirthState, Realm, RebirthComment, MaraComplaint } from '../../services/rebirthService';
 import { useT } from '../../i18n/useT';
 import { format } from 'date-fns';
 import { practiceService, Practice } from '../../services/practiceService';
@@ -46,6 +46,10 @@ interface LeaderboardUser {
     attendance_count: number;
     realm_score: number;
     guru_3kaya_count?: number;
+    quy_y_count?: number;
+    mandala_count?: number;
+    sam_hoi_count?: number;
+    ap_library_count?: number;
     total_score: number;
 }
 
@@ -127,6 +131,13 @@ export default function RebirdScreen() {
     const [kleshaTimer, setKleshaTimer] = useState(20);
     const [kleshaRollData, setKleshaRollData] = useState<any>(null);
     const [processingKlesha, setProcessingKlesha] = useState(false);
+
+    // Mara-complaints state variables
+    const [showComplaintsModal, setShowComplaintsModal] = useState(false);
+    const [complaints, setComplaints] = useState<MaraComplaint[]>([]);
+    const [newComplaintText, setNewComplaintText] = useState('');
+    const [sendingComplaint, setSendingComplaint] = useState(false);
+    const [loadingComplaints, setLoadingComplaints] = useState(false);
 
     useEffect(() => {
         const updateEventTimer = () => {
@@ -258,6 +269,32 @@ export default function RebirdScreen() {
 
         return () => clearInterval(interval);
     }, [state]);
+
+    const loadComplaints = async () => {
+        setLoadingComplaints(true);
+        try {
+            const list = await rebirthService.getMaraComplaints();
+            setComplaints(list);
+        } catch (err) {
+            console.error('Failed to load complaints:', err);
+        } finally {
+            setLoadingComplaints(false);
+        }
+    };
+
+    const handleSendComplaint = async () => {
+        if (!newComplaintText.trim() || sendingComplaint) return;
+        setSendingComplaint(true);
+        try {
+            await rebirthService.sendMaraComplaint(newComplaintText.trim());
+            setNewComplaintText('');
+            await loadComplaints();
+        } catch (err: any) {
+            Alert.alert("Lỗi", err.message || "Không thể gửi phàn nàn.");
+        } finally {
+            setSendingComplaint(false);
+        }
+    };
 
     const loadData = async () => {
         if (!user) return;
@@ -1088,7 +1125,7 @@ export default function RebirdScreen() {
                         </View>
 
                         <Text style={styles.formulaText}>
-                            * Công thức: Điểm = Cõi giới + Hồi hướng (+15) + Nhận phước (+10) + Thắng Mara (+10) + Thiền Vipassana (+15) + Điểm danh Chủ Nhật (+100) + Trì chú Mantra Guru 3Kaya (+10)
+                            * Thể lệ tính điểm: Điểm = Cõi giới + Hồi hướng (+15) + Nhận phước (+10) + Thắng Mara (+10) + Thiền Vipassana (+15) + Điểm danh CN (+100) + Mantra Guru 3Kaya (+10) + Quy y & lễ lậy 108 (+25) + Mandala 108 (+20) + Sám hối KCTĐ 108 (+15) + Thư viện AP khác (+10)
                         </Text>
 
                         {/* Leaderboard Users List */}
@@ -1161,7 +1198,11 @@ export default function RebirdScreen() {
                                 selectedUserForDetails.mara_wins_count * 10 +
                                 (selectedUserForDetails.attendance_count || 0) * 100 +
                                 selectedUserForDetails.realm_score +
-                                (selectedUserForDetails.guru_3kaya_count || 0) * 10
+                                (selectedUserForDetails.guru_3kaya_count || 0) * 10 +
+                                (selectedUserForDetails.quy_y_count || 0) * 25 +
+                                (selectedUserForDetails.mandala_count || 0) * 20 +
+                                (selectedUserForDetails.sam_hoi_count || 0) * 15 +
+                                (selectedUserForDetails.ap_library_count || 0) * 10
                             ));
 
                             return (
@@ -1179,6 +1220,26 @@ export default function RebirdScreen() {
                                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#E2E8F0' }}>
                                             <Text style={{ fontSize: 13, color: '#475569' }}>📿 Mantra Guru 3Kaya ({selectedUserForDetails.guru_3kaya_count || 0} lần)</Text>
                                             <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#0F172A' }}>+{(selectedUserForDetails.guru_3kaya_count || 0) * 10} pts</Text>
+                                        </View>
+
+                                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#E2E8F0' }}>
+                                            <Text style={{ fontSize: 13, color: '#475569' }}>📿 Quy y & lễ lậy 108 lễ ({selectedUserForDetails.quy_y_count || 0} ngày)</Text>
+                                            <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#0F172A' }}>+{(selectedUserForDetails.quy_y_count || 0) * 25} pts</Text>
+                                        </View>
+
+                                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#E2E8F0' }}>
+                                            <Text style={{ fontSize: 13, color: '#475569' }}>🏺 Cúng dường Mandala 108 lễ ({selectedUserForDetails.mandala_count || 0} ngày)</Text>
+                                            <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#0F172A' }}>+{(selectedUserForDetails.mandala_count || 0) * 20} pts</Text>
+                                        </View>
+
+                                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#E2E8F0' }}>
+                                            <Text style={{ fontSize: 13, color: '#475569' }}>⚡ Sám hối KCTĐ 108 biến 100 âm ({selectedUserForDetails.sam_hoi_count || 0} ngày)</Text>
+                                            <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#0F172A' }}>+{(selectedUserForDetails.sam_hoi_count || 0) * 15} pts</Text>
+                                        </View>
+
+                                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#E2E8F0' }}>
+                                            <Text style={{ fontSize: 13, color: '#475569' }}>📚 Thực hành thư viện AP ({selectedUserForDetails.ap_library_count || 0} ngày)</Text>
+                                            <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#0F172A' }}>+{(selectedUserForDetails.ap_library_count || 0) * 10} pts</Text>
                                         </View>
 
                                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#E2E8F0' }}>
@@ -1426,6 +1487,154 @@ export default function RebirdScreen() {
                         >
                             <Text style={styles.modalBtnText}>BƯỚC VÀO CẢNH GIỚI</Text>
                         </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* Floating Action Button (FAB) for Mara Complaints */}
+            <TouchableOpacity
+                onPress={() => {
+                    loadComplaints();
+                    setShowComplaintsModal(true);
+                }}
+                style={[styles.fab, { bottom: 20 + insets.bottom }]}
+                activeOpacity={0.85}
+            >
+                <MessageSquare size={26} color="#FFF" />
+            </TouchableOpacity>
+
+            {/* Mara Complaints Modal */}
+            <Modal visible={showComplaintsModal} transparent animationType="slide">
+                <View style={styles.modalBg}>
+                    <View style={[styles.kleshaCard, { backgroundColor: '#1E293B', borderColor: GOLD, borderWidth: 1.5, height: '80%' }]}>
+                        {/* Title Bar */}
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginBottom: 15 }}>
+                            <Text style={[styles.kleshaTitle, { color: '#F1F5F9', marginBottom: 0 }]}>😈 PHÀN NÀN VỚI MARA</Text>
+                            <TouchableOpacity onPress={() => setShowComplaintsModal(false)} style={{ padding: 4 }}>
+                                <X size={20} color="#64748B" />
+                            </TouchableOpacity>
+                        </View>
+                        <Text style={[styles.kleshaSubtitle, { marginBottom: 15 }]}>
+                            Bảng tin ghi nhận những lời than phiền, oán trách của hành giả gửi tới Ma Vương Mara vì những chướng ngại gặp phải trên đường tu.
+                        </Text>
+
+                        {/* Complaints list */}
+                        {loadingComplaints && complaints.length === 0 ? (
+                            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                                <ActivityIndicator size="small" color={GOLD} />
+                            </View>
+                        ) : (
+                            <ScrollView style={{ flex: 1, width: '100%' }} showsVerticalScrollIndicator={false}>
+                                {complaints.length === 0 ? (
+                                    <View style={{ padding: 40, alignItems: 'center' }}>
+                                        <Text style={{ color: 'rgba(255,255,255,0.4)', fontStyle: 'italic', fontSize: 13 }}>Chưa có ai than phiền với Mara...</Text>
+                                    </View>
+                                ) : (
+                                    complaints.map((item) => (
+                                        <View key={item.id} style={{
+                                            flexDirection: 'row',
+                                            backgroundColor: 'rgba(255,255,255,0.03)',
+                                            padding: 12,
+                                            borderRadius: 14,
+                                            borderWidth: 1,
+                                            borderColor: 'rgba(212,175,55,0.08)',
+                                            marginBottom: 10,
+                                            alignItems: 'flex-start'
+                                        }}>
+                                            <View style={{
+                                                width: 32,
+                                                height: 32,
+                                                borderRadius: 16,
+                                                backgroundColor: 'rgba(255,255,255,0.08)',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                marginRight: 10,
+                                                overflow: 'hidden'
+                                            }}>
+                                                {item.profiles?.avatar_url ? (
+                                                    <Image source={{ uri: item.profiles.avatar_url }} style={{ width: '100%', height: '100%' }} />
+                                                ) : (
+                                                    <Text style={{ fontSize: 16 }}>🧘</Text>
+                                                )}
+                                            </View>
+                                            <View style={{ flex: 1 }}>
+                                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                    <Text style={{ color: GOLD, fontWeight: '700', fontSize: 13 }}>
+                                                        {item.profiles?.display_name || "Hành giả ẩn danh"}
+                                                    </Text>
+                                                    <Text style={{ color: 'rgba(255,255,255,0.3)', fontSize: 10 }}>
+                                                        {format(new Date(item.created_at), 'dd/MM HH:mm')}
+                                                    </Text>
+                                                </View>
+                                                <Text style={{ color: '#F1F5F9', fontSize: 13, marginTop: 4, lineHeight: 18 }}>
+                                                    {item.content}
+                                                </Text>
+                                            </View>
+                                        </View>
+                                    ))
+                                )}
+                            </ScrollView>
+                        )}
+
+                        {/* Input Area */}
+                        <View style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            borderTopWidth: 1,
+                            borderTopColor: 'rgba(212,175,55,0.1)',
+                            paddingTop: 12,
+                            marginTop: 10,
+                            width: '100%'
+                        }}>
+                            <View style={{ flex: 1, marginRight: 8 }}>
+                                <TextInput
+                                    style={{
+                                        backgroundColor: 'rgba(0,0,0,0.2)',
+                                        color: '#FFF',
+                                        borderRadius: 12,
+                                        paddingHorizontal: 14,
+                                        height: 44,
+                                        fontSize: 13,
+                                        borderWidth: 1,
+                                        borderColor: 'rgba(212,175,55,0.15)',
+                                    }}
+                                    placeholder="Gửi lời phàn nàn tới Mara..."
+                                    placeholderTextColor="rgba(255,255,255,0.3)"
+                                    value={newComplaintText}
+                                    onChangeText={setNewComplaintText}
+                                    maxLength={200}
+                                    editable={!sendingComplaint}
+                                />
+                                <Text style={{
+                                    alignSelf: 'flex-end',
+                                    color: 'rgba(255,255,255,0.4)',
+                                    fontSize: 10,
+                                    marginTop: 4,
+                                    marginRight: 4
+                                }}>
+                                    {newComplaintText.length}/200
+                                </Text>
+                            </View>
+                            <TouchableOpacity
+                                onPress={handleSendComplaint}
+                                disabled={sendingComplaint || !newComplaintText.trim()}
+                                style={{
+                                    width: 44,
+                                    height: 44,
+                                    borderRadius: 12,
+                                    backgroundColor: GOLD,
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    opacity: (!newComplaintText.trim() || sendingComplaint) ? 0.5 : 1
+                                }}
+                            >
+                                {sendingComplaint ? (
+                                    <ActivityIndicator size="small" color="#FFF" />
+                                ) : (
+                                    <Send size={18} color={MAROON} />
+                                )}
+                            </TouchableOpacity>
+                        </View>
                     </View>
                 </View>
             </Modal>
@@ -2247,5 +2456,23 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         color: GOLD,
         marginTop: 2,
+    },
+    fab: {
+        position: 'absolute',
+        bottom: 30,
+        right: 20,
+        width: 56,
+        height: 56,
+        borderRadius: 28,
+        backgroundColor: MAROON,
+        alignItems: 'center',
+        justifyContent: 'center',
+        elevation: 6,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.35,
+        shadowRadius: 5,
+        borderWidth: 1.5,
+        borderColor: GOLD,
     }
 });

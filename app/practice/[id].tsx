@@ -145,7 +145,7 @@ export default function PracticeDetailScreen() {
             }
 
             // Sync with Túc Số if it's a Yangti Stage
-            const yangtiStages = ['Quy y và lễ lạy', 'Cúng dường Mandala', 'Sám hối Kim Cương Tát Đỏa', 'Guru Yoga', 'Tích lũy túc số 3Kaya'];
+            const yangtiStages = ['Quy y và lễ lậy 108 lễ', 'Cúng dường Mandala 108 lễ', 'Sám hối KCTĐ 108 biến 100 âm', 'Guru Yoga', 'Tích lũy túc số 3Kaya'];
             if (yangtiStages.includes(data.title)) {
                 try {
                     const type = await tucsoService.getOrCreateType(data.title);

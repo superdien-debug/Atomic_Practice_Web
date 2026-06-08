@@ -110,6 +110,7 @@ export const practiceService = {
         const { data: existingRows } = await supabase
             .from('practice_logs')
             .select('id')
+            .eq('user_id', user.id)
             .eq('practice_id', practiceId)
             .eq('log_date', logDate)
             .limit(1);

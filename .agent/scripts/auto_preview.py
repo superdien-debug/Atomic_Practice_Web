@@ -44,6 +44,8 @@ def get_start_command(root):
     scripts = data.get("scripts", {})
     if "dev" in scripts:
         return ["npm", "run", "dev"]
+    elif "web" in scripts:
+        return ["npm", "run", "web"]
     elif "start" in scripts:
         return ["npm", "start"]
     return None
@@ -62,7 +64,7 @@ def start_server(port=3000):
     cmd = get_start_command(root)
     
     if not cmd:
-        print("❌ No 'dev' or 'start' script found in package.json")
+        print("❌ No 'dev', 'web' or 'start' script found in package.json")
         sys.exit(1)
     
     # Add port env var if needed (simple heuristic)
@@ -73,12 +75,12 @@ def start_server(port=3000):
     
     with open(LOG_FILE, "w") as log:
         process = subprocess.Popen(
-            cmd,
+            " ".join(cmd),
             cwd=str(root),
             stdout=log,
             stderr=log,
             env=env,
-            shell=True # Required for npm on windows often, or consistent path handling
+            shell=True
         )
     
     PID_FILE.write_text(str(process.pid))

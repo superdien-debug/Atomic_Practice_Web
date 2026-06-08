@@ -18,6 +18,7 @@ import { getRank, MIN_CREATION_SCORE } from '../../utils/rankUtils';
 import { yangtiService } from '../../services/yangtiService';
 import { Animated, Easing as RNEasing, Alert, Platform } from 'react-native';
 import { getLocalISODate } from '../../utils/dateUtils';
+import { supabase } from '../../lib/supabase';
 
 // ─── Colors (Consistent with Theme) ─────────────────────────────────────────
 const GOLD = '#D4AF37';
@@ -92,6 +93,7 @@ export default function DashboardScreen() {
     });
 
     const [showEventPopup, setShowEventPopup] = useState(false);
+    const [isVipassanaCompletedToday, setIsVipassanaCompletedToday] = useState(false);
 
     useEffect(() => {
         // Show the popup automatically once dashboard mounts
@@ -125,6 +127,17 @@ export default function DashboardScreen() {
 
             const mpoints = await userService.getMPointsBalance();
             const yangtiStage = await yangtiService.getUserProgress();
+
+            // Query Vipassana log completion status for today
+            const { data: vipassanaLogs } = await supabase
+                .from('practice_logs')
+                .select('completed')
+                .eq('user_id', user.id)
+                .eq('practice_id', '00000000-0000-0000-0000-000000000001')
+                .eq('log_date', today)
+                .maybeSingle();
+            const isVipassanaCompleted = !!vipassanaLogs?.completed;
+            setIsVipassanaCompletedToday(isVipassanaCompleted);
 
             setStats({
                 completedCount: completed,
@@ -337,14 +350,40 @@ export default function DashboardScreen() {
 
                     <TouchableOpacity
                         onPress={() => router.push('/practice/vipassana' as any)}
-                        style={[styles.coachBanner, { marginTop: 15, backgroundColor: '#FFF5F5', borderColor: '#E53E3E40', shadowColor: '#E53E3E' }]}
+                        style={[
+                            styles.coachBanner, 
+                            { marginTop: 15 },
+                            isVipassanaCompletedToday 
+                                ? { backgroundColor: '#E8F5E9', borderColor: '#81C784', shadowColor: '#4CAF50' }
+                                : { backgroundColor: '#FFF5F5', borderColor: '#E53E3E40', shadowColor: '#E53E3E' }
+                        ]}
                         activeOpacity={0.9}
                     >
                         <View style={styles.coachBannerContent}>
-                            <Flower size={24} color="#E53E3E" />
+                            {isVipassanaCompletedToday ? (
+                                <CheckCircle size={24} color="#2E7D32" />
+                            ) : (
+                                <Flower size={24} color="#E53E3E" />
+                            )}
                             <View style={{ flex: 1 }}>
-                                <Text style={[styles.coachBannerTitle, { color: '#C53030' }]}>Thiền Vipassana | Thầy Minh Niệm</Text>
-                                <Text style={styles.coachBannerSub}>41:13 phút thiền sâu</Text>
+                                <Text style={[
+                                    styles.coachBannerTitle, 
+                                    { color: isVipassanaCompletedToday ? '#1B5E20' : '#C53030' }
+                                ]}>
+                                    {isVipassanaCompletedToday 
+                                        ? "Đã hoàn thành Thiền Vipassana hôm nay" 
+                                        : "Thiền Vipassana | Thầy Minh Niệm"
+                                    }
+                                </Text>
+                                <Text style={[
+                                    styles.coachBannerSub,
+                                    isVipassanaCompletedToday && { color: '#2E7D32' }
+                                ]}>
+                                    {isVipassanaCompletedToday 
+                                        ? "Đạo hữu đã hoàn thành phiên thiền tĩnh lặng 🙏" 
+                                        : "41:13 phút thiền sâu"
+                                    }
+                                </Text>
                             </View>
                         </View>
                     </TouchableOpacity>

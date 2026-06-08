@@ -34,9 +34,9 @@ export default function YangtiPathScreen() {
                 setStages([
                     { stage_number: 1, stage_group: 'NGONDRO FOUNDATIONS', title: 'Quy y Tam bảo', description: '', metric_goal: 'COMPLETED' },
                     { stage_number: 2, stage_group: 'NGONDRO FOUNDATIONS', title: '4 Niệm chuyển tâm', description: '', metric_goal: 'COMPLETED' },
-                    { stage_number: 3, stage_group: 'NGONDRO FOUNDATIONS', title: 'Quy y và lễ lạy', description: '', metric_goal: '10.000 Lễ' },
-                    { stage_number: 4, stage_group: 'ACCUMULATION PATH', title: 'Cúng dường Mandala', description: '', metric_goal: '10.000 Lễ' },
-                    { stage_number: 5, stage_group: 'ACCUMULATION PATH', title: 'Sám hối Kim Cương Tát Đỏa', description: '', metric_goal: '10.000 Lễ' },
+                    { stage_number: 3, stage_group: 'NGONDRO FOUNDATIONS', title: 'Quy y và lễ lậy 108 lễ', description: '', metric_goal: '10.000 Lễ' },
+                    { stage_number: 4, stage_group: 'ACCUMULATION PATH', title: 'Cúng dường Mandala 108 lễ', description: '', metric_goal: '10.000 Lễ' },
+                    { stage_number: 5, stage_group: 'ACCUMULATION PATH', title: 'Sám hối KCTĐ 108 biến 100 âm', description: '', metric_goal: '10.000 Lễ' },
                     { stage_number: 6, stage_group: 'ACCUMULATION PATH', title: 'Guru Yoga', description: '', metric_goal: '10.000 Lễ' },
                     { stage_number: 7, stage_group: 'ACCUMULATION PATH', title: 'Tích lũy túc số 3Kaya', description: '', metric_goal: '1.400.000 Biến' },
                     { stage_number: 8, stage_group: 'SECRET MANTRAYANA', title: 'Nhập thất 3kaya', description: '', metric_goal: 'Thời gian: 6 tháng' },

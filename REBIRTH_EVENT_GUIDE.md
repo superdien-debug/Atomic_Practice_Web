@@ -44,6 +44,14 @@ Hệ thống tính điểm của giải đấu được thiết kế chặt ch�
   * Mỗi buổi thực hành thiền thực chất trong mục *Thiền Vipassana* mang lại điểm tích lũy và MP để sử dụng trong game. Mỗi buổi thiền sâu của đạo hữu sẽ nhận trọn vẹn **`+15 điểm`** vào điểm tổng giải đấu.
 * **Thực Hành Mantra Guru 3Kaya (+10 điểm/buổi):**
   * Mỗi ngày thực hành tu tập trì tụng **Mantra Guru 3Kaya - 10 tràng** (ghi nhận hoàn thành) sẽ được cộng ngay **`+10 điểm`** xếp hạng để khuyến khích trì tụng mật chú linh thiêng của Bổn tôn.
+* **Thực Hành Quy y và lễ lậy 108 lễ (+25 điểm/ngày):**
+  * Mỗi ngày hoàn thành thực hành Quy y và lễ lậy 108 lễ sẽ được cộng ngay **`+25 điểm`** xếp hạng.
+* **Thực Hành Cúng dường Mandala 108 lễ (+20 điểm/ngày):**
+  * Mỗi ngày hoàn thành thực hành Cúng dường Mandala 108 lễ sẽ được cộng ngay **`+20 điểm`** xếp hạng.
+* **Thực Hành Sám hối KCTĐ 108 biến 100 âm (+15 điểm/ngày):**
+  * Mỗi ngày hoàn thành thực hành Sám hối KCTĐ 108 biến 100 âm sẽ được cộng ngay **`+15 điểm`** xếp hạng.
+* **Thực Hành Khác Từ Thư Viện AP (+10 điểm/ngày):**
+  * Với các hành giả chọn thực hành từ thư viện AP thì mỗi ngày sẽ được tối đa 1 lần cộng điểm khi hoàn thành (**`+10 điểm`** xếp hạng).
 
 ### 🤝 C. Trọng Số Tương Tác Thành Viên (Chiếm 10% tổng số điểm)
 * **1. Gieo Blessings (Hồi Hướng Phước Báu):** Đạo hữu có thể gửi lời chúc thỉnh cầu, năng lượng lành hoặc hồi hướng công đức cho đồng tu khác qua bảng chúc nguyện.

@@ -59,6 +59,17 @@ export interface RebirthComment {
     };
 }
 
+export interface MaraComplaint {
+    id: string;
+    user_id: string;
+    content: string;
+    created_at: string;
+    profiles?: {
+        display_name: string;
+        avatar_url: string | null;
+    };
+}
+
 export const rebirthService = {
     // 1. Get current state of a user
     async getState(userId?: string): Promise<RebirthState | null> {
@@ -654,6 +665,45 @@ export const rebirthService = {
 
         if (error) throw error;
         return data as RebirthComment;
+    },
+
+    // 8.5. Mara Complaints
+    async getMaraComplaints(): Promise<MaraComplaint[]> {
+        const { data, error } = await supabase
+            .from('game_mara_complaints')
+            .select(`
+                *,
+                profiles:user_id(display_name, avatar_url)
+            `)
+            .order('created_at', { ascending: false })
+            .limit(30);
+
+        if (error) {
+            console.error('[RebirthService] getMaraComplaints error:', error);
+            return [];
+        }
+
+        return data as MaraComplaint[];
+    },
+
+    async sendMaraComplaint(content: string): Promise<MaraComplaint> {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error("Not authenticated");
+
+        const { data, error } = await supabase
+            .from('game_mara_complaints')
+            .insert({
+                user_id: user.id,
+                content: content
+            })
+            .select(`
+                *,
+                profiles:user_id(display_name, avatar_url)
+            `)
+            .single();
+
+        if (error) throw error;
+        return data as MaraComplaint;
     },
 
     // 9. Spend Mpoints to reduce countdown time (10 MP = 1 day, minimum 1-day rule)
