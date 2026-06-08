@@ -156,7 +156,7 @@ export default function MyPracticeScreen() {
         console.log('[Practice Dashboard] Create clicked. Current score:', totalScore);
         if (totalScore < MIN_CREATION_SCORE) {
             const title = '🔐 Phân quyền';
-            const msg = `Chỉ những Hành giả đạt Cấp độ 2 (500 điểm Merit) mới được phép tự tạo bài thực hành mới. Hiện tại bạn đang có ${totalScore} điểm.`;
+            const msg = `Chỉ những Hành giả đạt tối thiểu 5000 điểm Merit mới được phép tự tạo bài thực hành mới. Hiện tại bạn đang có ${totalScore} điểm.`;
 
             if (Platform.OS === 'web') {
                 window.alert(`${title}\n\n${msg}`);

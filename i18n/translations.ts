@@ -244,7 +244,7 @@ const translations = {
 
         // ── Challenge Extras ─────────────────────────────────────────────────
         permTitle: '🔐 Permissions',
-        permDeniedCreation: 'Only Practitioners reaching Level 2 (from 500 Merit points) are allowed to create new Challenges. You currently have {0} points.',
+        permDeniedCreation: 'Only Practitioners with at least 5000 Merit points are allowed to create new Challenges. You currently have {0} points.',
         ongoing: 'Ongoing',
         completed: 'Completed',
         noChallengesYet: 'No {0} challenges yet.',
@@ -360,7 +360,7 @@ const translations = {
         publicSharing: 'Public Sharing',
         publicSharingDesc: 'Let others see your merit',
         levelLockTitle: '🔐 Permission',
-        levelLockMsg: 'You need Level 2 (500 Merit points) to create a new practice. You currently have {0} points. Keep practicing!',
+        levelLockMsg: 'You need at least 5000 Merit points to create a new practice. You currently have {0} points. Keep practicing!',
         understood: 'Understood',
         saveError: 'Could not save practice',
         unit: 'Unit',
@@ -642,7 +642,7 @@ const translations = {
 
         // ── Challenge Extras ─────────────────────────────────────────────────
         permTitle: '🔐 Phân quyền',
-        permDeniedCreation: 'Chỉ những Hành giả đạt Cấp độ 2 (từ 500 điểm Merit) mới được phép tạo Thử thách mới. Hiện tại bạn đang có {0} điểm.',
+        permDeniedCreation: 'Chỉ những Hành giả đạt tối thiểu 5000 điểm Merit mới được phép tạo Thử thách mới. Hiện tại bạn đang có {0} điểm.',
         ongoing: 'Đang diễn ra',
         completed: 'Đã hoàn thành',
         noChallengesYet: 'Chưa có thử thách {0} nào.',
@@ -758,7 +758,7 @@ const translations = {
         publicSharing: 'Chia sẻ công khai',
         publicSharingDesc: 'Để người khác thấy công đức của bạn',
         levelLockTitle: '🔐 Phân quyền',
-        levelLockMsg: 'Bạn cần đạt Cấp độ 2 (500 điểm Merit) để tạo bài thực hành mới. Hiện tại bạn đang có {0} điểm. Hãy thực hành chuyên cần hơn nhé!',
+        levelLockMsg: 'Bạn cần đạt tối thiểu 5000 điểm Merit để tạo bài thực hành mới. Hiện tại bạn đang có {0} điểm. Hãy thực hành chuyên cần hơn nhé!',
         understood: 'Đã hiểu',
         saveError: 'Không thể lưu bài tập',
         unit: 'Đơn vị',

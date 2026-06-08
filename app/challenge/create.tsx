@@ -55,7 +55,7 @@ export default function CreateChallengeScreen() {
             setScore(currentScore);
             if (currentScore < MIN_CREATION_SCORE) {
                 const title = '🔐 Phân quyền';
-                const msg = `Chỉ những Hành giả đạt Cấp độ 2 (từ 500 điểm Merit) mới được phép tạo Thử thách mới. Hiện tại bạn đang có ${currentScore} điểm.`;
+                const msg = `Chỉ những Hành giả đạt tối thiểu 5000 điểm Merit mới được phép tạo Thử thách mới. Hiện tại bạn đang có ${currentScore} điểm.`;
 
                 if (Platform.OS === 'web') {
                     window.alert(`${title}\n\n${msg}`);

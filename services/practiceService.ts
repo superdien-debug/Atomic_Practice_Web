@@ -178,7 +178,7 @@ export const practiceService = {
 
         const score = await this.calculateTotalScore(user.id);
         if (score < MIN_CREATION_SCORE) {
-            throw new Error(`Bạn cần đạt Cấp độ 2 (500 điểm) để tạo bài thực hành mới. Hiện tại bạn đang có ${score} điểm.`);
+            throw new Error(`Bạn cần đạt tối thiểu 5000 điểm Merit để tạo bài thực hành mới. Hiện tại bạn đang có ${score} điểm.`);
         }
 
         console.log('[PracticeService] Creating practice:', practice);

@@ -190,7 +190,7 @@ export const challengeService = {
 
         const score = await practiceService.calculateTotalScore(user.id);
         if (score < MIN_CREATION_SCORE) {
-            throw new Error(`Bạn cần đạt Cấp độ 2 (500 điểm) để tạo thử thách mới. Hiện tại bạn đang có ${score} điểm.`);
+            throw new Error(`Bạn cần đạt tối thiểu 5000 điểm Merit để tạo thử thách mới. Hiện tại bạn đang có ${score} điểm.`);
         }
 
         const { data, error } = await supabase
