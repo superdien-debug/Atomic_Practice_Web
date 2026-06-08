@@ -13,6 +13,7 @@ import { userService } from '../../services/userService';
 import { useAuthStore } from '../../store/authStore';
 import { treasureService, GameTreasure } from '../../services/treasureService';
 import { supabase } from '../../lib/supabase';
+import { mandalaService, MandalaSlot, MandalaContribution, MandalaBuildingType } from '../../services/mandalaService';
 
 const GOLD = '#D4AF37';
 const BG_LIGHT = '#FEF9EF';
@@ -138,6 +139,23 @@ export default function RebirdScreen() {
     const [newComplaintText, setNewComplaintText] = useState('');
     const [sendingComplaint, setSendingComplaint] = useState(false);
     const [loadingComplaints, setLoadingComplaints] = useState(false);
+
+    // Mandala Grid System States
+    const [mandalaSlots, setMandalaSlots] = useState<MandalaSlot[]>([]);
+    const [mandalaContributions, setMandalaContributions] = useState<Record<string, MandalaContribution[]>>({});
+    const [selectedSlotCoord, setSelectedSlotCoord] = useState<{ x: number, y: number } | null>(null);
+    const [selectedMandalaSlot, setSelectedMandalaSlot] = useState<MandalaSlot | null>(null);
+    const [showMandalaModal, setShowMandalaModal] = useState(false);
+    const [contribAmount, setContribAmount] = useState('1000');
+    const [contribLoading, setContribLoading] = useState(false);
+    const [selectedBuildingType, setSelectedBuildingType] = useState<MandalaBuildingType>('stupa_8');
+    const [initLoading, setInitLoading] = useState(false);
+    const [upgradeLoading, setUpgradeLoading] = useState(false);
+    
+    // Practice mini-game states
+    const [practiceTimer, setPracticeTimer] = useState(0);
+    const [isPracticing, setIsPracticing] = useState(false);
+    const [blessingProgress, setBlessingProgress] = useState(0);
 
     useEffect(() => {
         const updateEventTimer = () => {
@@ -306,6 +324,8 @@ export default function RebirdScreen() {
             ]);
             setState(currentState);
             setMpoints(mpointsBalance);
+            console.log('[RebirdScreen] Loaded RebirthState:', JSON.stringify(currentState));
+
 
             if (currentState?.realm_id) {
                 const isLower = currentState.realm_id >= 1 && currentState.realm_id <= 13;
@@ -313,6 +333,18 @@ export default function RebirdScreen() {
                     (currentState.realm_id >= 27 && currentState.realm_id <= 32) || 
                     (currentState.realm_id >= 35 && currentState.realm_id <= 37) || 
                     (currentState.realm_id >= 70 && currentState.realm_id <= 104);
+
+                // Fetch Mandala Grid if eligible (Desire Realms 10-33, excluding Hells)
+                const isMandalaEligible = currentState.realm_id >= 10 && currentState.realm_id <= 33;
+                if (isMandalaEligible) {
+                    try {
+                        const { slots, contributions } = await mandalaService.fetchMandalaGrid(currentState.realm_id);
+                        setMandalaSlots(slots);
+                        setMandalaContributions(contributions);
+                    } catch (err) {
+                        console.error('Failed to load mandala grid:', err);
+                    }
+                }
 
                 // Load travelers in same realm
                 try {
@@ -679,6 +711,189 @@ export default function RebirdScreen() {
         return parts.join(' ');
     };
 
+    // Mandala Practice Timer useEffect
+    useEffect(() => {
+        let interval: NodeJS.Timeout | undefined;
+        if (isPracticing && practiceTimer > 0) {
+            interval = setInterval(() => {
+                setPracticeTimer(prev => prev - 1);
+                setBlessingProgress(prev => prev + 0.1);
+            }, 1000);
+        } else if (isPracticing && practiceTimer === 0) {
+            setIsPracticing(false);
+            completePracticeBlessing();
+        }
+        return () => {
+            if (interval) clearInterval(interval);
+        };
+    }, [isPracticing, practiceTimer]);
+
+    const handlePressSlot = (x: number, y: number, slot: MandalaSlot | null) => {
+        setSelectedSlotCoord({ x, y });
+        setSelectedMandalaSlot(slot || null);
+        setContribAmount('1000');
+        setShowMandalaModal(true);
+    };
+
+    const getBuildingEmoji = (type: MandalaBuildingType): string => {
+        const emojis: Record<MandalaBuildingType, string> = {
+            stupa_8: '🛕',
+            prayer_wheel: '🎡',
+            guru_rinpoche: '🧘',
+            avalokiteshvara: '🙏',
+            amitabha: '🪷',
+            monastery: '🕌'
+        };
+        return emojis[type] || '🏯';
+    };
+
+    const getBuildingName = (type: MandalaBuildingType): string => {
+        const names: Record<MandalaBuildingType, string> = {
+            stupa_8: 'Bảo Tháp Mật Tông',
+            prayer_wheel: 'Kinh Luân Cát Tường',
+            guru_rinpoche: 'Tượng Đức Liên Hoa Sanh',
+            avalokiteshvara: 'Tượng Đức Quan Âm',
+            amitabha: 'Tượng Đức A Di Đà',
+            monastery: 'Tu Viện Mật Tông'
+        };
+        return names[type] || 'Công trình';
+    };
+
+    const handleInitializeSlot = async () => {
+        if (!selectedSlotCoord || !state?.realm_id || initLoading) return;
+        setInitLoading(true);
+        try {
+            const newSlot = await mandalaService.initializeSlot(
+                state.realm_id,
+                selectedSlotCoord.x,
+                selectedSlotCoord.y,
+                selectedBuildingType
+            );
+            Alert.alert("🎉 Thành công", "Khởi dựng công trình thần điện thành công! Hãy kêu gọi đồng tu cùng hùn phước.");
+            setSelectedMandalaSlot(newSlot);
+            
+            // Reload grid
+            const { slots, contributions } = await mandalaService.fetchMandalaGrid(state.realm_id);
+            setMandalaSlots(slots);
+            setMandalaContributions(contributions);
+        } catch (err: any) {
+            Alert.alert("Lỗi", err.message || "Không thể khởi tạo công trình.");
+        } finally {
+            setInitLoading(false);
+        }
+    };
+
+    const handleContribute = async () => {
+        if (!selectedMandalaSlot || !contribAmount.trim() || contribLoading) return;
+        const pts = Number(contribAmount);
+        if (isNaN(pts) || pts <= 0) {
+            Alert.alert("Lỗi", "Số điểm đóng góp phải là một số lớn hơn 0.");
+            return;
+        }
+
+        setContribLoading(true);
+        try {
+            const result = await mandalaService.contributeToSlot(selectedMandalaSlot.id, pts);
+            
+            // Reload grid & user points
+            const [gridData, mpointsBalance] = await Promise.all([
+                mandalaService.fetchMandalaGrid(state!.realm_id),
+                userService.getMPointsBalance()
+            ]);
+            
+            setMandalaSlots(gridData.slots);
+            setMandalaContributions(gridData.contributions);
+            setMpoints(mpointsBalance);
+
+            // Find updated slot
+            const updatedSlot = gridData.slots.find(s => s.id === selectedMandalaSlot.id);
+            setSelectedMandalaSlot(updatedSlot || null);
+
+            Alert.alert(
+                result.is_completed ? "🎉 Công Đức Viên Mãn" : "🙏 Tùy Hỷ Cúng Dường", 
+                result.is_completed 
+                    ? "Công trình thần điện đã chính thức hoàn thiện! Chư vị đóng góp đã được ghi danh vào Bộ sưu tập tâm linh và chia thưởng phước báu."
+                    : `Hành giả hùn phước thành công thêm ${result.added_points} MPoints.`
+            );
+        } catch (err: any) {
+            Alert.alert("Lỗi", err.message || "Đóng góp thất bại.");
+        } finally {
+            setContribLoading(false);
+        }
+    };
+
+    const handleUpgrade = async () => {
+        if (!selectedMandalaSlot || upgradeLoading) return;
+        setUpgradeLoading(true);
+        try {
+            const upgraded = await mandalaService.upgradeBuilding(selectedMandalaSlot.id);
+            Alert.alert("🎉 Thành công", `Đã kích hoạt dự án nâng cấp lên Cấp ${upgraded.level}!`);
+            setSelectedMandalaSlot(upgraded);
+
+            // Reload grid
+            const { slots, contributions } = await mandalaService.fetchMandalaGrid(state!.realm_id);
+            setMandalaSlots(slots);
+            setMandalaContributions(contributions);
+        } catch (err: any) {
+            Alert.alert("Lỗi", err.message || "Nâng cấp thất bại.");
+        } finally {
+            setUpgradeLoading(false);
+        }
+    };
+
+    const completePracticeBlessing = async () => {
+        if (!selectedMandalaSlot) return;
+        try {
+            setLoading(true);
+            const building = selectedMandalaSlot.building_type;
+            let blessingName = "Gia trì tinh tấn";
+            
+            // Calculate multiplier
+            const completedCount = mandalaSlots.filter(s => s.status === 'completed').length;
+            const multiplier = 1 + 0.2 * (completedCount - 1);
+
+            if (building === 'stupa_8') blessingName = `Gia trì Tăng trưởng Công Đức (+10% Merit, Hệ số: x${multiplier.toFixed(1)})`;
+            else if (building === 'guru_rinpoche') blessingName = `Gia trì MPoints (+50 MPoints, Hệ số: x${multiplier.toFixed(1)})`;
+            else if (building === 'avalokiteshvara') blessingName = `Gia trì Hộ Mạng Cản Ma Vương (+30% tỉ lệ cản Mara, Hệ số: x${multiplier.toFixed(1)})`;
+            else if (building === 'amitabha') blessingName = `Gia trì Tiêu Trừ Cooldown (-4h Cooldown, Hệ số: x${multiplier.toFixed(1)})`;
+            else if (building === 'prayer_wheel') blessingName = `Gia trì Tiêu Trừ Cooldown cõi vĩnh viễn (-5% Cooldown, Hệ số: x${multiplier.toFixed(1)})`;
+            else if (building === 'monastery') blessingName = `Gia trì Đại Thiền Định (X2 Merit buổi thiền vừa hoàn thành, Hệ số: x${multiplier.toFixed(1)})`;
+
+            // Insert log linked to a practice
+            const { data: practices } = await supabase.from('practices').select('id').limit(1);
+            const practiceId = practices?.[0]?.id;
+            if (!practiceId) throw new Error("Không tìm thấy bài thực hành hợp lệ để liên kết.");
+
+            const { data: log } = await supabase.from('practice_logs').insert({
+                user_id: user?.id,
+                practice_id: practiceId,
+                log_date: new Date().toISOString().split('T')[0],
+                completed: true
+            }).select().single();
+
+            await mandalaService.logMandalaPractice(selectedMandalaSlot.id, log.id, blessingName, multiplier);
+            
+            // App-level bonus execution
+            if (building === 'guru_rinpoche') {
+                await supabase.from('user_bonus_merits').insert({
+                    user_id: user?.id,
+                    amount: 50,
+                    reason: 'Nhận lực gia trì từ Đức Liên Hoa Sanh'
+                });
+            } else if (building === 'amitabha') {
+                await rebirthService.reduceCooldownWithMPoints(0.166); // 4 hours
+            }
+
+            Alert.alert("🎉 Nhận Lực Gia Trì Thành Công!", `Hành giả đã hoàn thành nhiệm vụ thiền định tĩnh lặng. \n\nLực gia trì nhận được: ${blessingName}`);
+            setShowMandalaModal(false);
+            loadData();
+        } catch (err: any) {
+            Alert.alert("Lỗi", err.message || "Không thể nhận gia trì.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
     // Monthly prizes shelf
     const monthlyPrizes = [
         "1. Torma 3kaya (01)",
@@ -819,6 +1034,67 @@ export default function RebirdScreen() {
                         </TouchableOpacity>
                     )}
                 </View>
+                {/* Mandala Grid Card (Thần Điện Mật Tông) */}
+                {state.realm_id >= 10 && state.realm_id <= 33 && (
+                    <View style={[styles.card, styles.mandalaCard]}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+                            <Sparkles size={20} color={GOLD} />
+                            <Text style={[styles.sectionTitle, { color: GOLD, marginBottom: 0, marginLeft: 8 }]}>
+                                Mật Tông Thần Điện (Mandala 3x3)
+                            </Text>
+                        </View>
+                        
+                        <Text style={[styles.progressHint, { color: '#E2E8F0', marginBottom: 16 }]}>
+                            Hợp sức cùng các đồng tu kiến tạo 9 công trình Bồ Đề để nhận kỷ niệm chương và lực gia trì gia tăng cấp số cộng!
+                        </Text>
+
+                        {/* 3x3 Grid rendering */}
+                        <View style={styles.mandalaGridContainer}>
+                            {[1, 2, 3].map((r) => (
+                                <View key={r} style={styles.mandalaGridRow}>
+                                    {[1, 2, 3].map((c) => {
+                                        const slot = mandalaSlots.find(s => s.x === c && s.y === r);
+                                        return (
+                                            <TouchableOpacity
+                                                key={`${r}-${c}`}
+                                                style={[
+                                                    styles.mandalaSlotBox,
+                                                    slot?.status === 'completed' && styles.mandalaSlotCompleted,
+                                                    slot?.status === 'constructing' && styles.mandalaSlotConstructing,
+                                                    c === 2 && r === 2 && styles.mandalaCenterSlot
+                                                ]}
+                                                onPress={() => handlePressSlot(c, r, slot || null)}
+                                            >
+                                                {slot ? (
+                                                    <>
+                                                        <Text style={styles.mandalaSlotType}>
+                                                            {getBuildingEmoji(slot.building_type)}
+                                                        </Text>
+                                                        <Text style={styles.mandalaSlotLevel} numberOfLines={1}>
+                                                            Lv.{slot.level}
+                                                        </Text>
+                                                        {slot.status === 'constructing' && (
+                                                            <View style={styles.mandalaMiniProgressBg}>
+                                                                <View 
+                                                                    style={[
+                                                                        styles.mandalaMiniProgressFill, 
+                                                                        { width: `${Math.min(100, (slot.current_merit_points / slot.target_merit_points) * 100)}%` }
+                                                                    ]} 
+                                                                />
+                                                            </View>
+                                                        )}
+                                                    </>
+                                                ) : (
+                                                    <Text style={styles.mandalaSlotEmpty}>+</Text>
+                                                )}
+                                            </TouchableOpacity>
+                                        );
+                                    })}
+                                </View>
+                            ))}
+                        </View>
+                    </View>
+                )}
 
                 {/* Low Realm Blessing Board (Thỉnh cầu Hộ trì) */}
                 {isLowerRealm && (
@@ -1016,6 +1292,171 @@ export default function RebirdScreen() {
                     )}
                 </View>
             </ScrollView>
+
+            {/* Mandala Building Detail Modal */}
+            <Modal visible={showMandalaModal} transparent animationType="slide">
+                <View style={styles.modalBg}>
+                    <View style={[styles.kleshaCard, { backgroundColor: '#1E293B', borderColor: GOLD, borderWidth: 1.5, width: '92%' }]}>
+                        
+                        {/* Header */}
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', width: '100%', marginBottom: 15, alignItems: 'center' }}>
+                            <Text style={[styles.kleshaTitle, { color: GOLD, fontSize: 16, marginBottom: 0 }]}>
+                                {selectedMandalaSlot 
+                                    ? `🕌 ${getBuildingName(selectedMandalaSlot.building_type)} (Cấp ${selectedMandalaSlot.level})` 
+                                    : `🪷 KHỞI DỰNG CÔNG TRÌNH (Ô ${selectedSlotCoord?.x}, ${selectedSlotCoord?.y})`}
+                            </Text>
+                            <TouchableOpacity onPress={() => { setShowMandalaModal(false); setIsPracticing(false); }}>
+                                <X size={20} color="#94A3B8" />
+                            </TouchableOpacity>
+                        </View>
+
+                        {isPracticing ? (
+                            // Zen practice timer UI
+                            <View style={{ width: '100%', alignItems: 'center', paddingVertical: 20 }}>
+                                <Text style={{ fontSize: 18, color: '#FFF', fontWeight: 'bold', marginBottom: 12 }}>
+                                    🧘 THIỀN ĐỊNH TĨNH LẶNG
+                                </Text>
+                                <Text style={{ fontSize: 13, color: '#94A3B8', textAlign: 'center', lineHeight: 20, marginBottom: 20 }}>
+                                    Đạo hữu hãy thả lỏng thân tâm, nhắm mắt và duy trì tĩnh lặng để đón nhận lực gia trì cát tường.
+                                </Text>
+                                <View style={styles.kleshaTimerBadge}>
+                                    <Text style={styles.kleshaTimerText}>⏳ Còn {practiceTimer} giây</Text>
+                                </View>
+                                <View style={[styles.progressBarBg, { marginTop: 25, width: '90%' }]}>
+                                    <View style={[styles.progressBarFill, { backgroundColor: GOLD, width: `${(10 - practiceTimer) * 10}%` }]} />
+                                </View>
+                            </View>
+                        ) : selectedMandalaSlot ? (
+                            // Existing building details
+                            <View style={{ width: '100%' }}>
+                                <Text style={{ fontSize: 13, color: '#E2E8F0', lineHeight: 18, marginBottom: 15 }}>
+                                    Trạng thái: <Text style={{ fontWeight: 'bold', color: selectedMandalaSlot.status === 'completed' ? '#10B981' : '#F59E0B' }}>
+                                        {selectedMandalaSlot.status === 'completed' ? 'Đã hoàn tất' : 'Đang kiến tạo'}
+                                    </Text>
+                                </Text>
+
+                                {selectedMandalaSlot.status === 'constructing' ? (
+                                    <>
+                                        {/* Progress */}
+                                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
+                                            <Text style={{ fontSize: 12, color: '#94A3B8' }}>Tiến độ đóng góp:</Text>
+                                            <Text style={{ fontSize: 12, color: GOLD, fontWeight: 'bold' }}>
+                                                {selectedMandalaSlot.current_merit_points} / {selectedMandalaSlot.target_merit_points} MP
+                                            </Text>
+                                        </View>
+                                        <View style={[styles.progressBarBg, { marginBottom: 20 }]}>
+                                            <View 
+                                                style={[
+                                                    styles.progressBarFill, 
+                                                    { backgroundColor: GOLD, width: `${Math.min(100, (selectedMandalaSlot.current_merit_points / selectedMandalaSlot.target_merit_points) * 100)}%` }
+                                                ]} 
+                                            />
+                                        </View>
+
+                                        {/* Contribute actions */}
+                                        <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#FFF', marginBottom: 8 }}>Hùn phước xây dựng:</Text>
+                                        <View style={{ flexDirection: 'row', gap: 8, marginBottom: 15 }}>
+                                            <TextInput 
+                                                style={[styles.commentInput, { flex: 1, backgroundColor: '#0F172A', color: '#FFF', borderColor: '#334155' }]}
+                                                keyboardType="numeric"
+                                                value={contribAmount}
+                                                onChangeText={setContribAmount}
+                                                placeholder="Nhập số MPoints đóng góp"
+                                            />
+                                            <TouchableOpacity 
+                                                style={[styles.sendBtn, { backgroundColor: GOLD }]}
+                                                onPress={handleContribute}
+                                                disabled={contribLoading}
+                                            >
+                                                {contribLoading ? <ActivityIndicator size="small" color="#FFF" /> : <Send size={18} color="#FFF" />}
+                                            </TouchableOpacity>
+                                        </View>
+                                    </>
+                                ) : (
+                                    // Completed state
+                                    <View style={{ marginBottom: 20 }}>
+                                        <Text style={{ fontSize: 13, color: '#E2E8F0', lineHeight: 18, marginBottom: 15 }}>
+                                            Công trình đã đơm hoa phước báu. Đạo hữu có thể thực hành các nhiệm vụ tâm linh tương ứng để nhận lực gia trì cát tường.
+                                        </Text>
+
+                                        <TouchableOpacity 
+                                            style={[styles.diceButton, { width: '100%', marginBottom: 10 }]}
+                                            onPress={() => {
+                                                setIsPracticing(true);
+                                                setPracticeTimer(10);
+                                                setBlessingProgress(0);
+                                            }}
+                                        >
+                                            <Sparkles size={18} color="#FFF" style={{ marginRight: 8 }} />
+                                            <Text style={styles.diceButtonText}>Thực Hành Nhận Gia Trì</Text>
+                                        </TouchableOpacity>
+
+                                        {selectedMandalaSlot.level < 3 && (
+                                            <TouchableOpacity 
+                                                style={[styles.actionBtn, { borderColor: GOLD, borderWidth: 1.5, width: '100%' }]}
+                                                onPress={handleUpgrade}
+                                                disabled={upgradeLoading}
+                                            >
+                                                {upgradeLoading ? <ActivityIndicator size="small" color={GOLD} /> : <Text style={[styles.actionBtnText, { color: GOLD }]}>Nâng Cấp Lên Cấp {selectedMandalaSlot.level + 1}</Text>}
+                                            </TouchableOpacity>
+                                        )}
+                                    </View>
+                                )}
+
+                                {/* Contributions list */}
+                                <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#FFF', marginBottom: 8 }}>Đóng góp của chư vị đồng tu:</Text>
+                                <ScrollView style={{ maxHeight: 150, width: '100%' }} nestedScrollEnabled>
+                                    {((mandalaContributions[selectedMandalaSlot.id] || []).length === 0) ? (
+                                        <Text style={{ color: '#64748B', fontStyle: 'italic', fontSize: 12, marginVertical: 8 }}>Chưa có đồng tu hùn phước.</Text>
+                                    ) : (
+                                        (mandalaContributions[selectedMandalaSlot.id] || []).map((c) => (
+                                            <View key={c.id} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#334155' }}>
+                                                <Text style={{ fontSize: 12, color: '#E2E8F0' }}>{c.profiles?.display_name || 'Đồng tu'}</Text>
+                                                <Text style={{ fontSize: 12, color: GOLD, fontWeight: 'bold' }}>+{c.points_contributed} MP</Text>
+                                            </View>
+                                        ))
+                                    )}
+                                </ScrollView>
+                            </View>
+                        ) : (
+                            // Initialize new building
+                            <View style={{ width: '100%' }}>
+                                <Text style={{ fontSize: 13, color: '#E2E8F0', lineHeight: 18, marginBottom: 15 }}>
+                                    Lưới Mandala trống. Đạo hữu hãy chọn một công trình Mật tông để khởi xướng dự án xây dựng cho tăng đoàn.
+                                </Text>
+
+                                <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#FFF', marginBottom: 8 }}>Loại công trình:</Text>
+                                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 20 }}>
+                                    {(['stupa_8', 'prayer_wheel', 'guru_rinpoche', 'avalokiteshvara', 'amitabha', 'monastery'] as MandalaBuildingType[]).map((type) => (
+                                        <TouchableOpacity
+                                            key={type}
+                                            style={[
+                                                styles.selectorItem, 
+                                                { width: '31%', backgroundColor: '#334155', borderColor: '#475569' },
+                                                selectedBuildingType === type && { borderColor: GOLD, backgroundColor: '#451a1a' }
+                                            ]}
+                                            onPress={() => setSelectedBuildingType(type)}
+                                        >
+                                            <Text style={{ fontSize: 20 }}>{getBuildingEmoji(type)}</Text>
+                                            <Text style={{ fontSize: 9, color: '#FFF', fontWeight: 'bold', marginTop: 4, textAlign: 'center' }}>
+                                                {getBuildingName(type)}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+
+                                <TouchableOpacity 
+                                    style={[styles.diceButton, { width: '100%' }]}
+                                    onPress={handleInitializeSlot}
+                                    disabled={initLoading}
+                                >
+                                    {initLoading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.diceButtonText}>Khởi dựng công trình</Text>}
+                                </TouchableOpacity>
+                            </View>
+                        )}
+                    </View>
+                </View>
+            </Modal>
 
             {/* Cooldown Reduce Modal */}
             <Modal visible={showReduceModal} transparent animationType="slide">
@@ -2468,5 +2909,71 @@ const styles = StyleSheet.create({
         shadowRadius: 5,
         borderWidth: 1.5,
         borderColor: GOLD,
+    },
+    // Mandala Grid Styles
+    mandalaCard: {
+        backgroundColor: '#1E293B',
+        borderColor: GOLD,
+        borderWidth: 1.5,
+    },
+    mandalaGridContainer: {
+        width: '100%',
+        alignItems: 'center',
+        marginVertical: 10,
+    },
+    mandalaGridRow: {
+        flexDirection: 'row',
+        gap: 12,
+        marginBottom: 12,
+    },
+    mandalaSlotBox: {
+        width: 80,
+        height: 80,
+        borderRadius: 12,
+        backgroundColor: '#334155',
+        borderWidth: 1.5,
+        borderColor: '#475569',
+        justifyContent: 'center',
+        alignItems: 'center',
+        elevation: 2,
+    },
+    mandalaCenterSlot: {
+        borderColor: GOLD,
+        borderWidth: 2,
+        backgroundColor: '#451a1a',
+    },
+    mandalaSlotConstructing: {
+        borderColor: '#F59E0B',
+    },
+    mandalaSlotCompleted: {
+        borderColor: '#10B981',
+        backgroundColor: '#064e3b',
+    },
+    mandalaSlotType: {
+        fontSize: 26,
+    },
+    mandalaSlotLevel: {
+        fontSize: 9,
+        fontWeight: '900',
+        color: '#E2E8F0',
+        marginTop: 2,
+        textTransform: 'uppercase',
+    },
+    mandalaMiniProgressBg: {
+        width: '80%',
+        height: 3,
+        backgroundColor: '#475569',
+        borderRadius: 2,
+        marginTop: 4,
+        overflow: 'hidden',
+    },
+    mandalaMiniProgressFill: {
+        height: '100%',
+        backgroundColor: '#F59E0B',
+    },
+    mandalaSlotEmpty: {
+        fontSize: 28,
+        color: '#64748B',
+        fontWeight: '300',
     }
 });

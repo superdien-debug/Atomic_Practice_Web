@@ -9,6 +9,7 @@ import { useRouter } from 'expo-router';
 import { ChevronLeft, Award, Flame, Shield, Trophy } from 'lucide-react-native';
 import { userService } from '../../services/userService';
 import { useT } from '../../i18n/useT';
+import { mandalaService, SpiritualMedal } from '../../services/mandalaService';
 
 // ── Colors ────────────────────────────────────────────────────────────────────
 const GOLD = '#D4AF37';
@@ -22,13 +23,18 @@ export default function AchievementCollectionScreen() {
 
     const [loading, setLoading] = useState(true);
     const [achievements, setAchievements] = useState<{ challenges: any[], streaks: any[] }>({ challenges: [], streaks: [] });
+    const [medals, setMedals] = useState<SpiritualMedal[]>([]);
 
     useEffect(() => { loadData(); }, []);
 
     const loadData = async () => {
         try {
-            const data = await userService.fetchUserAchievements();
+            const [data, userMedals] = await Promise.all([
+                userService.fetchUserAchievements(),
+                mandalaService.fetchSpiritualCollection()
+            ]);
             setAchievements(data);
+            setMedals(userMedals);
         } catch (error) {
             console.error('Failed to load achievements:', error);
         } finally {
@@ -51,7 +57,7 @@ export default function AchievementCollectionScreen() {
                 </View>
                 <View style={styles.badgeCount}>
                     <Text style={styles.badgeCountText}>
-                        {(achievements.challenges?.length || 0) + (achievements.streaks?.length || 0)}
+                        {(achievements.challenges?.length || 0) + (achievements.streaks?.length || 0) + (medals?.length || 0)}
                     </Text>
                 </View>
             </View>
@@ -100,6 +106,49 @@ export default function AchievementCollectionScreen() {
                                 />
                             )) : (
                                 <Text style={styles.emptyText}>Maintain a 7-day streak to earn your first flame. 🔥</Text>
+                            )}
+                        </View>
+
+                        {/* Section: Mandala Medals */}
+                        <View style={[styles.sectionHeader, { marginTop: 30 }]}>
+                            <Trophy size={18} color={GOLD} />
+                            <Text style={styles.sectionTitle}>Huy Chương Mandala</Text>
+                        </View>
+
+                        <View style={styles.badgeGrid}>
+                            {medals.length > 0 ? medals.map((m, i) => {
+                                const isGold = m.medal_type.endsWith('gold');
+                                const isSilver = m.medal_type.endsWith('silver');
+                                const accent = isGold ? '#D4AF37' : (isSilver ? '#C0C0C0' : '#CD7F32');
+                                return (
+                                    <TouchableOpacity 
+                                        key={`medal-${i}`} 
+                                        style={styles.badgeItem}
+                                        onPress={() => {
+                                            alert(
+                                                `HUY CHƯƠNG CÔNG ĐỨC\n\n` +
+                                                `Nội dung: ${m.metadata.reason}\n` +
+                                                `Cấp độ: Cấp ${m.level}\n` +
+                                                `Đóng góp cá nhân: +${m.metadata.total_user_contribution} MP\n` +
+                                                `Phước báu nhận thưởng: +${m.metadata.merit_rewarded} Merit`
+                                            );
+                                        }}
+                                    >
+                                        <View style={[styles.badgeCircle, { borderColor: accent + '50', backgroundColor: '#1E293B' }]}>
+                                            <View style={[styles.badgeTier, { backgroundColor: accent + '20' }]}>
+                                                <Trophy size={24} color={accent} />
+                                            </View>
+                                        </View>
+                                        <Text numberOfLines={2} style={[styles.badgeTitle, { color: '#333', fontSize: 9 }]}>
+                                            {m.metadata.reason}
+                                        </Text>
+                                        <Text style={styles.badgeSub}>
+                                            {isGold ? 'Vàng' : (isSilver ? 'Bạc' : 'Đồng')} (Lv.{m.level})
+                                        </Text>
+                                    </TouchableOpacity>
+                                );
+                            }) : (
+                                <Text style={styles.emptyText}>Chưa có huy chương Mandala. Hãy đóng góp xây dựng thần điện cõi giới!</Text>
                             )}
                         </View>
 
