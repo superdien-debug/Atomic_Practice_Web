@@ -1125,7 +1125,7 @@ export default function RebirdScreen() {
                         </View>
 
                         <Text style={styles.formulaText}>
-                            * Thể lệ tính điểm: Điểm = Cõi giới + Hồi hướng (+15) + Nhận phước (+10) + Thắng Mara (+10) + Thiền Vipassana (+15) + Điểm danh CN (+100) + Mantra Guru 3Kaya (+10) + Quy y & lễ lậy 108 (+25) + Mandala 108 (+20) + Sám hối KCTĐ 108 (+15) + Thư viện AP khác (+10)
+                            * Thể lệ tính điểm: Điểm = Cõi giới + Hồi hướng (+15) + Nhận phước (+10) + Thắng Mara (+10) + Thiền Vipassana (+15) + Điểm danh CN (+100) + Mantra Guru 3Kaya (+10) + Quy y & lễ lậy 108 (+25) + Mandala 108 (+20) + Sám hối KCTĐ 108 (+15)
                         </Text>
 
                         {/* Leaderboard Users List */}
@@ -1201,8 +1201,7 @@ export default function RebirdScreen() {
                                 (selectedUserForDetails.guru_3kaya_count || 0) * 10 +
                                 (selectedUserForDetails.quy_y_count || 0) * 25 +
                                 (selectedUserForDetails.mandala_count || 0) * 20 +
-                                (selectedUserForDetails.sam_hoi_count || 0) * 15 +
-                                (selectedUserForDetails.ap_library_count || 0) * 10
+                                (selectedUserForDetails.sam_hoi_count || 0) * 15
                             ));
 
                             return (
@@ -1235,11 +1234,6 @@ export default function RebirdScreen() {
                                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#E2E8F0' }}>
                                             <Text style={{ fontSize: 13, color: '#475569' }}>⚡ Sám hối KCTĐ 108 biến 100 âm ({selectedUserForDetails.sam_hoi_count || 0} ngày)</Text>
                                             <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#0F172A' }}>+{(selectedUserForDetails.sam_hoi_count || 0) * 15} pts</Text>
-                                        </View>
-
-                                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#E2E8F0' }}>
-                                            <Text style={{ fontSize: 13, color: '#475569' }}>📚 Thực hành thư viện AP ({selectedUserForDetails.ap_library_count || 0} ngày)</Text>
-                                            <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#0F172A' }}>+{(selectedUserForDetails.ap_library_count || 0) * 10} pts</Text>
                                         </View>
 
                                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#E2E8F0' }}>
