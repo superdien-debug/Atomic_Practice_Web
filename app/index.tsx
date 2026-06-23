@@ -244,7 +244,7 @@ function FormationEonWelcome() {
     const [timeState, setTimeState] = useState(() => getRemainingTime(FORMATION_TARGET_TIME));
     const glowAnim = useRef(new Animated.Value(0.4)).current;
     const [sound, setSound] = useState<Audio.Sound | null>(null);
-    const [isPlayingSound, setIsPlayingSound] = useState(false);
+    const [isPlayingSound, setIsPlayingSound] = useState(true);
 
     useEffect(() => {
         let isMounted = true;
@@ -260,7 +260,7 @@ function FormationEonWelcome() {
 
                 const { sound: newSound } = await Audio.Sound.createAsync(
                     require('../assets/omture.mp3'),
-                    { shouldPlay: false, isLooping: true, volume: 0.8 }
+                    { shouldPlay: true, isLooping: true, volume: 0.8 }
                 );
                 
                 soundObj = newSound;
