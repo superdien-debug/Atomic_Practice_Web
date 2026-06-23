@@ -198,6 +198,45 @@ function VoidEonWelcome() {
     );
 }
 
+// ── Celestial Glow Aurora Stream ──
+function CelestialGlowStream({ color, size, duration, startX, startY }: { color: string; size: number; duration: number; startX: string; startY: string }) {
+    const scale = useRef(new Animated.Value(0.9)).current;
+    const opacity = useRef(new Animated.Value(0.15)).current;
+
+    useEffect(() => {
+        Animated.loop(
+            Animated.parallel([
+                Animated.sequence([
+                    Animated.timing(scale, { toValue: 1.25, duration, useNativeDriver: true }),
+                    Animated.timing(scale, { toValue: 0.9, duration, useNativeDriver: true }),
+                ]),
+                Animated.sequence([
+                    Animated.timing(opacity, { toValue: 0.4, duration, useNativeDriver: true }),
+                    Animated.timing(opacity, { toValue: 0.15, duration, useNativeDriver: true }),
+                ])
+            ])
+        ).start();
+    }, []);
+
+    return (
+        <Animated.View
+            style={[
+                s.celestialGlow,
+                {
+                    left: startX as any,
+                    top: startY as any,
+                    width: size,
+                    height: size,
+                    borderRadius: size / 2,
+                    backgroundColor: color,
+                    opacity: opacity,
+                    transform: [{ scale }],
+                }
+            ]}
+        />
+    );
+}
+
 // ── Formation Eon Countdown Welcome Screen ──
 function FormationEonWelcome() {
     const [timeState, setTimeState] = useState(() => getRemainingTime(FORMATION_TARGET_TIME));
@@ -208,12 +247,12 @@ function FormationEonWelcome() {
             Animated.sequence([
                 Animated.timing(glowAnim, {
                     toValue: 1.0,
-                    duration: 3000,
+                    duration: 2500,
                     useNativeDriver: true,
                 }),
                 Animated.timing(glowAnim, {
                     toValue: 0.4,
-                    duration: 3000,
+                    duration: 2500,
                     useNativeDriver: true,
                 })
             ])
@@ -230,13 +269,27 @@ function FormationEonWelcome() {
 
     const pad = (num: number) => String(num).padStart(2, '0');
 
+    // 16 sparkling particles representing radiant Quang Am beings
     const particles = [
-        { delay: 0, x: '15%', y: '75%', size: 8 },
-        { delay: 800, x: '45%', y: '80%', size: 12 },
-        { delay: 1600, x: '70%', y: '65%', size: 6 },
-        { delay: 1200, x: '10%', y: '55%', size: 10 },
-        { delay: 400, x: '80%', y: '45%', size: 8 },
-        { delay: 2000, x: '30%', y: '70%', size: 14 },
+        { delay: 0, x: '10%', y: '80%', size: 6, color: '#fffdf0' },
+        { delay: 1000, x: '25%', y: '85%', size: 10, color: '#fdeb93' },
+        { delay: 2000, x: '40%', y: '75%', size: 8, color: '#fffdf0' },
+        { delay: 500, x: '55%', y: '90%', size: 14, color: '#ffd2e8' },
+        { delay: 1500, x: '70%', y: '80%', size: 8, color: '#99f6e4' },
+        { delay: 2500, x: '85%', y: '70%', size: 12, color: '#fffdf0' },
+        
+        { delay: 3000, x: '18%', y: '60%', size: 10, color: '#ffd2e8' },
+        { delay: 4000, x: '35%', y: '65%', size: 6, color: '#99f6e4' },
+        { delay: 3500, x: '60%', y: '50%', size: 12, color: '#fdeb93' },
+        { delay: 4500, x: '80%', y: '55%', size: 8, color: '#fffdf0' },
+        
+        { delay: 1200, x: '15%', y: '40%', size: 8, color: '#99f6e4' },
+        { delay: 2200, x: '30%', y: '30%', size: 14, color: '#fffdf0' },
+        { delay: 3200, x: '50%', y: '35%', size: 6, color: '#ffd2e8' },
+        { delay: 4200, x: '75%', y: '25%', size: 10, color: '#fdeb93' },
+        
+        { delay: 800,  x: '5%',  y: '50%', size: 12, color: '#fffdf0' },
+        { delay: 1800, x: '95%', y: '60%', size: 10, color: '#99f6e4' },
     ];
 
     return (
@@ -247,22 +300,34 @@ function FormationEonWelcome() {
         >
             <StatusBar style="light" />
 
+            {/* Glowing background auroras */}
+            <CelestialGlowStream color="rgba(253, 224, 71, 0.2)" size={350} duration={6000} startX="10%" startY="10%" />
+            <CelestialGlowStream color="rgba(244, 63, 94, 0.15)" size={400} duration={8000} startX="50%" startY="40%" />
+            <CelestialGlowStream color="rgba(45, 212, 191, 0.15)" size={300} duration={5000} startX="80%" startY="20%" />
+
             <View style={s.formationOverlay} />
 
             {particles.map((p, i) => (
-                <LightParticle key={i} delay={p.delay} x={p.x} y={p.y} size={p.size} />
+                <LightParticle key={i} delay={p.delay} x={p.x} y={p.y} size={p.size} color={p.color} />
             ))}
 
             <View style={s.formationMainContainer}>
                 <View style={s.formationLeftPanel}>
                     <View style={s.formationHeader}>
-                        <Animated.Text style={[s.formationHeaderEon, { opacity: glowAnim }]}>
-                            THỜI KỲ THÀNH KIẾP
-                        </Animated.Text>
+                        <View style={s.titleContainer}>
+                            {/* Animated halo glow layer */}
+                            <Animated.Text style={[s.formationHeaderEonGlow, { opacity: glowAnim.interpolate({ inputRange: [0.4, 1.0], outputRange: [0.2, 0.8] }) }]}>
+                                THỜI KỲ THÀNH KIẾP
+                            </Animated.Text>
+                            {/* Static foreground layer */}
+                            <Text style={s.formationHeaderEon}>
+                                THỜI KỲ THÀNH KIẾP
+                            </Text>
+                        </View>
                         <View style={s.formationTealLine} />
-                        <Text style={s.formationHeaderStatus}>
+                        <Animated.Text style={[s.formationHeaderStatus, { textShadowRadius: glowAnim.interpolate({ inputRange: [0.4, 1.0], outputRange: [2, 10] }) }]}>
                             ÁNH SÁNG ĐẦU TIÊN CỦA THẾ GIỚI MỚI
-                        </Text>
+                        </Animated.Text>
                     </View>
 
                     <View style={s.formationDescWrap}>
@@ -281,29 +346,29 @@ function FormationEonWelcome() {
                     </View>
 
                     <View style={s.countdownContainer}>
-                        <View style={s.formationCountdownBox}>
+                        <Animated.View style={[s.formationCountdownBox, { shadowOpacity: glowAnim.interpolate({ inputRange: [0.4, 1.0], outputRange: [0.1, 0.4] }) }]}>
                             <Text style={s.formationCountdownVal}>{pad(timeState.days)}</Text>
                             <Text style={s.formationCountdownLabel}>ngày</Text>
-                        </View>
+                        </Animated.View>
                         <Text style={s.formationCountdownColon}>:</Text>
-                        <View style={s.formationCountdownBox}>
+                        <Animated.View style={[s.formationCountdownBox, { shadowOpacity: glowAnim.interpolate({ inputRange: [0.4, 1.0], outputRange: [0.1, 0.4] }) }]}>
                             <Text style={s.formationCountdownVal}>{pad(timeState.hours)}</Text>
                             <Text style={s.formationCountdownLabel}>giờ</Text>
-                        </View>
+                        </Animated.View>
                         <Text style={s.formationCountdownColon}>:</Text>
-                        <View style={s.formationCountdownBox}>
+                        <Animated.View style={[s.formationCountdownBox, { shadowOpacity: glowAnim.interpolate({ inputRange: [0.4, 1.0], outputRange: [0.1, 0.4] }) }]}>
                             <Text style={s.formationCountdownVal}>{pad(timeState.minutes)}</Text>
                             <Text style={s.formationCountdownLabel}>phút</Text>
-                        </View>
+                        </Animated.View>
                         <Text style={s.formationCountdownColon}>:</Text>
-                        <View style={s.formationCountdownBox}>
+                        <Animated.View style={[s.formationCountdownBox, { shadowOpacity: glowAnim.interpolate({ inputRange: [0.4, 1.0], outputRange: [0.1, 0.4] }) }]}>
                             <Text style={s.formationCountdownVal}>{pad(timeState.seconds)}</Text>
                             <Text style={s.formationCountdownLabel}>giây</Text>
-                        </View>
+                        </Animated.View>
                     </View>
                 </View>
 
-                <Animated.View style={[s.quoteCard, { shadowOpacity: glowAnim.interpolate({ inputRange: [0.4, 1.0], outputRange: [0.1, 0.4] }) }]}>
+                <Animated.View style={[s.quoteCard, { shadowOpacity: glowAnim.interpolate({ inputRange: [0.4, 1.0], outputRange: [0.15, 0.55] }) }]}>
                     <Text style={s.quoteText}>
                         "Từ ánh sáng của tâm, thế giới lại được hình thành."
                     </Text>
@@ -313,7 +378,7 @@ function FormationEonWelcome() {
     );
 }
 
-function LightParticle({ delay, x, y, size }: { delay: number; x: string; y: string; size: number }) {
+function LightParticle({ delay, x, y, size, color }: { delay: number; x: string; y: string; size: number; color: string }) {
     const anim = useRef(new Animated.Value(0)).current;
     
     useEffect(() => {
@@ -335,12 +400,12 @@ function LightParticle({ delay, x, y, size }: { delay: number; x: string; y: str
 
     const opacity = anim.interpolate({
         inputRange: [0, 0.5, 1],
-        outputRange: [0, 0.7, 0],
+        outputRange: [0, 0.85, 0],
     });
 
     const translateY = anim.interpolate({
         inputRange: [0, 1],
-        outputRange: [0, -100],
+        outputRange: [0, -120],
     });
 
     return (
@@ -353,6 +418,7 @@ function LightParticle({ delay, x, y, size }: { delay: number; x: string; y: str
                     width: size,
                     height: size,
                     borderRadius: size / 2,
+                    backgroundColor: color,
                     opacity: opacity,
                     transform: [{ translateY }],
                 },
@@ -579,7 +645,7 @@ const s = StyleSheet.create({
     },
     formationOverlay: {
         ...StyleSheet.absoluteFillObject,
-        backgroundColor: 'rgba(255, 253, 240, 0.15)',
+        backgroundColor: 'rgba(255, 253, 240, 0.12)',
     },
     formationMainContainer: {
         flex: 1,
@@ -589,38 +655,51 @@ const s = StyleSheet.create({
         gap: 24,
         width: '100%',
         marginTop: Platform.OS === 'web' ? 0 : 20,
+        zIndex: 2,
     },
     formationLeftPanel: {
         flex: Platform.OS === 'web' ? undefined : 1,
         width: Platform.OS === 'web' ? '45%' : '100%',
         maxWidth: 600,
-        backgroundColor: 'rgba(255, 255, 255, 0.85)',
+        backgroundColor: 'rgba(255, 255, 255, 0.82)',
         borderWidth: 1,
         borderColor: 'rgba(212, 175, 55, 0.35)',
         borderRadius: 12,
         padding: Platform.OS === 'web' ? 36 : 24,
         shadowColor: '#d4af37',
-        shadowOpacity: 0.1,
-        shadowRadius: 20,
+        shadowOpacity: 0.15,
+        shadowRadius: 25,
         shadowOffset: { width: 0, height: 10 },
     },
     formationHeader: {
         marginBottom: 24,
     },
+    titleContainer: {
+        height: Platform.OS === 'web' ? 50 : 40,
+        justifyContent: 'center',
+        marginBottom: 8,
+    },
     formationHeaderEon: {
         fontSize: Platform.OS === 'web' ? 36 : 28,
         fontWeight: '900',
         letterSpacing: 4,
-        color: '#aa8a2e',
-        textShadowColor: 'rgba(212, 175, 55, 0.4)',
+        color: '#b8860b',
+    },
+    formationHeaderEonGlow: {
+        position: 'absolute',
+        fontSize: Platform.OS === 'web' ? 36 : 28,
+        fontWeight: '900',
+        letterSpacing: 4,
+        color: '#fdeb93',
+        textShadowColor: 'rgba(253, 224, 71, 0.8)',
         textShadowOffset: { width: 0, height: 0 },
-        textShadowRadius: 8,
+        textShadowRadius: 15,
     },
     formationTealLine: {
         width: 100,
         height: 2,
         backgroundColor: '#d4af37',
-        marginTop: 10,
+        marginTop: 4,
         marginBottom: 10,
         shadowColor: '#d4af37',
         shadowOpacity: 0.6,
@@ -632,7 +711,9 @@ const s = StyleSheet.create({
         fontWeight: '700',
         letterSpacing: 2,
         color: '#aa8a2e',
-        opacity: 0.85,
+        textShadowColor: 'rgba(212, 175, 55, 0.25)',
+        textShadowOffset: { width: 0, height: 0 },
+        opacity: 0.9,
     },
     formationDescWrap: {
         marginBottom: 28,
@@ -653,13 +734,17 @@ const s = StyleSheet.create({
     },
     formationCountdownBox: {
         borderWidth: 1,
-        borderColor: 'rgba(212, 175, 55, 0.4)',
-        backgroundColor: 'rgba(255, 253, 240, 0.9)',
+        borderColor: 'rgba(212, 175, 55, 0.45)',
+        backgroundColor: 'rgba(255, 253, 240, 0.95)',
         paddingVertical: 10,
         paddingHorizontal: 12,
         borderRadius: 4,
         alignItems: 'center',
         minWidth: 70,
+        shadowColor: '#d4af37',
+        shadowOffset: { width: 0, height: 2 },
+        shadowRadius: 8,
+        elevation: 2,
     },
     formationCountdownVal: {
         fontSize: 26,
@@ -694,7 +779,7 @@ const s = StyleSheet.create({
         alignSelf: Platform.OS === 'web' ? 'flex-end' : 'center',
         shadowColor: '#d4af37',
         shadowOffset: { width: 0, height: 4 },
-        shadowRadius: 12,
+        shadowRadius: 15,
         maxWidth: 400,
         marginBottom: Platform.OS === 'web' ? 40 : 20,
     },
@@ -713,6 +798,11 @@ const s = StyleSheet.create({
         shadowOpacity: 0.8,
         shadowRadius: 6,
         shadowOffset: { width: 0, height: 0 },
+    },
+    celestialGlow: {
+        position: 'absolute',
+        filter: Platform.OS === 'web' ? 'blur(80px)' : undefined,
+        zIndex: 0,
     },
 });
 
