@@ -3,6 +3,8 @@ import { StatusBar } from 'expo-status-bar';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'expo-router';
 import { useT } from '../i18n/useT';
+import { Audio } from 'expo-av';
+import { Volume2, VolumeX } from 'lucide-react-native';
 
 const { width, height } = Dimensions.get('window');
 
@@ -241,6 +243,61 @@ function CelestialGlowStream({ color, size, duration, startX, startY }: { color:
 function FormationEonWelcome() {
     const [timeState, setTimeState] = useState(() => getRemainingTime(FORMATION_TARGET_TIME));
     const glowAnim = useRef(new Animated.Value(0.4)).current;
+    const [sound, setSound] = useState<Audio.Sound | null>(null);
+    const [isPlayingSound, setIsPlayingSound] = useState(false);
+
+    useEffect(() => {
+        let isMounted = true;
+        let soundObj: Audio.Sound | null = null;
+
+        async function initAudio() {
+            try {
+                await Audio.setAudioModeAsync({
+                    playsInSilentModeIOS: true,
+                    staysActiveInBackground: false,
+                    playThroughEarpieceAndroid: false,
+                });
+
+                const { sound: newSound } = await Audio.Sound.createAsync(
+                    require('../assets/omture.mp3'),
+                    { shouldPlay: false, isLooping: true, volume: 0.8 }
+                );
+                
+                soundObj = newSound;
+                if (isMounted) {
+                    setSound(newSound);
+                } else {
+                    newSound.unloadAsync();
+                }
+            } catch (err) {
+                console.error("Failed to load audio:", err);
+            }
+        }
+        
+        initAudio();
+
+        return () => {
+            isMounted = false;
+            if (soundObj) {
+                soundObj.unloadAsync();
+            }
+        };
+    }, []);
+
+    const togglePlay = async () => {
+        if (!sound) return;
+        try {
+            if (isPlayingSound) {
+                await sound.pauseAsync();
+                setIsPlayingSound(false);
+            } else {
+                await sound.playAsync();
+                setIsPlayingSound(true);
+            }
+        } catch (err) {
+            console.error("Error toggling play:", err);
+        }
+    };
 
     useEffect(() => {
         Animated.loop(
@@ -299,6 +356,14 @@ function FormationEonWelcome() {
             resizeMode="cover"
         >
             <StatusBar style="light" />
+
+            {/* Audio Toggle Button */}
+            <TouchableOpacity style={s.audioButton} onPress={togglePlay} activeOpacity={0.8}>
+                {isPlayingSound ? <Volume2 size={18} color="#aa8a2e" /> : <VolumeX size={18} color="#aa8a2e" />}
+                <Text style={s.audioButtonText}>
+                    {isPlayingSound ? "TẮT NHẠC THIỀN" : "BẬT NHẠC THIỀN"}
+                </Text>
+            </TouchableOpacity>
 
             {/* Glowing background auroras */}
             <CelestialGlowStream color="rgba(253, 224, 71, 0.2)" size={350} duration={6000} startX="10%" startY="10%" />
@@ -803,6 +868,31 @@ const s = StyleSheet.create({
         position: 'absolute',
         filter: Platform.OS === 'web' ? 'blur(80px)' : undefined,
         zIndex: 0,
+    },
+    audioButton: {
+        position: 'absolute',
+        top: Platform.OS === 'web' ? 24 : 16,
+        right: Platform.OS === 'web' ? 24 : 16,
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'rgba(255, 255, 255, 0.85)',
+        borderWidth: 1,
+        borderColor: 'rgba(212, 175, 55, 0.4)',
+        borderRadius: 20,
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        gap: 8,
+        shadowColor: '#d4af37',
+        shadowOpacity: 0.15,
+        shadowRadius: 10,
+        shadowOffset: { width: 0, height: 4 },
+        zIndex: 100,
+    },
+    audioButtonText: {
+        color: '#aa8a2e',
+        fontSize: 11,
+        fontWeight: '700',
+        letterSpacing: 1,
     },
 });
 
