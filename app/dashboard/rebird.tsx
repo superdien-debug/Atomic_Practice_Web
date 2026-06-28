@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIn
 import RenderHTML from 'react-native-render-html';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { Dices, History, Users, ShieldAlert, Check, ChevronDown, ChevronUp, MessageSquare, Send, Gift, Map, Flame, HeartHandshake, Trophy, Award, Lock, Sparkles, X } from 'lucide-react-native';
+import { Dices, History, Users, ShieldAlert, Check, ChevronDown, ChevronUp, MessageSquare, Send, Gift, Map, Flame, HeartHandshake, Trophy, Award, Lock, Sparkles, X, RotateCw, BookOpen, Package } from 'lucide-react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { rebirthService, RebirthState, Realm, RebirthComment, MaraComplaint } from '../../services/rebirthService';
 import { useT } from '../../i18n/useT';
@@ -14,6 +14,71 @@ import { useAuthStore } from '../../store/authStore';
 import { treasureService, GameTreasure } from '../../services/treasureService';
 import { supabase } from '../../lib/supabase';
 import { mandalaService, MandalaSlot, MandalaContribution, MandalaBuildingType } from '../../services/mandalaService';
+import { LinearGradient } from 'expo-linear-gradient';
+import Svg, { Defs, RadialGradient, Stop, Circle } from 'react-native-svg';
+
+
+const BOARD_BG_IMAGE = require('../../assets/mandala/board_bg.png');
+
+const mandalaImages: Record<MandalaBuildingType, Record<number, any>> = {
+    stupa_8: {
+        1: require('../../assets/mandala/stupa_8_level_1.png'),
+        2: require('../../assets/mandala/stupa_8_level_2.png'),
+        3: require('../../assets/mandala/stupa_8_level_3.png'),
+    },
+    prayer_wheel: {
+        1: require('../../assets/mandala/prayer_wheel_level_1.png'),
+        2: require('../../assets/mandala/prayer_wheel_level_2.png'),
+        3: require('../../assets/mandala/prayer_wheel_level_3.png'),
+    },
+    guru_rinpoche: {
+        1: require('../../assets/mandala/guru_rinpoche_level_1.png'),
+        2: require('../../assets/mandala/guru_rinpoche_level_2.png'),
+        3: require('../../assets/mandala/guru_rinpoche_level_3.png'),
+    },
+    avalokiteshvara: {
+        1: require('../../assets/mandala/avalokiteshvara_level_1.png'),
+        2: require('../../assets/mandala/avalokiteshvara_level_2.png'),
+        3: require('../../assets/mandala/avalokiteshvara_level_3.png'),
+    },
+    amitabha: {
+        1: require('../../assets/mandala/amitabha_level_1.png'),
+        2: require('../../assets/mandala/amitabha_level_2.png'),
+        3: require('../../assets/mandala/amitabha_level_3.png'),
+    },
+    monastery: {
+        1: require('../../assets/mandala/monastery_level_1.png'),
+        2: require('../../assets/mandala/monastery_level_2.png'),
+        3: require('../../assets/mandala/monastery_level_3.png'),
+    },
+};
+
+// Season 2 Banner
+const SEASON2_BANNER = require('../../assets/season2_banner.png');
+
+// Cosmology card images
+const cardImages: Record<number, any> = {
+    10: require('../../assets/cards/card_10_preta.png'),
+    11: require('../../assets/cards/card_11_animal.png'),
+    13: require('../../assets/cards/card_13_naga.png'),
+    14: require('../../assets/cards/card_14_rakshasa.png'),
+    15: require('../../assets/cards/card_15_asura.png'),
+    17: require('../../assets/cards/card_17_jambudvipa.png'),
+    28: require('../../assets/cards/card_28_trayastrimsa.png'),
+    105: require('../../assets/cards/card_105_abhasvara.png'),
+};
+
+const LOTUS_COORDS = [
+    { r: 1, c: 1, top: '34%', left: '40%' },
+    { r: 1, c: 2, top: '27%', left: '65%' },
+    { r: 1, c: 3, top: '32%', left: '73%' },
+    { r: 2, c: 1, top: '46%', left: '28%' },
+    { r: 2, c: 2, top: '57%', left: '42%' },
+    { r: 2, c: 3, top: '53%', left: '72%' },
+    { r: 3, c: 1, top: '53%', left: '50%' },
+    { r: 3, c: 2, top: '60%', left: '55%' },
+    { r: 3, c: 3, top: '70%', left: '42%' },
+];
 
 const GOLD = '#D4AF37';
 const BG_LIGHT = '#FEF9EF';
@@ -97,6 +162,103 @@ export default function RebirdScreen() {
     const [showReduceModal, setShowReduceModal] = useState(false);
     const [reduceDays, setReduceDays] = useState(1);
 
+    // Season 2 States
+    const [userAura, setUserAura] = useState<number>(0);
+    const [multipliers, setMultipliers] = useState<{ le_lay: number; mandala: number; kctd: number; guru_yoga: number }>({ le_lay: 1, mandala: 1, kctd: 1, guru_yoga: 1 });
+    const [userInventory, setUserInventory] = useState<any[]>([]);
+    const [showCosmologyModal, setShowCosmologyModal] = useState(false);
+    const [showWelcomeModal, setShowWelcomeModal] = useState(false);
+    const [exploring, setExploring] = useState(false);
+    const [showExploreResultModal, setShowExploreResultModal] = useState(false);
+    const [exploreResult, setExploreResult] = useState<{ success: boolean; item_type?: string; item_id?: string; name?: string; message: string } | null>(null);
+    const [showAuraBreakdownModal, setShowAuraBreakdownModal] = useState(false);
+    const [showExploringOverlay, setShowExploringOverlay] = useState(false);
+    const [exploringStatusText, setExploringStatusText] = useState('Đang khai mở cổng cõi giới...');
+    const exploreRotateAnim = React.useRef(new Animated.Value(0)).current;
+
+    useEffect(() => {
+        if (showExploringOverlay) {
+            exploreRotateAnim.setValue(0);
+            Animated.loop(
+                Animated.timing(exploreRotateAnim, {
+                    toValue: 1,
+                    duration: 2000,
+                    useNativeDriver: true,
+                })
+            ).start();
+        } else {
+            exploreRotateAnim.setValue(0);
+        }
+    }, [showExploringOverlay]);
+
+    const [allCosmologyCards, setAllCosmologyCards] = useState<any[]>([]);
+    const [loadingCosmology, setLoadingCosmology] = useState(false);
+
+    const hasSeenWelcomeRef = React.useRef(false);
+
+    const loadCosmologyCards = async () => {
+        setLoadingCosmology(true);
+        try {
+            const { data, error } = await supabase
+                .from('game_cosmology_cards')
+                .select('*')
+                .order('id', { ascending: true });
+            if (error) throw error;
+            setAllCosmologyCards(data || []);
+        } catch (err) {
+            console.error('Failed to load cosmology cards:', err);
+        } finally {
+            setLoadingCosmology(false);
+        }
+    };
+
+    // Animation States for Mandala Grid
+    const shimmerAnim = React.useRef(new Animated.Value(0)).current;
+    const glowAnim = React.useRef(new Animated.Value(1)).current;
+
+    useEffect(() => {
+        const shimmerLoop = Animated.loop(
+            Animated.sequence([
+                Animated.timing(shimmerAnim, {
+                    toValue: 1,
+                    duration: 3000,
+                    useNativeDriver: true,
+                }),
+                Animated.timing(shimmerAnim, {
+                    toValue: 0,
+                    duration: 0,
+                    useNativeDriver: true,
+                }),
+                Animated.delay(1500),
+            ])
+        );
+
+        const glowLoop = Animated.loop(
+            Animated.sequence([
+                Animated.timing(glowAnim, {
+                    toValue: 1.2,
+                    duration: 2000,
+                    useNativeDriver: true,
+                }),
+                Animated.timing(glowAnim, {
+                    toValue: 0.8,
+                    duration: 2000,
+                    useNativeDriver: true,
+                }),
+            ])
+        );
+
+        shimmerLoop.start();
+        glowLoop.start();
+
+        return () => {
+            shimmerLoop.stop();
+            glowLoop.stop();
+        };
+    }, []);
+
+
+
     // Blessing requests (cõi thấp thỉnh cầu / cõi cao hộ trì)
     const [blessingRequests, setBlessingRequests] = useState<BlessingRequest[]>([]);
     const [myRequestMessage, setMyRequestMessage] = useState('');
@@ -151,6 +313,56 @@ export default function RebirdScreen() {
     const [selectedBuildingType, setSelectedBuildingType] = useState<MandalaBuildingType>('stupa_8');
     const [initLoading, setInitLoading] = useState(false);
     const [upgradeLoading, setUpgradeLoading] = useState(false);
+    const [koraLoading, setKoraLoading] = useState(false);
+
+    // Mock 2 completed slots for illustration:
+    // Slot (1,1): stupa_8 level 2 completed (Bảo Tháp Cấp 2)
+    // Slot (2,2): monastery level 3 completed (Tu Viện Cấp 3)
+    const displaySlots = React.useMemo(() => {
+        let slotsCopy = mandalaSlots.map(s => ({ ...s }));
+        
+        // Find or create slot at 1,1
+        let slot11 = slotsCopy.find(s => s.x === 1 && s.y === 1);
+        if (slot11) {
+            slot11.building_type = 'stupa_8';
+            slot11.level = 2;
+            slot11.status = 'completed';
+        } else {
+            slotsCopy.push({
+                id: 'mock-1-1',
+                x: 1,
+                y: 1,
+                building_type: 'stupa_8',
+                level: 2,
+                status: 'completed',
+                current_merit_points: 0,
+                target_merit_points: 1000,
+                realm_id: 10
+            } as any);
+        }
+
+        // Find or create slot at 2,2
+        let slot22 = slotsCopy.find(s => s.x === 2 && s.y === 2);
+        if (slot22) {
+            slot22.building_type = 'monastery';
+            slot22.level = 3;
+            slot22.status = 'completed';
+        } else {
+            slotsCopy.push({
+                id: 'mock-2-2',
+                x: 2,
+                y: 2,
+                building_type: 'monastery',
+                level: 3,
+                status: 'completed',
+                current_merit_points: 0,
+                target_merit_points: 2000,
+                realm_id: 10
+            } as any);
+        }
+
+        return slotsCopy;
+    }, [mandalaSlots]);
     
     // Practice mini-game states
     const [practiceTimer, setPracticeTimer] = useState(0);
@@ -318,12 +530,23 @@ export default function RebirdScreen() {
         if (!user) return;
         setLoading(true);
         try {
-            const [currentState, mpointsBalance] = await Promise.all([
+            const [currentState, mpointsBalance, aura, multipliersData, inventory] = await Promise.all([
                 rebirthService.getState(user.id),
-                userService.getMPointsBalance()
+                userService.getMPointsBalance(),
+                rebirthService.getUserDevaAura(user.id),
+                rebirthService.getPracticeMultipliers(user.id),
+                rebirthService.getUserInventory(user.id)
             ]);
             setState(currentState);
             setMpoints(mpointsBalance);
+            setUserAura(aura);
+            setMultipliers(multipliersData);
+            setUserInventory(inventory);
+
+            if (currentState?.realm_id === 105 && !hasSeenWelcomeRef.current) {
+                setShowWelcomeModal(true);
+                hasSeenWelcomeRef.current = true;
+            }
             console.log('[RebirdScreen] Loaded RebirthState:', JSON.stringify(currentState));
 
 
@@ -629,6 +852,51 @@ export default function RebirdScreen() {
         }
     };
 
+    const handleExploreRealm = async () => {
+        if (!state?.realm_id) return;
+        if (!user?.id) return;
+
+        if (state.realm_id >= 1 && state.realm_id <= 8) {
+            Alert.alert("Không thể khám phá", "Không thể khám phá ở cõi địa ngục khổ đau. Hãy tinh tấn sám hối/thực hành để thoát khỏi cõi này!");
+            return;
+        }
+
+        if (mpoints < 10) {
+            Alert.alert("Không đủ MPoints", "Bạn cần ít nhất 10 MPoints để thực hiện khám phá cõi giới.");
+            return;
+        }
+
+        setExploring(true);
+        setShowExploringOverlay(true);
+        setExploringStatusText('Đang khai mở cổng cõi giới...');
+
+        try {
+            // Start db call in parallel
+            const dbPromise = rebirthService.exploreRealm(user.id, 10);
+            
+            // Animation sequence 2 seconds total
+            await new Promise(resolve => setTimeout(resolve, 700));
+            setExploringStatusText('Đang đồng bộ tần số năng lượng...');
+            
+            await new Promise(resolve => setTimeout(resolve, 700));
+            setExploringStatusText('Đang kiếm tìm báu vật tâm linh...');
+            
+            await new Promise(resolve => setTimeout(resolve, 600));
+
+            const result = await dbPromise;
+            
+            setShowExploringOverlay(false);
+            setExploreResult(result);
+            setShowExploreResultModal(true);
+            await loadData();
+        } catch (err: any) {
+            setShowExploringOverlay(false);
+            Alert.alert("Lỗi", err.message || "Khám phá thất bại.");
+        } finally {
+            setExploring(false);
+        }
+    };
+
     const handleDigTreasure = async (treasure: GameTreasure) => {
         if (mpoints < 5) {
             Alert.alert(t('insufficientMpoints'), "Bạn cần ít nhất 5 MPoints để khám phá Pháp Bảo.");
@@ -668,6 +936,25 @@ export default function RebirdScreen() {
             );
         }
     };
+
+
+
+    // Mandala Practice Timer useEffect
+    useEffect(() => {
+        let interval: NodeJS.Timeout | undefined;
+        if (isPracticing && practiceTimer > 0) {
+            interval = setInterval(() => {
+                setPracticeTimer(prev => prev - 1);
+                setBlessingProgress(prev => prev + 0.1);
+            }, 1000);
+        } else if (isPracticing && practiceTimer === 0) {
+            setIsPracticing(false);
+            completePracticeBlessing();
+        }
+        return () => {
+            if (interval) clearInterval(interval);
+        };
+    }, [isPracticing, practiceTimer]);
 
     if (loading && !state) {
         return (
@@ -711,22 +998,7 @@ export default function RebirdScreen() {
         return parts.join(' ');
     };
 
-    // Mandala Practice Timer useEffect
-    useEffect(() => {
-        let interval: NodeJS.Timeout | undefined;
-        if (isPracticing && practiceTimer > 0) {
-            interval = setInterval(() => {
-                setPracticeTimer(prev => prev - 1);
-                setBlessingProgress(prev => prev + 0.1);
-            }, 1000);
-        } else if (isPracticing && practiceTimer === 0) {
-            setIsPracticing(false);
-            completePracticeBlessing();
-        }
-        return () => {
-            if (interval) clearInterval(interval);
-        };
-    }, [isPracticing, practiceTimer]);
+
 
     const handlePressSlot = (x: number, y: number, slot: MandalaSlot | null) => {
         setSelectedSlotCoord({ x, y });
@@ -841,6 +1113,21 @@ export default function RebirdScreen() {
         }
     };
 
+    const handleKora = async () => {
+        if (!selectedMandalaSlot || koraLoading) return;
+        setKoraLoading(true);
+        try {
+            const res = await mandalaService.circumambulateSlot(selectedMandalaSlot.id);
+            Alert.alert("🙏 Công đức đi nhiễu (Kora)", res.message);
+            setShowMandalaModal(false);
+            await loadData();
+        } catch (err: any) {
+            Alert.alert("Lỗi", err.message || "Đi nhiễu thất bại.");
+        } finally {
+            setKoraLoading(false);
+        }
+    };
+
     const completePracticeBlessing = async () => {
         if (!selectedMandalaSlot) return;
         try {
@@ -929,6 +1216,11 @@ export default function RebirdScreen() {
                         <Text style={styles.eventBtnText}>Giải Đấu</Text>
                     </TouchableOpacity>
                     
+                    <TouchableOpacity onPress={() => { loadCosmologyCards(); setShowCosmologyModal(true); }} style={styles.eventBtn}>
+                        <BookOpen size={20} color={GOLD} />
+                        <Text style={styles.eventBtnText}>Kho Đồ</Text>
+                    </TouchableOpacity>
+
                     <TouchableOpacity onPress={() => router.push('/dashboard/samsara-map' as any)}>
                         <Map size={22} color={GOLD} />
                     </TouchableOpacity>
@@ -948,11 +1240,37 @@ export default function RebirdScreen() {
                 >
                     <Sparkles size={16} color={GOLD} style={{ marginRight: 8 }} />
                     <View style={{ flex: 1 }}>
-                        <Text style={styles.eventBarTitle}>ĐẠI HỘI TÁI SINH - SEASON 1</Text>
+                        <Text style={styles.eventBarTitle}>ĐẠI HỘI TÁI SINH - SEASON 2: CHƯ THIÊN GIÁNG THẾ</Text>
                         <Text style={styles.eventBarCountdown}>Khởi chạy sau: {formatEventCountdown(eventTimeLeft)}</Text>
                     </View>
                     <Trophy size={18} color={GOLD} />
                 </TouchableOpacity>
+
+                {/* Deva Aura & Multipliers Panel */}
+                <LinearGradient 
+                    colors={['rgba(212, 175, 55, 0.18)', 'rgba(30, 41, 59, 0.85)']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.auraMultipliersPanel}
+                >
+                    <TouchableOpacity 
+                        style={styles.auraBadgeButton} 
+                        onPress={() => setShowAuraBreakdownModal(true)}
+                    >
+                        <Sparkles size={18} color={GOLD} />
+                        <Text style={styles.auraBadgeLabel}>Hào Quang Chư Thiên:</Text>
+                        <Text style={styles.auraBadgeValue}>{userAura} Pts</Text>
+                    </TouchableOpacity>
+                    <View style={styles.multipliersSummary}>
+                        <Text style={styles.multiSummaryTitle}>Yangti Multipliers:</Text>
+                        <View style={styles.multiGrid}>
+                            <Text style={styles.multiItem}>Lễ Lạy: x{multipliers.le_lay.toFixed(2)}</Text>
+                            <Text style={styles.multiItem}>Mandala: x{multipliers.mandala.toFixed(2)}</Text>
+                            <Text style={styles.multiItem}>KCTĐ: x{multipliers.kctd.toFixed(2)}</Text>
+                            <Text style={styles.multiItem}>Guru: x{multipliers.guru_yoga.toFixed(2)}</Text>
+                        </View>
+                    </View>
+                </LinearGradient>
 
                 {/* Realm Banner Image */}
                 <View style={styles.imageContainer}>
@@ -1048,50 +1366,119 @@ export default function RebirdScreen() {
                             Hợp sức cùng các đồng tu kiến tạo 9 công trình Bồ Đề để nhận kỷ niệm chương và lực gia trì gia tăng cấp số cộng!
                         </Text>
 
-                        {/* 3x3 Grid rendering */}
-                        <View style={styles.mandalaGridContainer}>
-                            {[1, 2, 3].map((r) => (
-                                <View key={r} style={styles.mandalaGridRow}>
-                                    {[1, 2, 3].map((c) => {
-                                        const slot = mandalaSlots.find(s => s.x === c && s.y === r);
-                                        return (
-                                            <TouchableOpacity
-                                                key={`${r}-${c}`}
-                                                style={[
-                                                    styles.mandalaSlotBox,
-                                                    slot?.status === 'completed' && styles.mandalaSlotCompleted,
-                                                    slot?.status === 'constructing' && styles.mandalaSlotConstructing,
-                                                    c === 2 && r === 2 && styles.mandalaCenterSlot
-                                                ]}
-                                                onPress={() => handlePressSlot(c, r, slot || null)}
-                                            >
-                                                {slot ? (
-                                                    <>
-                                                        <Text style={styles.mandalaSlotType}>
+                        {/* 3x3 Isometric Landscape Grid rendering */}
+                        <View style={styles.mandalaIsoGridContainer}>
+                            <Image
+                                source={BOARD_BG_IMAGE}
+                                style={styles.mandalaBoardBgImage}
+                                resizeMode="cover"
+                            />
+                            {LOTUS_COORDS.map((lotus) => {
+                                const { r, c, top, left } = lotus;
+                                const slot = displaySlots.find(s => s.x === c && s.y === r);
+                                const zIndex = Math.round(parseFloat(top) * 10);
+                                
+                                return (
+                                    <View
+                                        key={`${r}-${c}`}
+                                        style={[
+                                            styles.mandalaIsoSlotWrapper,
+                                            {
+                                                left: left as any,
+                                                top: top as any,
+                                                zIndex: zIndex,
+                                                marginLeft: -45,
+                                                marginTop: -55
+                                            }
+                                        ]}
+                                    >
+                                        <TouchableOpacity
+                                            style={styles.mandalaIsoSlotBox}
+                                            onPress={() => handlePressSlot(c, r, slot || null)}
+                                            activeOpacity={0.8}
+                                        >
+                                            {slot ? (
+                                                <View style={styles.mandalaBuildingWrapper}>
+                                                    {/* Glow Aura behind completed buildings */}
+                                                    {slot.status === 'completed' && (
+                                                        <Animated.View
+                                                            style={[
+                                                                styles.mandalaBuildingGlow,
+                                                                {
+                                                                    transform: [{ scale: glowAnim }],
+                                                                    opacity: glowAnim.interpolate({
+                                                                        inputRange: [0.8, 1.2],
+                                                                        outputRange: [0.35, 0.65]
+                                                                    })
+                                                                }
+                                                            ]}
+                                                        >
+                                                            <Svg width={120} height={120}>
+                                                                <Defs>
+                                                                    <RadialGradient id={`glow-${r}-${c}`} cx="50%" cy="50%" r="50%">
+                                                                        <Stop offset="0%" stopColor="#FFD700" stopOpacity={0.8} />
+                                                                        <Stop offset="50%" stopColor="#FFA500" stopOpacity={0.3} />
+                                                                        <Stop offset="100%" stopColor="#FFD700" stopOpacity={0} />
+                                                                    </RadialGradient>
+                                                                </Defs>
+                                                                <Circle cx={60} cy={60} r={55} fill={`url(#glow-${r}-${c})`} />
+                                                            </Svg>
+                                                        </Animated.View>
+                                                    )}
+
+                                                    {/* Building Image or Emoji fallback */}
+                                                    {mandalaImages[slot.building_type]?.[slot.level] ? (
+                                                        <Image
+                                                            source={mandalaImages[slot.building_type][slot.level]}
+                                                            style={styles.mandalaBuildingImage}
+                                                            resizeMode="contain"
+                                                        />
+                                                    ) : (
+                                                        <Text style={styles.mandalaBuildingEmoji}>
                                                             {getBuildingEmoji(slot.building_type)}
                                                         </Text>
-                                                        <Text style={styles.mandalaSlotLevel} numberOfLines={1}>
-                                                            Lv.{slot.level}
-                                                        </Text>
-                                                        {slot.status === 'constructing' && (
-                                                            <View style={styles.mandalaMiniProgressBg}>
-                                                                <View 
-                                                                    style={[
-                                                                        styles.mandalaMiniProgressFill, 
-                                                                        { width: `${Math.min(100, (slot.current_merit_points / slot.target_merit_points) * 100)}%` }
-                                                                    ]} 
+                                                    )}
+
+                                                    <Text style={styles.mandalaBuildingLevel}>
+                                                        Lv.{slot.level}
+                                                    </Text>
+
+                                                    {slot.status === 'constructing' && (
+                                                        <View style={styles.shimmerMask}>
+                                                            <Animated.View
+                                                                style={[
+                                                                    styles.shimmerContainer,
+                                                                    {
+                                                                        transform: [
+                                                                            {
+                                                                                translateX: shimmerAnim.interpolate({
+                                                                                    inputRange: [0, 1],
+                                                                                    outputRange: [-100, 100],
+                                                                                }),
+                                                                            },
+                                                                        ],
+                                                                    },
+                                                                ]}
+                                                            >
+                                                                <LinearGradient
+                                                                    colors={['rgba(255,255,255,0)', 'rgba(255,223,128,0.7)', 'rgba(255,255,255,0)']}
+                                                                    start={{ x: 0, y: 0 }}
+                                                                    end={{ x: 1, y: 1 }}
+                                                                    style={styles.shimmerGradient}
                                                                 />
-                                                            </View>
-                                                        )}
-                                                    </>
-                                                ) : (
+                                                            </Animated.View>
+                                                        </View>
+                                                    )}
+                                                </View>
+                                            ) : (
+                                                <View style={styles.mandalaEmptyBase}>
                                                     <Text style={styles.mandalaSlotEmpty}>+</Text>
-                                                )}
-                                            </TouchableOpacity>
-                                        );
-                                    })}
-                                </View>
-                            ))}
+                                                </View>
+                                            )}
+                                        </TouchableOpacity>
+                                    </View>
+                                );
+                            })}
                         </View>
                     </View>
                 )}
@@ -1268,10 +1655,67 @@ export default function RebirdScreen() {
 
                 {/* Rebirth Roll Dice Button Container */}
                 <View style={styles.diceContainer}>
+                    {/* Dynamic Realm Drops & Odds Information Panel */}
+                    {state?.realm_id && !(state.realm_id >= 1 && state.realm_id <= 8) && (
+                        <View style={styles.exploreOddsCard}>
+                            <Text style={styles.exploreOddsTitle}>📦 VẬT PHẨM & TỶ LỆ RƠI TẠI CÕI GIỚI NÀY</Text>
+                            <View style={styles.exploreOddsGrid}>
+                                <View style={styles.exploreOddsItem}>
+                                    <Text style={styles.exploreOddsName}>🪷 Thẻ bài vũ trụ cõi giới:</Text>
+                                    <Text style={styles.exploreOddsRate}>25.0%</Text>
+                                </View>
+                                {((state.realm_id >= 27 && state.realm_id <= 32) || 
+                                  (state.realm_id >= 35 && state.realm_id <= 37) || 
+                                  state.realm_id === 13 || state.realm_id === 14 || state.realm_id === 105) && (
+                                    <View style={styles.exploreOddsItem}>
+                                        <Text style={styles.exploreOddsName}>✨ Linh phù cát tường (Cực hiếm):</Text>
+                                        <Text style={styles.exploreOddsRate}>2.0%</Text>
+                                    </View>
+                                )}
+                                <View style={styles.exploreOddsItem}>
+                                    <Text style={styles.exploreOddsName}>🎁 Báu vật cổ xưa (Giới hạn):</Text>
+                                    <Text style={styles.exploreOddsRate}>15.0% (Rất thấp)</Text>
+                                </View>
+                            </View>
+                            <Text style={styles.exploreOddsHint}>* Lưu ý: Khi tìm kiếm thành công, vật phẩm sẽ tự động lưu vào Kho Đồ ở trên đầu trang để bạn theo dõi.</Text>
+                        </View>
+                    )}
+
+                    {/* Explore button */}
+                    {state?.realm_id && (state.realm_id >= 1 && state.realm_id <= 8) ? (
+                        <View style={styles.exploreBtnCage}>
+                            <Lock size={16} color="#64748b" style={{ marginRight: 8 }} />
+                            <Text style={styles.exploreBtnCageText}>
+                                Không thể khám phá ở cõi địa ngục khổ đau. Hãy tinh tấn sám hối/thực hành để thoát khỏi cõi này!
+                            </Text>
+                        </View>
+                    ) : (
+                        <TouchableOpacity
+                            style={[
+                                styles.exploreButton,
+                                exploring && { opacity: 0.7 }
+                            ]}
+                            onPress={handleExploreRealm}
+                            disabled={exploring}
+                        >
+                            {exploring ? (
+                                <ActivityIndicator color="#000" />
+                            ) : (
+                                <>
+                                    <Sparkles size={20} color="#000" />
+                                    <Text style={styles.exploreButtonText}>
+                                        Khám phá cõi giới (-10 MPoints)
+                                    </Text>
+                                </>
+                            )}
+                        </TouchableOpacity>
+                    )}
+
                     <TouchableOpacity
                         style={[
                             styles.diceButton,
-                            (timeLeftMs > 0 || rolling) && styles.diceButtonDisabled
+                            (timeLeftMs > 0 || rolling) && styles.diceButtonDisabled,
+                            { marginTop: 12 }
                         ]}
                         onPress={handleRollDice}
                         disabled={timeLeftMs > 0 || rolling}
@@ -1389,6 +1833,21 @@ export default function RebirdScreen() {
                                         >
                                             <Sparkles size={18} color="#FFF" style={{ marginRight: 8 }} />
                                             <Text style={styles.diceButtonText}>Thực Hành Nhận Gia Trì</Text>
+                                        </TouchableOpacity>
+
+                                        <TouchableOpacity 
+                                            style={[styles.diceButton, { width: '100%', marginBottom: 10, backgroundColor: '#800000', borderColor: GOLD, borderWidth: 1.5 }]}
+                                            onPress={handleKora}
+                                            disabled={koraLoading}
+                                        >
+                                            {koraLoading ? (
+                                                <ActivityIndicator size="small" color="#FFF" />
+                                            ) : (
+                                                <>
+                                                    <RotateCw size={18} color="#FFF" style={{ marginRight: 8 }} />
+                                                    <Text style={styles.diceButtonText}>Đi Nhiễu (Kora) - 10 MP</Text>
+                                                </>
+                                            )}
                                         </TouchableOpacity>
 
                                         {selectedMandalaSlot.level < 3 && (
@@ -2035,41 +2494,305 @@ export default function RebirdScreen() {
                                     }}
                                     placeholder="Gửi lời phàn nàn tới Mara..."
                                     placeholderTextColor="rgba(255,255,255,0.3)"
-                                    value={newComplaintText}
-                                    onChangeText={setNewComplaintText}
-                                    maxLength={200}
-                                    editable={!sendingComplaint}
-                                />
-                                <Text style={{
-                                    alignSelf: 'flex-end',
-                                    color: 'rgba(255,255,255,0.4)',
-                                    fontSize: 10,
-                                    marginTop: 4,
-                                    marginRight: 4
-                                }}>
-                                    {newComplaintText.length}/200
+                        {/* Season 2 Welcome Modal */}
+            <Modal visible={showWelcomeModal} transparent animationType="fade">
+                <View style={styles.modalBg}>
+                    <View style={[styles.kleshaCard, { backgroundColor: '#0f172a', borderColor: GOLD, borderWidth: 2, width: '92%', padding: 0, borderRadius: 20, overflow: 'hidden' }]}>
+                        <Image source={SEASON2_BANNER} style={{ width: '100%', height: 180, borderTopLeftRadius: 18, borderTopRightRadius: 18 }} resizeMode="cover" />
+                        <View style={{ padding: 20 }}>
+                            <Text style={[styles.resultTitle, { color: GOLD, fontSize: 20, letterSpacing: 1, marginBottom: 6 }]}>TRỤ KIẾP MỚI — SEASON 2</Text>
+                            <Text style={{ color: '#E2E8F0', fontSize: 13, textAlign: 'center', fontStyle: 'italic', marginBottom: 16 }}>
+                                "Trời Quang Âm ngập tràn ánh quang hỷ lạc..."
+                            </Text>
+                            <ScrollView style={{ maxHeight: 200 }} showsVerticalScrollIndicator={false}>
+                                <Text style={{ color: '#CBD5E1', fontSize: 13, lineHeight: 21 }}>
+                                    Chào mừng chư vị đồng tu bước vào{' '}
+                                    <Text style={{ color: GOLD, fontWeight: 'bold' }}>Season 2: Trụ Kiếp Mới</Text>!
                                 </Text>
-                            </View>
+                                <Text style={{ color: '#CBD5E1', fontSize: 13, lineHeight: 21, marginTop: 10 }}>
+                                    Điểm xuất phát mới là{' '}
+                                    <Text style={{ color: GOLD, fontWeight: 'bold' }}>Cõi Trời Quang Âm</Text>{' '}
+                                    thuộc Sắc Giới, nơi chư thiên giao tiếp bằng ánh sáng hỷ lạc. Tùy phước đức và xúc xắc, đạo hữu sẽ giáng thế xuống các cõi thấp hơn.
+                                </Text>
+                                <Text style={{ color: GOLD, fontWeight: 'bold', fontSize: 13, marginTop: 14, marginBottom: 8 }}>✦ Tính năng mới nổi bật:</Text>
+                                <View style={{ gap: 8 }}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+                                        <Text style={{ color: GOLD, fontSize: 13, marginRight: 8 }}>🔍</Text>
+                                        <Text style={{ color: '#CBD5E1', fontSize: 12, lineHeight: 19, flex: 1 }}>
+                                            <Text style={{ fontWeight: 'bold', color: '#FFF' }}>Khám Phá Cõi Giới:</Text> Sử dụng 10 MPoints tại cõi hiện tại (trừ Địa Ngục) để mở khóa Thẻ Vũ Trụ Quan, Báu vật, hoặc Linh Phù cực hiếm.
+                                        </Text>
+                                    </View>
+                                    <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+                                        <Text style={{ color: GOLD, fontSize: 13, marginRight: 8 }}>✨</Text>
+                                        <Text style={{ color: '#CBD5E1', fontSize: 12, lineHeight: 19, flex: 1 }}>
+                                            <Text style={{ fontWeight: 'bold', color: '#FFF' }}>Hào Quang Chư Thiên:</Text> Chỉ số tích lũy từ tu tập, thẻ bài, linh phù — bổ trợ xúc xắc khi chiến đấu Ma Vương Mara.
+                                        </Text>
+                                    </View>
+                                    <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+                                        <Text style={{ color: GOLD, fontSize: 13, marginRight: 8 }}>🎯</Text>
+                                        <Text style={{ color: '#CBD5E1', fontSize: 12, lineHeight: 19, flex: 1 }}>
+                                            <Text style={{ fontWeight: 'bold', color: '#FFF' }}>Milestone Buff:</Text> Tích lũy đủ Thẻ bài sẽ nhân hệ số điểm Yangti cho Lễ Lạy, Mandala, Sám hối KCTĐ và Guru Yoga.
+                                        </Text>
+                                    </View>
+                                </View>
+                            </ScrollView>
                             <TouchableOpacity
-                                onPress={handleSendComplaint}
-                                disabled={sendingComplaint || !newComplaintText.trim()}
-                                style={{
-                                    width: 44,
-                                    height: 44,
-                                    borderRadius: 12,
-                                    backgroundColor: GOLD,
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    opacity: (!newComplaintText.trim() || sendingComplaint) ? 0.5 : 1
-                                }}
+                                style={[styles.modalBtn, { backgroundColor: GOLD, marginTop: 20, width: '100%' }]}
+                                onPress={() => setShowWelcomeModal(false)}
                             >
-                                {sendingComplaint ? (
-                                    <ActivityIndicator size="small" color="#FFF" />
-                                ) : (
-                                    <Send size={18} color={MAROON} />
-                                )}
+                                <Text style={[styles.modalBtnText, { color: '#0f172a', fontWeight: 'bold' }]}>KHỞI ĐẦU HÀNH TRÌNH</Text>
                             </TouchableOpacity>
                         </View>
+                    </View>
+                </View>
+            </Modal>View>
+            </Modal>
+
+            {/* Season 2 Welcome Modal */}
+            <Modal visible={showWelcomeModal} transparent animationType="fade">
+                <View style={styles.modalBg}>
+                    <View style={[styles.kleshaCard, { backgroundColor: '#0f172a', borderColor: GOLD, borderWidth: 2, width: '92%', padding: 24, borderRadius: 20 }]}>
+                        <LinearGradient colors={['rgba(212,175,55,0.15)', 'transparent']} style={StyleSheet.absoluteFillObject} />
+                        <Sparkles size={48} color={GOLD} style={{ alignSelf: 'center', marginBottom: 16 }} />
+                        <Text style={[styles.resultTitle, { color: GOLD, fontSize: 20, letterSpacing: 1, marginBottom: 8 }]}>TRỤ KIẾP MỚI - SEASON 2</Text>
+                        <Text style={{ color: '#E2E8F0', fontSize: 13, textAlign: 'center', fontStyle: 'italic', marginBottom: 20 }}>
+                            “Trời Quang Âm ngập tràn ánh quang hỷ lạc...”
+                        </Text>
+                        <ScrollView style={{ maxHeight: 220 }} showsVerticalScrollIndicator={false}>
+                            <Text style={{ color: '#94A3B8', fontSize: 13, lineHeight: 20, textAlign: 'justify' }}>
+                                Chào mừng chư vị đồng tu bước vào **Season 2: Trụ Kiếp Mới**! {"\n\n"}
+                                Điểm xuất phát mới của Mùa 2 sẽ là **Cõi Trời Quang Âm (ID 105)** thuộc Sắc Giới, nơi các chư thiên giao tiếp bằng ánh sáng hỷ lạc. Tùy thuộc vào phước đức và điểm số xúc xắc khi thọ mạng kết thúc, đạo hữu sẽ giáng thế xuống các cõi thấp hơn giống như sự hình thành nhân gian trong Kinh Khởi Thế Nhân Bản. {"\n\n"}
+                                **Tính năng mới nổi bật:** {"\n"}
+                                1. **Khám Phá Cõi Giới:** Sử dụng 10 MPoints tại cõi hiện tại (trừ Địa Ngục) để có cơ hội mở khóa Thẻ Vũ Trụ Quan, Báu vật, hoặc các Linh Phù Cát Tường cực hiếm. {"\n"}
+                                2. **Hào Quang Chư Thiên:** Chỉ số tích lũy từ tu tập, thẻ bài và linh phù giúp bổ trợ điểm xúc xắc khi chiến đấu với Ma Vương Mara. {"\n"}
+                                3. **Hệ Số Nhân Điểm Yangti:** Bộ sưu tập Thẻ bài cõi giới sẽ giúp nhân hệ số điểm thưởng cho các thực hành Lễ lạy, Mandala, Sám hối KCTĐ và Guru Yoga.
+                            </Text>
+                        </ScrollView>
+                        <TouchableOpacity
+                            style={[styles.modalBtn, { backgroundColor: GOLD, marginTop: 24, width: '100%' }]}
+                            onPress={() => setShowWelcomeModal(false)}
+                        >
+                            <Text style={[styles.modalBtnText, { color: '#0f172a', fontWeight: 'bold' }]}>KHỞI ĐẦU HÀNH TRÌNH</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* Explore Result Modal */}
+            <Modal visible={showExploreResultModal} transparent animationType="fade">
+                <View style={styles.modalBg}>
+                    <View style={[styles.resultCard, { backgroundColor: '#1e293b', borderColor: GOLD, borderWidth: 1.5, padding: 24 }]}>
+                        {exploreResult?.success ? (
+                            <View style={{ alignItems: 'center' }}>
+                                <LinearGradient colors={['rgba(212,175,55,0.2)', 'transparent']} style={{ width: 100, height: 100, borderRadius: 50, justifyContent: 'center', alignItems: 'center', marginBottom: 16 }}>
+                                    {exploreResult.item_type === 'linh_phu' && (
+                                        <Sparkles size={48} color={GOLD} />
+                                    )}
+                                    {exploreResult.item_type === 'card' && (
+                                        <BookOpen size={48} color={GOLD} />
+                                    )}
+                                    {exploreResult.item_type === 'treasure' && (
+                                        <Gift size={48} color={GOLD} />
+                                    )}
+                                </LinearGradient>
+                                <Text style={[styles.resultTitle, { color: GOLD, fontSize: 18, marginBottom: 8 }]}>
+                                    {exploreResult.item_type === 'linh_phu' ? '🏆 NHẬN ĐƯỢC LINH PHÙ CỰC HIẾM!' :
+                                     exploreResult.item_type === 'card' ? '🪷 MỞ KHÓA THẺ VŨ TRỤ QUAN' : '🎁 TÌM THẤY BÁU VẬT CÕI GIỚI'}
+                                </Text>
+                                <Text style={{ color: '#FFF', fontSize: 16, fontWeight: 'bold', textAlign: 'center', marginBottom: 12 }}>
+                                    {exploreResult.name}
+                                </Text>
+                                <Text style={{ color: '#94A3B8', fontSize: 13, textAlign: 'center', lineHeight: 18, marginBottom: 20 }}>
+                                    {exploreResult.message}
+                                </Text>
+                            </View>
+                        ) : (
+                            <View style={{ alignItems: 'center' }}>
+                                <X size={48} color="#94A3B8" style={{ marginBottom: 16 }} />
+                                <Text style={[styles.resultTitle, { color: '#94A3B8', fontSize: 18, marginBottom: 8 }]}>CHƯA ĐỦ PHƯỚC DUYÊN</Text>
+                                <Text style={{ color: '#E2E8F0', fontSize: 13, textAlign: 'center', lineHeight: 20, marginBottom: 20 }}>
+                                    {exploreResult?.message}
+                                </Text>
+                            </View>
+                        )}
+                        <TouchableOpacity
+                            style={[styles.modalBtn, { width: '100%' }]}
+                            onPress={() => setShowExploreResultModal(false)}
+                        >
+                            <Text style={styles.modalBtnText}>XÁC NHẬN</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* Deva Aura Breakdown Modal */}
+            <Modal visible={showAuraBreakdownModal} transparent animationType="slide">
+                <View style={styles.modalBg}>
+                    <View style={[styles.kleshaCard, { backgroundColor: '#1e293b', borderColor: GOLD, borderWidth: 1.5, width: '92%' }]}>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginBottom: 16 }}>
+                            <Text style={[styles.kleshaTitle, { color: GOLD, marginBottom: 0 }]}>✨ HÀO QUANG CHƯ THIÊN</Text>
+                            <TouchableOpacity onPress={() => setShowAuraBreakdownModal(false)}>
+                                <X size={20} color="#94A3B8" />
+                            </TouchableOpacity>
+                        </View>
+                        
+                        <Text style={{ color: '#E2E8F0', fontSize: 13, lineHeight: 20, marginBottom: 20 }}>
+                            Hào quang Chư Thiên đại diện cho năng lượng tâm linh hộ trì hành giả, giúp tăng điểm xúc xắc khi chiến đấu với Ma Vương Mara.
+                        </Text>
+                        <View style={{ backgroundColor: '#0f172a', borderRadius: 8, padding: 10, marginBottom: 16, borderWidth: 1, borderColor: 'rgba(212,175,55,0.2)' }}>
+                            <Text style={{ color: GOLD, fontSize: 12, fontWeight: 'bold' }}>👉 Hệ số cộng:</Text>
+                            <Text style={{ color: '#CBD5E1', fontSize: 12, marginTop: 4 }}>Cộng thêm = Floor(Hào Quang ÷ 100) vào kết quả gieo xúc xắc.</Text>
+                        </View>
+                        
+                        <View style={{ width: '100%', backgroundColor: '#0f172a', padding: 16, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(212,175,55,0.1)' }}>
+                            <Text style={{ color: '#94A3B8', fontSize: 12, marginBottom: 12, fontWeight: 'bold' }}>CHI TIẾT HÀO QUANG CỦA BẠN:</Text>
+                            
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#1e293b' }}>
+                                <Text style={{ color: '#E2E8F0', fontSize: 13 }}>Từ cõi hiện tại ({state?.realm?.name}):</Text>
+                                <Text style={{ color: GOLD, fontWeight: 'bold' }}>
+                                    +{state?.realm_id === 105 ? 100 : (state?.realm_id && state.realm_id >= 27 && state.realm_id <= 32 ? 30 : 0)} Pts
+                                </Text>
+                            </View>
+                            
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#1e293b' }}>
+                                <Text style={{ color: '#E2E8F0', fontSize: 13 }}>Số lượng Thẻ bài Vũ Trụ (+10 Pts/thẻ):</Text>
+                                <Text style={{ color: GOLD, fontWeight: 'bold' }}>
+                                    +{userInventory.filter(i => i.item_type === 'card').length * 10} Pts
+                                </Text>
+                            </View>
+                            
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#1e293b' }}>
+                                <Text style={{ color: '#E2E8F0', fontSize: 13 }}>Linh Phù đang sở hữu:</Text>
+                                <Text style={{ color: GOLD, fontWeight: 'bold' }}>
+                                    +{userInventory.filter(i => i.item_type === 'linh_phu').reduce((sum, item) => {
+                                        if (item.item_id === 'linh_phu_chuthien') return sum + 100;
+                                        if (item.item_id === 'linh_phu_longvuong') return sum + 50;
+                                        if (item.item_id === 'linh_phu_daoquy') return sum + 50;
+                                        return sum;
+                                    }, 0)} Pts
+                                </Text>
+                            </View>
+                            
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6 }}>
+                                <Text style={{ color: '#E2E8F0', fontSize: 13 }}>Tích lũy từ công phu thực hành Yangti:</Text>
+                                <Text style={{ color: GOLD, fontWeight: 'bold' }}>
+                                    +Tính toán tự động theo nhật ký
+                                </Text>
+                            </View>
+                            
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 12, marginTop: 12, borderTopWidth: 2, borderTopColor: GOLD }}>
+                                <Text style={{ color: '#FFF', fontSize: 14, fontWeight: 'bold' }}>TỔNG HÀO QUANG:</Text>
+                                <Text style={{ color: GOLD, fontSize: 15, fontWeight: 'bold' }}>{userAura} Pts</Text>
+                            </View>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* Cosmology Cards & Inventory Modal */}
+            <Modal visible={showCosmologyModal} transparent animationType="slide">
+                <View style={styles.modalBg}>
+                    <View style={[styles.kleshaCard, { backgroundColor: '#0f172a', borderColor: GOLD, borderWidth: 1.5, width: '95%', height: '85%' }]}>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginBottom: 16 }}>
+                            <Text style={[styles.kleshaTitle, { color: GOLD, marginBottom: 0 }]}>🪷 KHO ĐỒ & VŨ TRỤ QUAN THƯ VIỆN</Text>
+                            <TouchableOpacity onPress={() => setShowCosmologyModal(false)}>
+                                <X size={20} color="#94A3B8" />
+                            </TouchableOpacity>
+                        </View>
+
+                        <Text style={{ color: '#94A3B8', fontSize: 11, marginBottom: 12 }}>
+                            Thu thập Thẻ cõi giới thông qua tính năng Khám Phá để mở khóa Buff nhân hệ số theo Milestone.
+                        </Text>
+
+                        {/* Milestone Progress Section */}
+                        {(() => {
+                            const totalCards = userInventory.filter(i => i.item_type === 'card').length;
+                            const milestones = [
+                                { required: 3, label: '+5% Lễ Lạy', unlocked: totalCards >= 3 },
+                                { required: 5, label: '+5% Mandala & KCTĐ', unlocked: totalCards >= 5 },
+                                { required: 8, label: '+10% Guru Yoga', unlocked: totalCards >= 8 },
+                            ];
+                            return (
+                                <View style={{ backgroundColor: '#1e293b', borderRadius: 12, padding: 12, marginBottom: 15, borderWidth: 1, borderColor: '#334155' }}>
+                                    <Text style={{ color: GOLD, fontWeight: 'bold', fontSize: 12, marginBottom: 10 }}>🎯 MILESTONE BUFF ({totalCards}/8 thẻ)</Text>
+                                    <View style={{ height: 6, backgroundColor: '#0f172a', borderRadius: 3, marginBottom: 10 }}>
+                                        <View style={{ height: 6, backgroundColor: GOLD, borderRadius: 3, width: `${Math.min((totalCards / 8) * 100, 100)}%` }} />
+                                    </View>
+                                    {milestones.map((m, idx) => (
+                                        <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 4 }}>
+                                            <Text style={{ color: m.unlocked ? '#22C55E' : '#64748B', fontSize: 14, marginRight: 8 }}>{m.unlocked ? '✅' : '🔒'}</Text>
+                                            <Text style={{ color: m.unlocked ? '#22C55E' : '#94A3B8', fontSize: 11, fontWeight: m.unlocked ? 'bold' : 'normal' }}>
+                                                {m.required} thẻ: {m.label}
+                                            </Text>
+                                        </View>
+                                    ))}
+                                </View>
+                            );
+                        })()}
+
+                        {/* Inventory Section: Linh Phù & Báu Vật */}
+                        <Text style={{ color: GOLD, fontWeight: 'bold', fontSize: 13, marginBottom: 8 }}>🎒 KHO VẬT PHẨM & LINH PHÙ</Text>
+                        <View style={{ minHeight: 70, backgroundColor: '#1e293b', borderRadius: 12, padding: 10, marginBottom: 15, flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                            {userInventory.filter(i => i.item_type !== 'card').length === 0 ? (
+                                <Text style={{ color: '#64748B', fontSize: 11, fontStyle: 'italic', alignSelf: 'center', width: '100%', textAlign: 'center' }}>Kho đồ trống</Text>
+                            ) : (
+                                userInventory.filter(i => i.item_type !== 'card').map((item) => (
+                                    <View key={item.id} style={{ backgroundColor: '#0f172a', borderWidth: 1, borderColor: GOLD, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, flexDirection: 'row', alignItems: 'center' }}>
+                                        {item.item_type === 'linh_phu' ? <Sparkles size={14} color={GOLD} style={{ marginRight: 6 }} /> : <Gift size={14} color={GOLD} style={{ marginRight: 6 }} />}
+                                        <Text style={{ color: '#FFF', fontSize: 11, fontWeight: 'bold' }}>{item.metadata?.name || item.item_id} (x{item.quantity})</Text>
+                                    </View>
+                                ))
+                            )}
+                        </View>
+
+                        <Text style={{ color: GOLD, fontWeight: 'bold', fontSize: 13, marginBottom: 8 }}>🪷 THẺ BÀI VŨ TRỤ QUAN ({userInventory.filter(i => i.item_type === 'card').length}/{allCosmologyCards.length})</Text>
+                        {loadingCosmology ? (
+                            <ActivityIndicator size="small" color={GOLD} style={{ flex: 1 }} />
+                        ) : (
+                            <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+                                <View style={{ gap: 12 }}>
+                                    {allCosmologyCards.map((card) => {
+                                        const isUnlocked = userInventory.some(i => i.item_type === 'card' && parseInt(i.item_id) === card.id);
+                                        return (
+                                            <View key={card.id} style={{ 
+                                                backgroundColor: isUnlocked ? '#1e293b' : '#0a0f1d', 
+                                                borderRadius: 14, 
+                                                borderWidth: isUnlocked ? 1.5 : 1, 
+                                                borderColor: isUnlocked ? GOLD : '#1e293b', 
+                                                padding: 0,
+                                                opacity: isUnlocked ? 1 : 0.5,
+                                                overflow: 'hidden'
+                                            }}>
+                                                {/* Card Image */}
+                                                {cardImages[card.id] && (
+                                                    <Image 
+                                                        source={cardImages[card.id]} 
+                                                        style={{ width: '100%', height: 180, borderTopLeftRadius: 13, borderTopRightRadius: 13 }} 
+                                                        resizeMode="cover" 
+                                                    />
+                                                )}
+                                                <View style={{ padding: 12 }}>
+                                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                                                        <Text style={{ color: isUnlocked ? GOLD : '#94A3B8', fontWeight: 'bold', fontSize: 13, flex: 1 }}>{card.title}</Text>
+                                                        {!isUnlocked && <Lock size={14} color="#64748B" />}
+                                                        {isUnlocked && <Text style={{ color: '#22C55E', fontSize: 10, fontWeight: 'bold' }}>✓ Đã mở</Text>}
+                                                    </View>
+                                                    
+                                                    {isUnlocked ? (
+                                                        <View>
+                                                            <Text style={{ color: '#94A3B8', fontSize: 10, fontStyle: 'italic', marginBottom: 6 }}>📖 {card.scripture_source}</Text>
+                                                            <Text style={{ color: '#E2E8F0', fontSize: 11, lineHeight: 18 }}>{card.details}</Text>
+                                                        </View>
+                                                    ) : (
+                                                        <Text style={{ color: '#64748B', fontSize: 11, fontStyle: 'italic' }}>🔒 Khám phá cõi giới này để mở khóa thẻ bài.</Text>
+                                                    )}
+                                                </View>
+                                            </View>
+                                        );
+                                    })}
+                                </View>
+                            </ScrollView>
+                        )}
                     </View>
                 </View>
             </Modal>
@@ -2910,70 +3633,273 @@ const styles = StyleSheet.create({
         borderWidth: 1.5,
         borderColor: GOLD,
     },
-    // Mandala Grid Styles
-    mandalaCard: {
-        backgroundColor: '#1E293B',
+
+mandalaCard: {
+        backgroundColor: '#7E191B', // Tibetan Monastic Maroon
         borderColor: GOLD,
         borderWidth: 1.5,
     },
-    mandalaGridContainer: {
+    mandalaIsoGridContainer: {
         width: '100%',
-        alignItems: 'center',
-        marginVertical: 10,
-    },
-    mandalaGridRow: {
-        flexDirection: 'row',
-        gap: 12,
-        marginBottom: 12,
-    },
-    mandalaSlotBox: {
-        width: 80,
-        height: 80,
-        borderRadius: 12,
-        backgroundColor: '#334155',
-        borderWidth: 1.5,
-        borderColor: '#475569',
-        justifyContent: 'center',
-        alignItems: 'center',
-        elevation: 2,
-    },
-    mandalaCenterSlot: {
-        borderColor: GOLD,
+        height: 380,
+        marginVertical: 15,
+        position: 'relative',
+        borderRadius: 16,
+        overflow: 'hidden',
         borderWidth: 2,
-        backgroundColor: '#451a1a',
+        borderColor: GOLD,
+        backgroundColor: '#4A0404',
     },
-    mandalaSlotConstructing: {
-        borderColor: '#F59E0B',
+    mandalaBoardBgImage: {
+        position: 'absolute',
+        width: '100%',
+        height: '100%',
+        opacity: 0.95,
     },
-    mandalaSlotCompleted: {
-        borderColor: '#10B981',
-        backgroundColor: '#064e3b',
+    mandalaBuildingImage: {
+        width: 86,
+        height: 86,
+        bottom: 0,
+        // Drop shadow to lift building off background
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.5,
+        shadowRadius: 6,
     },
-    mandalaSlotType: {
-        fontSize: 26,
+    mandalaBuildingGlow: {
+        position: 'absolute',
+        width: 76,
+        height: 76,
+        borderRadius: 38,
+        backgroundColor: '#FFD700', // Brighter Gold
+        shadowColor: '#FFD700',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.9,
+        shadowRadius: 20,
+        elevation: 10,
+        opacity: 0.45, // More prominent
+        zIndex: -1,
     },
-    mandalaSlotLevel: {
-        fontSize: 9,
-        fontWeight: '900',
-        color: '#E2E8F0',
-        marginTop: 2,
-        textTransform: 'uppercase',
-    },
-    mandalaMiniProgressBg: {
-        width: '80%',
-        height: 3,
-        backgroundColor: '#475569',
-        borderRadius: 2,
-        marginTop: 4,
+    shimmerMask: {
+        position: 'absolute',
+        width: 72,
+        height: 72,
+        bottom: 2,
         overflow: 'hidden',
     },
-    mandalaMiniProgressFill: {
+    shimmerContainer: {
+        position: 'absolute',
+        width: 120,
+        height: 72,
+        top: 0,
+        left: -30,
+    },
+    shimmerGradient: {
+        width: '100%',
         height: '100%',
-        backgroundColor: '#F59E0B',
+    },
+    mandalaIsoSlotWrapper: {
+        position: 'absolute',
+        width: 90,
+        height: 90,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    mandalaIsoSlotBox: {
+        width: '100%',
+        height: '100%',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    mandalaBuildingWrapper: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        position: 'absolute',
+        bottom: 4, // Sit perfectly on the ring
+    },
+    mandalaBuildingEmoji: {
+        fontSize: 32,
+        textShadowColor: 'rgba(212, 175, 55, 0.8)',
+        textShadowOffset: { width: 0, height: -2 },
+        textShadowRadius: 6,
+    },
+    mandalaBuildingLevel: {
+        fontSize: 9,
+        fontWeight: '900',
+        color: '#FDE68A',
+        marginTop: 2,
+        backgroundColor: 'rgba(0,0,0,0.6)',
+        paddingHorizontal: 4,
+        paddingVertical: 1,
+        borderRadius: 4,
+        overflow: 'hidden',
+        textTransform: 'uppercase',
+    },
+    mandalaEmptyBase: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        position: 'absolute',
+        width: 50,
+        height: 50,
+        borderRadius: 25,
+        borderWidth: 1.5,
+        borderColor: 'rgba(212, 175, 55, 0.25)',
+        backgroundColor: 'rgba(212, 175, 55, 0.03)',
+        borderStyle: 'dashed',
     },
     mandalaSlotEmpty: {
-        fontSize: 28,
-        color: '#64748B',
+        fontSize: 18,
+        color: 'rgba(212, 175, 55, 0.45)',
         fontWeight: '300',
+    },
+    auraMultipliersPanel: {
+        margin: 16,
+        padding: 16,
+        backgroundColor: '#1E293B',
+        borderRadius: 20,
+        borderWidth: 1.5,
+        borderColor: GOLD,
+    },
+    auraBadgeButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'rgba(255, 215, 0, 0.18)',
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 12,
+        borderWidth: 1.5,
+        borderColor: '#FFE066',
+        marginBottom: 12,
+        alignSelf: 'flex-start',
+        shadowColor: '#FFE066',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.6,
+        shadowRadius: 10,
+        elevation: 2,
+    },
+    auraBadgeLabel: {
+        color: '#FFF',
+        fontSize: 12,
+        fontWeight: 'bold',
+        marginLeft: 6,
+        textShadowColor: 'rgba(255, 215, 0, 0.4)',
+        textShadowOffset: { width: 0, height: 0 },
+        textShadowRadius: 4,
+    },
+    auraBadgeValue: {
+        color: '#FFE066',
+        fontSize: 12,
+        fontWeight: '900',
+        marginLeft: 4,
+        textShadowColor: 'rgba(255, 215, 0, 0.8)',
+        textShadowOffset: { width: 0, height: 0 },
+        textShadowRadius: 6,
+    },
+    multipliersSummary: {
+        width: '100%',
+    },
+    multiSummaryTitle: {
+        color: '#94A3B8',
+        fontSize: 10,
+        fontWeight: 'bold',
+        textTransform: 'uppercase',
+        letterSpacing: 1,
+        marginBottom: 6,
+    },
+    multiGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+    },
+    multiItem: {
+        color: '#FFF',
+        fontSize: 11,
+        fontWeight: '600',
+        backgroundColor: '#0F172A',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 6,
+        overflow: 'hidden',
+    },
+    exploreOddsCard: {
+        backgroundColor: '#1E293B',
+        borderWidth: 1.5,
+        borderColor: 'rgba(212, 175, 55, 0.25)',
+        borderRadius: 16,
+        padding: 14,
+        marginBottom: 14,
+        width: '100%',
+    },
+    exploreOddsTitle: {
+        color: GOLD,
+        fontSize: 12,
+        fontWeight: '900',
+        letterSpacing: 0.5,
+        marginBottom: 10,
+        textAlign: 'center',
+    },
+    exploreOddsGrid: {
+        gap: 6,
+        marginBottom: 8,
+    },
+    exploreOddsItem: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        borderBottomWidth: 1,
+        borderBottomColor: 'rgba(255, 255, 255, 0.05)',
+        paddingBottom: 4,
+    },
+    exploreOddsName: {
+        color: '#E2E8F0',
+        fontSize: 11,
+    },
+    exploreOddsRate: {
+        color: GOLD,
+        fontWeight: 'bold',
+        fontSize: 11,
+    },
+    exploreOddsHint: {
+        color: '#94A3B8',
+        fontSize: 10,
+        lineHeight: 14,
+        fontStyle: 'italic',
+        marginTop: 4,
+    },
+    exploreButton: {
+        backgroundColor: GOLD,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 12,
+        borderRadius: 16,
+        shadowColor: GOLD,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 6,
+        elevation: 4,
+        width: '100%',
+    },
+    exploreButtonText: {
+        color: '#0F172A',
+        fontSize: 15,
+        fontWeight: 'bold',
+        marginLeft: 8,
+    },
+    exploreBtnCage: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'rgba(15, 23, 42, 0.4)',
+        borderColor: '#334155',
+        borderWidth: 1,
+        borderRadius: 16,
+        padding: 12,
+        width: '100%',
+    },
+    exploreBtnCageText: {
+        color: '#64748B',
+        fontSize: 11,
+        lineHeight: 16,
+        flex: 1,
     }
 });
